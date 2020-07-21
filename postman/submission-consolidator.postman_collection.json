@@ -1,0 +1,66 @@
+{
+	"info": {
+		"_postman_id": "a9c543ef-c639-48bb-b877-c8630ef57eb8",
+		"name": "submission-consolidator",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "form",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"submissionRef\": \"ABC1-DEF2-HIJ6\",\n    \"formId\": \"some-form-id\",\n    \"templateId\": \"some-template-id\",\n    \"customerId\": \"some-customer-id\",\n    \"submissionTimestamp\": \"2020-01-01T00:00:00Z\",\n    \"formData\": [\n        {\n            \"id\": \"1\",\n            \"value\": \"value1\"\n        }\n    ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url}}{{proxy_path}}/reporting-service/form",
+					"host": [
+						"{{url}}{{proxy_path}}"
+					],
+					"path": [
+						"reporting-service",
+						"form"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ping",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"submissionRef\": \"ABC1-DEF2-HIJ4\",\n    \"formId\": \"some-form-id\",\n    \"templateId\": \"some-template-id\",\n    \"customerId\": \"some-customer-id\",\n    \"submissionTimestamp\": \"2020-01-01T00:00:00Z\",\n    \"formData\": [\n        {\n            \"id\": \"1\",\n            \"value\": \"value1\"\n        }\n    ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:9000/reporting-service/form",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"reporting-service",
+						"form"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"protocolProfileBehavior": {}
+}
