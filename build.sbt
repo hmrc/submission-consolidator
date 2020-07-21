@@ -7,16 +7,26 @@ val appName = "submission-consolidator"
 val silencerVersion = "1.7.0"
 
 lazy val microservice = Project(appName, file("."))
-  .enablePlugins(play.sbt.PlayScala, SbtAutoBuildPlugin, SbtGitVersioning, SbtDistributablesPlugin, SbtArtifactory)
+  .enablePlugins(
+    play.sbt.PlayScala,
+    SbtAutoBuildPlugin,
+    SbtGitVersioning,
+    SbtDistributablesPlugin,
+    SbtArtifactory
+  )
   .settings(
-    majorVersion                     := 0,
-    scalaVersion                     := "2.12.11",
-    libraryDependencies              ++= AppDependencies.compile ++ AppDependencies.test,
+    organization := "uk.gov.hmrc",
+    majorVersion := 0,
+    scalaVersion := "2.12.11",
+    scalafmtOnCompile := true,
+    libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test,
     // ***************
     // Use the silencer plugin to suppress warnings
     scalacOptions += "-P:silencer:pathFilters=routes",
     libraryDependencies ++= Seq(
-      compilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full),
+      compilerPlugin(
+        "com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full
+      ),
       "com.github.ghik" % "silencer-lib" % silencerVersion % Provided cross CrossVersion.full
     )
     // ***************
