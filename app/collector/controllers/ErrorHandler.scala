@@ -38,7 +38,7 @@ trait ErrorHandler {
           )
         )
       case DuplicateSubmissionRef(submissionRef, message) =>
-        BadRequest(toJson(APIError(DUPLICATE_SUBMISSION_REFERENCE, s"$message [$submissionRef]")))
+        Conflict(toJson(APIError(DUPLICATE_SUBMISSION_REFERENCE, s"$message [$submissionRef]")))
       case MongoUnavailable(message) =>
         ServiceUnavailable(toJson(APIError(SERVICE_UNAVAILABLE, message)))
       case MongoGenericError(message) =>

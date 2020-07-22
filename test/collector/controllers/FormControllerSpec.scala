@@ -149,7 +149,7 @@ class FormControllerSpec
           val error = responseAsAPIError(result)
           error.code shouldBe ErrorCode.DUPLICATE_SUBMISSION_REFERENCE
           error.message shouldBe "submissionRef must be unique [some-submission-ref]"
-          result.header.status shouldBe BAD_REQUEST
+          result.header.status shouldBe CONFLICT
         }
       }
     }
