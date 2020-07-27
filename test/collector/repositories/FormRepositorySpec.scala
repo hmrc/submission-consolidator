@@ -135,8 +135,7 @@ class FormRepositorySpec
       val templateId = "some-template-id"
       val forms = (1 to 3)
         .map(seed =>
-          genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(formId = formId, templateId = templateId)
-        )
+          genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(formId = formId, templateId = templateId))
         .toList
       forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
 
@@ -157,8 +156,7 @@ class FormRepositorySpec
       val templateId = "some-template-id"
       val forms = (1 to 3)
         .map(seed =>
-          genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(formId = formId, templateId = templateId)
-        )
+          genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(formId = formId, templateId = templateId))
         .toList
       forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
 

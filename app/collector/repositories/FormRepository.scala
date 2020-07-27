@@ -34,7 +34,7 @@ import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class FormRepository @Inject() (mongoComponent: ReactiveMongoComponent)
+class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent)
     extends ReactiveRepository[Form, BSONObjectID](
       collectionName = "forms",
       mongo = mongoComponent.mongoConnector.db,
@@ -92,14 +92,14 @@ class FormRepository @Inject() (mongoComponent: ReactiveMongoComponent)
     templateId: String,
     batchSize: Int,
     lastObjectId: Option[BSONObjectID] = None
-  )(implicit
-    ec: ExecutionContext
-  ): Future[Either[FormError, List[Form]]] = {
+  )(
+    implicit
+    ec: ExecutionContext): Future[Either[FormError, List[Form]]] = {
 
     val selector = JsObject(
       Seq(
-        "formId"              -> toJson(formId),
-        "templateId"          -> toJson(templateId)
+        "formId"     -> toJson(formId),
+        "templateId" -> toJson(templateId)
       ) ++ lastObjectId.map(oid => "_id" -> obj("$gt" -> ReactiveMongoFormats.objectIdWrite.writes(oid)))
     )
 
