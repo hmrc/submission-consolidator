@@ -18,7 +18,7 @@ package collector.repositories
 
 import java.time.Instant
 
-import play.api.libs.json.{ Format, Json }
+import play.api.libs.json.{ Format, JsValue, Json, Reads, Writes, __ }
 import reactivemongo.bson.BSONObjectID
 import collector.common.ApplicationError
 
@@ -39,7 +39,19 @@ case class Form(
 
 object Form {
   import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.{ mongoEntity, objectIdFormats }
-  implicit val formats: Format[Form] = mongoEntity(Json.format[Form])
+
+  val instantWrites: Writes[Instant] = new Writes[Instant] {
+    def writes(datetime: Instant): JsValue = Json.obj("$date" -> datetime.toEpochMilli)
+  }
+
+  val instantReads: Reads[Instant] =
+    (__ \ "$date").read[Long].map(Instant.ofEpochMilli)
+
+  implicit val instantFormats: Format[Instant] = Format(instantReads, instantWrites)
+
+  implicit val formats: Format[Form] = mongoEntity {
+    Json.format[Form]
+  }
 }
 
 sealed trait FormError extends ApplicationError {

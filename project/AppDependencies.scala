@@ -21,6 +21,7 @@ object AppDependencies {
     "org.mockito"            %% "mockito-scala"             % "1.14.8"  % Test,
     "org.mockito"            %% "mockito-scala-scalatest"   % "1.14.8"  % Test,
     "com.typesafe.akka"      %% "akka-testkit"              % "2.5.31"  % Test,
+    "com.softwaremill.diffx" %% "diffx-scalatest"           % "0.3.29"  % Test,
     "com.vladsch.flexmark"    % "flexmark-all"              % "0.35.10" % "test, it",
     "org.scalatestplus.play" %% "scalatestplus-play"        % "4.0.3"   % "test, it"
   )

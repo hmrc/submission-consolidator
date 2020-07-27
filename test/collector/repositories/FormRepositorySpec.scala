@@ -16,11 +16,14 @@
 
 package collector.repositories
 
-import org.scalatest.BeforeAndAfterAll
+import com.softwaremill.diffx.scalatest.DiffMatcher
+import org.scalacheck.Gen
+import org.scalacheck.rng.Seed
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{ Millis, Seconds, Span }
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.mongo.MongoConnector
@@ -30,16 +33,19 @@ import scala.concurrent.Future
 
 class FormRepositorySpec
     extends AnyWordSpec with ScalaCheckDrivenPropertyChecks with Matchers with DataGenerators
-    with EmbeddedMongoDBSupport with BeforeAndAfterAll with ScalaFutures {
+    with EmbeddedMongoDBSupport with BeforeAndAfterAll with ScalaFutures with BeforeAndAfterEach with DiffMatcher {
 
   override implicit val patienceConfig = PatienceConfig(Span(10, Seconds), Span(1, Millis))
 
   val mongoHost = "localhost"
-  val mongoPort = 12345
+  val mongoPort = 12345 //27017
   var formRepository: FormRepository = _
 
   override def beforeAll(): Unit =
     init()
+
+  override def beforeEach(): Unit =
+    formRepository.removeAll().futureValue
 
   private def init() = {
     initMongoDExecutable(mongoHost, mongoPort)
@@ -93,14 +99,96 @@ class FormRepositorySpec
 
     "return a unavailable error when mongodb is unavailable" in {
       stopMongoD()
-      val form = genForm.sample.get
+      val form = genForm.pureApply(Gen.Parameters.default, Seed(1))
       val future = for {
         addFormResult <- formRepository.addForm(form)
       } yield addFormResult
       whenReady(future) { addFormResult =>
-        addFormResult shouldBe Left(
-          MongoUnavailable("MongoError['No primary node is available! (Supervisor-1/Connection-1)']")
+        addFormResult.isLeft shouldBe true
+        addFormResult.left.get shouldBe a[MongoUnavailable]
+        addFormResult.left.get.message contains "MongoError['No primary node is available!"
+        init()
+      }
+    }
+  }
+
+  "getForms" should {
+    "return forms matching the given formId, templateId, with submissionTimestamp higher then the given value" in {
+      //given
+      val form = genForm.pureApply(Gen.Parameters.default, Seed(1))
+      assert(formRepository.addForm(form).futureValue.isRight)
+
+      //when
+      val future = for {
+        addFormResult <- formRepository.getForms(form.formId, form.templateId, 1)
+      } yield addFormResult
+
+      //then
+      whenReady(future) { addFormResult =>
+        addFormResult shouldBe Right(List(form))
+      }
+    }
+
+    "return forms based on batch size" in {
+      //given
+      val formId = "some-form-id"
+      val templateId = "some-template-id"
+      val forms = (1 to 3)
+        .map(seed =>
+          genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(formId = formId, templateId = templateId)
         )
+        .toList
+      forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
+
+      //when
+      val future = for {
+        addFormResult <- formRepository.getForms(formId, templateId, 2)
+      } yield addFormResult
+
+      //then
+      whenReady(future) { addFormResult =>
+        addFormResult.right.get should matchTo(forms.take(2))
+      }
+    }
+
+    "fetch next batch based on last object id" in {
+      //given
+      val formId = "some-form-id"
+      val templateId = "some-template-id"
+      val forms = (1 to 3)
+        .map(seed =>
+          genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(formId = formId, templateId = templateId)
+        )
+        .toList
+      forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
+
+      //when
+      val future = for {
+        addFormResult <- formRepository.getForms(formId, templateId, 2, Some(forms(1).id))
+      } yield addFormResult
+
+      //then
+      whenReady(future) { addFormResult =>
+        addFormResult.right.get should matchTo(forms.drop(2))
+      }
+    }
+
+    "handle error on failure" in {
+      //given
+      val form = genForm.pureApply(Gen.Parameters.default, Seed(1))
+      assert(formRepository.addForm(form).futureValue.isRight)
+      stopMongoD()
+
+      //when
+      val future = for {
+        addFormResult <- formRepository.getForms(form.formId, form.templateId, 1)
+      } yield addFormResult
+
+      //then
+      whenReady(future) { addFormResult =>
+        addFormResult.isLeft shouldBe true
+        addFormResult.left.get shouldBe a[MongoGenericError]
+        addFormResult.left.get.message contains "MongoError['No primary node is available!"
         init()
       }
     }

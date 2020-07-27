@@ -18,24 +18,31 @@ package collector.repositories
 
 import javax.inject.{ Inject, Singleton }
 import org.slf4j.{ Logger, LoggerFactory }
+import play.api.libs.json.Json.{ obj, toJson }
+import play.api.libs.json.JsObject
 import play.modules.reactivemongo.ReactiveMongoComponent
+import reactivemongo.api.Cursor.FailOnError
+import reactivemongo.api.QueryOpts
 import reactivemongo.api.commands.LastError
 import reactivemongo.api.indexes.{ Index, IndexType }
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.core.actors.Exceptions.PrimaryUnavailableException
+import reactivemongo.play.json.ImplicitBSONHandlers
 import uk.gov.hmrc.mongo.ReactiveRepository
 import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent)
+class FormRepository @Inject() (mongoComponent: ReactiveMongoComponent)
     extends ReactiveRepository[Form, BSONObjectID](
       collectionName = "forms",
       mongo = mongoComponent.mongoConnector.db,
       domainFormat = Form.formats,
       idFormat = ReactiveMongoFormats.objectIdFormats
     ) {
+  import ImplicitBSONHandlers._
+
   override val logger: Logger = LoggerFactory.getLogger(getClass)
 
   override def indexes: Seq[Index] =
@@ -79,6 +86,33 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent)
           logger.error("Mongodb error", other)
           Left(MongoGenericError(other.getMessage))
       }
+
+  def getForms(
+    formId: String,
+    templateId: String,
+    batchSize: Int,
+    lastObjectId: Option[BSONObjectID] = None
+  )(implicit
+    ec: ExecutionContext
+  ): Future[Either[FormError, List[Form]]] = {
+
+    val selector = JsObject(
+      Seq(
+        "formId"              -> toJson(formId),
+        "templateId"          -> toJson(templateId)
+      ) ++ lastObjectId.map(oid => "_id" -> obj("$gt" -> ReactiveMongoFormats.objectIdWrite.writes(oid)))
+    )
+
+    collection
+      .find(selector, Option.empty[JsObject])
+      .options(QueryOpts().batchSize(batchSize))
+      .cursor[Form]()
+      .collect[List](batchSize, FailOnError[List[Form]]())
+      .map(Right(_))
+      .recover {
+        case e => Left(MongoGenericError(e.getMessage))
+      }
+  }
 
   object MongoError {
     def unapply(lastError: LastError): Option[(Option[Int], String)] = Some((lastError.code, lastError.message))
