@@ -92,9 +92,7 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent)
     templateId: String,
     batchSize: Int,
     lastObjectId: Option[BSONObjectID] = None
-  )(
-    implicit
-    ec: ExecutionContext): Future[Either[FormError, List[Form]]] = {
+  )(implicit ec: ExecutionContext): Future[Either[FormError, List[Form]]] = {
 
     val selector = JsObject(
       Seq(
@@ -110,7 +108,9 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent)
       .collect[List](batchSize, FailOnError[List[Form]]())
       .map(Right(_))
       .recover {
-        case e => Left(MongoGenericError(e.getMessage))
+        case e =>
+          logger.error("Mongodb error", e)
+          Left(MongoGenericError(e.getMessage))
       }
   }
 
