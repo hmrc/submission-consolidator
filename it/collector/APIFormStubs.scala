@@ -25,7 +25,7 @@ object APIFormStubs {
     Json.parse("""
                  | {
                  |   "submissionRef" : "ABC1-DEF2-HIJ3",
-                 |   "formId": "some-form-id",
+                 |   "projectId": "some-project-id",
                  |   "templateId": "some-template-id",
                  |   "customerId": "some-customer-id",
                  |   "submissionTimestamp": "2020-01-01T00:00:00Z",

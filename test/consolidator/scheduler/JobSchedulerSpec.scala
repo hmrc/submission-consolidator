@@ -39,20 +39,18 @@ class JobSchedulerSpec
       val config = Configuration(ConfigFactory.parseString("""
                                                              |consolidator-job-config = [
                                                              |    {
-                                                             |        id = "some-job-id-1"
+                                                             |        id = "some-project-id-1-job"
                                                              |        params = {
-                                                             |            formId = "some-form-id-1"
-                                                             |            templateId = "some-template-id-1"
+                                                             |            projectId = "some-project-id-1"
                                                              |            destinationQueue = "some-queue-1"
                                                              |        }
                                                              |        # run every 2 seconds
                                                              |        cron = "*/2 * * ? * *"
                                                              |    },
                                                              |    {
-                                                             |        id = "some-job-id-2"
+                                                             |        id = "some-project-id-2-job"
                                                              |        params = {
-                                                             |            formId = "some-form-id-2"
-                                                             |            templateId = "some-template-id-2"
+                                                             |            projectId = "some-project-id-2"
                                                              |            destinationQueue = "some-queue-2"
                                                              |        }
                                                              |        # run every 2 seconds
@@ -65,8 +63,8 @@ class JobSchedulerSpec
 
       val jobParams = testProbe.receiveN(2, 3.seconds).toList
       jobParams shouldBe List(
-        JobParam("some-form-id-1", "some-template-id-1", "some-queue-1"),
-        JobParam("some-form-id-2", "some-template-id-2", "some-queue-2")
+        JobParam("some-project-id-1", "some-queue-1"),
+        JobParam("some-project-id-2", "some-queue-2")
       )
 
       jobScheduler.shutdown(true)

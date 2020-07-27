@@ -33,7 +33,7 @@ trait DataGenerators {
 
   val genForm = for {
     submissionRef       <- Gen.uuid.map(_.toString)
-    formId              <- Gen.alphaNumStr
+    projectId           <- Gen.alphaNumStr
     templateId          <- Gen.alphaNumStr
     customerId          <- Gen.alphaNumStr
     submissionTimestamp <- genInstant
@@ -41,7 +41,7 @@ trait DataGenerators {
   } yield
     Form(
       submissionRef,
-      formId,
+      projectId,
       templateId,
       customerId,
       submissionTimestamp,
