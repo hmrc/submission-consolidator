@@ -60,7 +60,7 @@ class FormControllerSpec
           val formCaptor = ArgCaptor[Form]
           mockFormRepository.addForm(formCaptor)(*) wasCalled once
           formCaptor.value.submissionRef shouldBe expectedForm.submissionRef
-          formCaptor.value.formId shouldBe expectedForm.formId
+          formCaptor.value.projectId shouldBe expectedForm.projectId
           formCaptor.value.templateId shouldBe expectedForm.templateId
           formCaptor.value.customerId shouldBe expectedForm.customerId
           formCaptor.value.formData shouldBe expectedForm.formData
@@ -103,8 +103,8 @@ class FormControllerSpec
             "/submissionRef",
             "Must confirm to the format XXXX-XXXX-XXXX, where X is a upper-case alphabet or a number"
           ),
-          (formMissingFormId, "/formId", "Is required"),
-          (formEmptyFormId, "/formId", "Minimum length should be 1"),
+          (formMissingProjectId, "/projectId", "Is required"),
+          (formEmptyProjectId, "/projectId", "Minimum length should be 1"),
           (formMissingTemplateId, "/templateId", "Is required"),
           (formEmptyTemplateId, "/templateId", "Minimum length should be 1"),
           (formMissingCustomerId, "/customerId", "Is required"),

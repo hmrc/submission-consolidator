@@ -39,7 +39,7 @@ object APIFormField {
 
 case class APIForm(
   submissionRef: String,
-  formId: String,
+  projectId: String,
   templateId: String,
   customerId: String,
   submissionTimestamp: String,
@@ -58,7 +58,7 @@ object APIForm {
         "Must confirm to the format XXXX-XXXX-XXXX, where X is a upper-case alphabet or a number"
       )
     ) and
-      (JsPath \ "formId").read[String](minLength[String](1)) and
+      (JsPath \ "projectId").read[String](minLength[String](1)) and
       (JsPath \ "templateId").read[String](minLength[String](1)) and
       (JsPath \ "customerId").read[String](minLength[String](1)) and
       (JsPath \ "submissionTimestamp").read[String](
@@ -73,7 +73,7 @@ object APIForm {
     def toForm =
       Form(
         apiForm.submissionRef,
-        apiForm.formId,
+        apiForm.projectId,
         apiForm.templateId,
         apiForm.customerId,
         parseAsLocalDateTime(apiForm.submissionTimestamp).toInstant(UTC),

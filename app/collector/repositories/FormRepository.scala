@@ -54,10 +54,9 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent)
       ),
       Index(
         Seq(
-          "templateId" -> IndexType.Ascending,
-          "formId"     -> IndexType.Ascending
+          "projectId" -> IndexType.Ascending
         ),
-        name = Some("templateIdFormIdIdx")
+        name = Some("projectIdIdx")
       ),
       Index(
         Seq("submissionTimestamp" -> IndexType.Ascending),
@@ -88,16 +87,13 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent)
       }
 
   def getForms(
-    formId: String,
-    templateId: String,
-    batchSize: Int,
-    lastObjectId: Option[BSONObjectID] = None
-  )(implicit ec: ExecutionContext): Future[Either[FormError, List[Form]]] = {
+    projectId: String,
+    batchSize: Int
+  )(lastObjectId: Option[BSONObjectID] = None)(implicit ec: ExecutionContext): Future[Either[FormError, List[Form]]] = {
 
     val selector = JsObject(
       Seq(
-        "formId"     -> toJson(formId),
-        "templateId" -> toJson(templateId)
+        "projectId" -> toJson(projectId)
       ) ++ lastObjectId.map(oid => "_id" -> obj("$gt" -> ReactiveMongoFormats.objectIdWrite.writes(oid)))
     )
 

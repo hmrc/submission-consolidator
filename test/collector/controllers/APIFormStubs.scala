@@ -26,7 +26,7 @@ object APIFormStubs {
     Json.parse("""
                  | {
                  |   "submissionRef" : "ABC1-DEF2-HIJ3",
-                 |   "formId": "some-form-id",
+                 |   "projectId": "some-project-id",
                  |   "templateId": "some-template-id",
                  |   "customerId": "some-customer-id",
                  |   "submissionTimestamp": "2020-01-01T00:00:00Z",
@@ -68,18 +68,18 @@ object APIFormStubs {
     )
     .get
 
-  val formEmptyFormId =
+  val formEmptyProjectId =
     validForm
       .transform(
-        (__ \ "formId").json.update(
+        (__ \ "projectId").json.update(
           of[JsString].map(_ => toJson(""))
         )
       )
       .get
 
-  val formMissingFormId = validForm
+  val formMissingProjectId = validForm
     .transform(
-      (__ \ "formId").json.prune
+      (__ \ "projectId").json.prune
     )
     .get
 

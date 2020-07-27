@@ -120,7 +120,7 @@ class FormRepositorySpec
 
       //when
       val future = for {
-        addFormResult <- formRepository.getForms(form.formId, form.templateId, 1)
+        addFormResult <- formRepository.getForms(form.projectId, 1)()
       } yield addFormResult
 
       //then
@@ -131,17 +131,15 @@ class FormRepositorySpec
 
     "return forms based on batch size" in {
       //given
-      val formId = "some-form-id"
-      val templateId = "some-template-id"
+      val projectId = "some-project-id"
       val forms = (1 to 3)
-        .map(seed =>
-          genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(formId = formId, templateId = templateId))
+        .map(seed => genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(projectId = projectId))
         .toList
       forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
 
       //when
       val future = for {
-        addFormResult <- formRepository.getForms(formId, templateId, 2)
+        addFormResult <- formRepository.getForms(projectId, 2)()
       } yield addFormResult
 
       //then
@@ -152,17 +150,17 @@ class FormRepositorySpec
 
     "fetch next batch based on last object id" in {
       //given
-      val formId = "some-form-id"
+      val projectId = "some-project-id"
       val templateId = "some-template-id"
       val forms = (1 to 3)
         .map(seed =>
-          genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(formId = formId, templateId = templateId))
+          genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(projectId = projectId, templateId = templateId))
         .toList
       forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
 
       //when
       val future = for {
-        addFormResult <- formRepository.getForms(formId, templateId, 2, Some(forms(1).id))
+        addFormResult <- formRepository.getForms(projectId, 2)(Some(forms(1).id))
       } yield addFormResult
 
       //then
@@ -179,7 +177,7 @@ class FormRepositorySpec
 
       //when
       val future = for {
-        addFormResult <- formRepository.getForms(form.formId, form.templateId, 1)
+        addFormResult <- formRepository.getForms(form.projectId, 1)()
       } yield addFormResult
 
       //then

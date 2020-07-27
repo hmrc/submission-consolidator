@@ -18,7 +18,7 @@ package consolidator.scheduler
 
 import play.api.libs.json.Json
 
-case class JobParam(formId: String, templateId: String, destinationQueue: String)
+case class JobParam(projectId: String, destinationQueue: String)
 object JobParam {
   implicit val formats = Json.format[JobParam]
 }

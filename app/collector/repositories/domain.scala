@@ -29,7 +29,7 @@ object FormField {
 
 case class Form(
   submissionRef: String,
-  formId: String,
+  projectId: String,
   templateId: String,
   customerId: String,
   submissionTimestamp: Instant,
