@@ -49,7 +49,7 @@ Accepts form submission data and stores it in the mongodb collection (submission
  |400|REQUEST_VALIDATION_FAILED|Request body failed validation|/submissionReference|Is required|
  |400|REQUEST_VALIDATION_FAILED|Request body failed validation|/submissionReference|Must confirm to the format XXXX-XXXX-XXXX, where X is a upper-case alphabet or a number|
  |400 |DUPLICATE_SUBMISSION_REFERENCE|Submission reference must be unique| | |
- |400|REQUEST_VALIDATION_FAILED|Request body failed validation|/formId|Is is required|
+ |400|REQUEST_VALIDATION_FAILED|Request body failed validation|/projectId|Is is required|
  |400|REQUEST_VALIDATION_FAILED|Request body failed validation|/templateId|Is required|
  |400|REQUEST_VALIDATION_FAILED|Request body failed validation|/customerId|Is required|
  |400|REQUEST_VALIDATION_FAILED|Request body failed validation|/submissionTimestamp|Is required|
