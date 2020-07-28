@@ -21,7 +21,7 @@ Accepts form submission data and stores it in the mongodb collection (submission
 
  **Method:** `POST`
  
- **Path:** `/form`
+ **Path:** `/submission-consolidator/form`
  
  **Request Body:** 
  
