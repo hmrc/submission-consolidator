@@ -28,7 +28,7 @@ Accepts form submission data and stores it in the mongodb collection (submission
  ```json
  {
    "submissionRef": "ABC1-DEF2-HIJ6",
-     "formId": "some-form-id",
+     "projectId": "some-project-id",
      "templateId": "some-template-id",
      "customerId": "some-customer-id",
      "submissionTimestamp": "2020-01-01T00:00:00Z",
