@@ -21,7 +21,13 @@ import de.flapdoodle.embed.mongo.config.{ MongodConfigBuilder, Net }
 import de.flapdoodle.embed.mongo.distribution.Version
 import de.flapdoodle.embed.process.runtime.Network
 
+import scala.util.Random
+
 trait EmbeddedMongoDBSupport {
+
+  val mongoHost = "localhost"
+  val mongoPort = 10000 + Random.nextInt(10000)
+
   // embedded mondodb instance
   var mongodExecutable: MongodExecutable = _
 
@@ -31,12 +37,12 @@ trait EmbeddedMongoDBSupport {
   def stopMongoD() =
     mongodExecutable.stop()
 
-  def initMongoDExecutable(host: String, port: Int) =
+  def initMongoDExecutable() =
     mongodExecutable = MongodStarter.getDefaultInstance
       .prepare(
         new MongodConfigBuilder()
           .version(Version.Main.V3_6)
-          .net(new Net(host, port, Network.localhostIsIPv6()))
+          .net(new Net(mongoHost, mongoPort, Network.localhostIsIPv6()))
           .build()
       )
 }

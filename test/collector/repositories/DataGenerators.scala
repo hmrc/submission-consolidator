@@ -16,26 +16,37 @@
 
 package collector.repositories
 
-import java.time.Instant
+import java.time.{ Instant, LocalDate, LocalDateTime }
 
+import consolidator.repositories.ConsolidatorJobData
 import org.scalacheck.Gen
+import reactivemongo.bson.BSONObjectID
 
 trait DataGenerators {
+
+  val genLocalDateTime: Gen[LocalDateTime] = for {
+    year       <- Gen.const(LocalDate.now().getYear)
+    month      <- Gen.choose(1, LocalDate.now().getMonthValue)
+    dayOfMonth <- Gen.choose(1, LocalDate.now().getDayOfMonth)
+    hour       <- Gen.choose(0, 23)
+    minute     <- Gen.choose(0, 59)
+    second     <- Gen.choose(0, 59)
+  } yield LocalDateTime.of(year, month, dayOfMonth, hour, minute, second)
 
   val genInstant: Gen[Instant] = for {
     numSeconds <- Gen.choose(0, 10000)
   } yield Instant.now().minusSeconds(numSeconds)
 
   val genFormField: Gen[FormField] = for {
-    id    <- Gen.alphaStr
-    value <- Gen.alphaStr
+    id    <- Gen.alphaNumStr.suchThat(!_.isEmpty)
+    value <- Gen.alphaNumStr.suchThat(!_.isEmpty)
   } yield FormField(id, value)
 
   val genForm = for {
     submissionRef       <- Gen.uuid.map(_.toString)
-    projectId           <- Gen.alphaNumStr
-    templateId          <- Gen.alphaNumStr
-    customerId          <- Gen.alphaNumStr
+    projectId           <- Gen.alphaNumStr.suchThat(!_.isEmpty)
+    templateId          <- Gen.alphaNumStr.suchThat(!_.isEmpty)
+    customerId          <- Gen.alphaNumStr.suchThat(!_.isEmpty)
     submissionTimestamp <- genInstant
     formData            <- Gen.listOf(genFormField)
   } yield
@@ -47,4 +58,18 @@ trait DataGenerators {
       submissionTimestamp,
       formData
     )
+
+  val genConsolidatorJobData = for {
+    projectId     <- Gen.alphaNumStr.suchThat(!_.isEmpty)
+    startDateTime <- genLocalDateTime
+    endDateTime   <- genLocalDateTime
+    lastObjectId  <- Gen.some(BSONObjectID.generate())
+    error         <- Gen.const(None)
+  } yield ConsolidatorJobData(projectId, startDateTime, endDateTime, lastObjectId, error)
+
+  val genConsolidatorJobDataWithError = for {
+    consolidatorData <- genConsolidatorJobData
+    error            <- Gen.some(Gen.alphaNumStr.suchThat(!_.isEmpty))
+  } yield consolidatorData.copy(lastObjectId = None, error = error)
+
 }

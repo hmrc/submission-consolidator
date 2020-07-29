@@ -26,13 +26,13 @@ import play.api.libs.json.Json.parse
 import scala.collection.JavaConverters._
 
 @Singleton
-class JobScheduler @Inject()(config: Configuration) {
+class ConsolidatorJobScheduler @Inject()(config: Configuration) {
 
   def scheduleJobs(receivingActorProps: Props)(implicit system: ActorSystem): QuartzSchedulerExtension = {
     val consolidatorJobConfigs = config.underlying
       .getConfigList("consolidator-job-config")
       .asScala
-      .map(c => parse(c.root().render(ConfigRenderOptions.concise())).as[JobConfig])
+      .map(c => parse(c.root().render(ConfigRenderOptions.concise())).as[ConsolidatorJobConfig])
 
     val scheduler = QuartzSchedulerExtension(system)
 

@@ -17,14 +17,14 @@
 package consolidator
 
 import akka.actor.{ Actor, Props }
-import consolidator.scheduler.JobParam
+import consolidator.scheduler.ConsolidatorJobParam
 import org.slf4j.{ Logger, LoggerFactory }
 
 class FormConsolidatorActor extends Actor {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
   override def receive: Receive = {
-    case p: JobParam =>
+    case p: ConsolidatorJobParam =>
       logger.info("Received message " + p)
   }
 }
