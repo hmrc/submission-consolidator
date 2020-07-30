@@ -24,7 +24,9 @@ import play.api.inject.ApplicationLifecycle
 
 import scala.concurrent.Future
 
-class JobSchedulerTask @Inject()(jobScheduler: JobScheduler, applicationLifecycle: ApplicationLifecycle) {
+class ConsolidatorJobSchedulerTask @Inject()(
+  jobScheduler: ConsolidatorJobScheduler,
+  applicationLifecycle: ApplicationLifecycle) {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
   logger.info("Scheduling consolidator jobs")

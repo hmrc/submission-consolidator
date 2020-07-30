@@ -18,4 +18,4 @@ package consolidator.scheduler
 
 import play.api.inject.{ SimpleModule, _ }
 
-class JobSchedulerTaskModule extends SimpleModule(bind[JobSchedulerTask].toSelf.eagerly())
+class ConsolidatorJobSchedulerModule extends SimpleModule(bind[ConsolidatorJobSchedulerTask].toSelf.eagerly())

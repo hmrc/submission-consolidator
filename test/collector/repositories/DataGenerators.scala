@@ -18,7 +18,9 @@ package collector.repositories
 
 import java.time.Instant
 
+import consolidator.repositories.ConsolidatorJobData
 import org.scalacheck.Gen
+import reactivemongo.bson.BSONObjectID
 
 trait DataGenerators {
 
@@ -27,15 +29,15 @@ trait DataGenerators {
   } yield Instant.now().minusSeconds(numSeconds)
 
   val genFormField: Gen[FormField] = for {
-    id    <- Gen.alphaStr
-    value <- Gen.alphaStr
+    id    <- Gen.alphaNumStr.suchThat(!_.isEmpty)
+    value <- Gen.alphaNumStr.suchThat(!_.isEmpty)
   } yield FormField(id, value)
 
   val genForm = for {
     submissionRef       <- Gen.uuid.map(_.toString)
-    projectId           <- Gen.alphaNumStr
-    templateId          <- Gen.alphaNumStr
-    customerId          <- Gen.alphaNumStr
+    projectId           <- Gen.alphaNumStr.suchThat(!_.isEmpty)
+    templateId          <- Gen.alphaNumStr.suchThat(!_.isEmpty)
+    customerId          <- Gen.alphaNumStr.suchThat(!_.isEmpty)
     submissionTimestamp <- genInstant
     formData            <- Gen.listOf(genFormField)
   } yield
@@ -47,4 +49,18 @@ trait DataGenerators {
       submissionTimestamp,
       formData
     )
+
+  val genConsolidatorJobData = for {
+    projectId     <- Gen.alphaNumStr.suchThat(!_.isEmpty)
+    startTimestamp <- genInstant
+    endTimestamp   <- genInstant
+    lastObjectId  <- Gen.some(BSONObjectID.generate())
+    error         <- Gen.const(None)
+  } yield ConsolidatorJobData(projectId, startTimestamp, endTimestamp, lastObjectId, error)
+
+  val genConsolidatorJobDataWithError = for {
+    consolidatorData <- genConsolidatorJobData
+    error            <- Gen.some(Gen.alphaNumStr.suchThat(!_.isEmpty))
+  } yield consolidatorData.copy(lastObjectId = None, error = error)
+
 }

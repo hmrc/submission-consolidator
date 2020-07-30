@@ -27,7 +27,7 @@ import play.api.Configuration
 
 import scala.concurrent.duration._
 
-class JobSchedulerSpec
+class ConsolidatorJobSchedulerSpec
     extends TestKit(ActorSystem("JobSchedulerSpec")) with AnyWordSpecLike with IdiomaticMockito with BeforeAndAfterAll
     with Matchers with ImplicitSender {
 
@@ -59,13 +59,12 @@ class JobSchedulerSpec
                                                              |]
                                                              |""".stripMargin))
       val testProbe = TestProbe()
-      val jobScheduler = new JobScheduler(config).scheduleJobs(Props(new TestJobActor(testProbe.ref)))
+      val jobScheduler = new ConsolidatorJobScheduler(config).scheduleJobs(Props(new TestJobActor(testProbe.ref)))
 
       val jobParams = testProbe.receiveN(2, 3.seconds).toList
-      jobParams shouldBe List(
-        JobParam("some-project-id-1", "some-queue-1"),
-        JobParam("some-project-id-2", "some-queue-2")
-      )
+      jobParams.size shouldBe 2
+      jobParams should contain(ConsolidatorJobParam("some-project-id-1", "some-queue-1"))
+      jobParams should contain(ConsolidatorJobParam("some-project-id-2", "some-queue-2"))
 
       jobScheduler.shutdown(true)
     }
@@ -74,7 +73,7 @@ class JobSchedulerSpec
 
 class TestJobActor(senderRef: ActorRef) extends Actor {
   override def receive: Receive = {
-    case p: JobParam =>
+    case p: ConsolidatorJobParam =>
       senderRef ! p
   }
 }

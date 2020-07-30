@@ -35,10 +35,8 @@ class FormRepositorySpec
     extends AnyWordSpec with ScalaCheckDrivenPropertyChecks with Matchers with DataGenerators
     with EmbeddedMongoDBSupport with BeforeAndAfterAll with ScalaFutures with BeforeAndAfterEach with DiffMatcher {
 
-  override implicit val patienceConfig = PatienceConfig(Span(10, Seconds), Span(1, Millis))
+  override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
 
-  val mongoHost = "localhost"
-  val mongoPort = 12345 //27017
   var formRepository: FormRepository = _
 
   override def beforeAll(): Unit =
@@ -48,7 +46,7 @@ class FormRepositorySpec
     formRepository.removeAll().futureValue
 
   private def init() = {
-    initMongoDExecutable(mongoHost, mongoPort)
+    initMongoDExecutable()
     startMongoD()
     formRepository = buildFormRepository(mongoHost, mongoPort)
   }
@@ -70,30 +68,28 @@ class FormRepositorySpec
     }
 
     "return an DuplicateSubmissionRef error if submissionRef already exists in the forms collection" in {
-      forAll(genForm, genForm) { (form1, form2) =>
-        val future = for {
-          _             <- formRepository.addForm(form1)
-          addFormResult <- formRepository.addForm(form2.copy(submissionRef = form1.submissionRef))
-        } yield addFormResult
-        whenReady(future) { addFormResult =>
-          addFormResult shouldBe Left(DuplicateSubmissionRef(form1.submissionRef, "submissionRef must be unique"))
-        }
+      val form = genForm.pureApply(Gen.Parameters.default, Seed(1))
+      assert(formRepository.addForm(form).futureValue.isRight)
+
+      val duplicateForm = genForm.pureApply(Gen.Parameters.default, Seed(2)).copy(submissionRef = form.submissionRef)
+      val future = formRepository.addForm(duplicateForm)
+
+      whenReady(future) { addFormResult =>
+        addFormResult shouldBe Left(DuplicateSubmissionRef(form.submissionRef, "submissionRef must be unique"))
       }
     }
 
     "return a GenericError for all other errors" in {
-      forAll(genForm, genForm) { (form1, form2) =>
-        val future = for {
-          _             <- formRepository.addForm(form1)
-          addFormResult <- formRepository.addForm(form2.copy(id = form1.id))
-        } yield addFormResult
-        whenReady(future) { addFormResult =>
-          addFormResult shouldBe Left(
-            MongoGenericError(
-              s"DatabaseException['E11000 duplicate key error collection: submission-consolidator.forms index: _id_ dup key: { : ObjectId('${form1.id.stringify}') }' (code = 11000)]"
-            )
+      val form = genForm.pureApply(Gen.Parameters.default, Seed(1))
+      assert(formRepository.addForm(form).futureValue.isRight)
+
+      val future = formRepository.addForm(form.copy(id = form.id))
+      whenReady(future) { addFormResult =>
+        addFormResult shouldBe Left(
+          MongoGenericError(
+            s"DatabaseException['E11000 duplicate key error collection: submission-consolidator.forms index: _id_ dup key: { : ObjectId('${form.id.stringify}') }' (code = 11000)]"
           )
-        }
+        )
       }
     }
 
