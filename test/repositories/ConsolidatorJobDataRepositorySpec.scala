@@ -118,7 +118,7 @@ class ConsolidatorJobDataRepositorySpec
         whenReady(future) { result =>
           implicit val localDateTimeOrdering: Ordering[LocalDateTime] =
             (x: LocalDateTime, y: LocalDateTime) => x.compareTo(y)
-          result shouldBe Right(Some(consolidatorJobDatas.maxBy(_.endDateTime)))
+          result shouldBe Right(Some(consolidatorJobDatas.maxBy(_.endTimestamp)))
         }
       }
 
@@ -136,7 +136,7 @@ class ConsolidatorJobDataRepositorySpec
         whenReady(future) { result =>
           implicit val localDateTimeOrdering: Ordering[LocalDateTime] =
             (x: LocalDateTime, y: LocalDateTime) => x.compareTo(y)
-          result shouldBe Right(Some(consolidatorJobDatas.filter(_.lastObjectId.isDefined).maxBy(_.endDateTime)))
+          result shouldBe Right(Some(consolidatorJobDatas.filter(_.lastObjectId.isDefined).maxBy(_.endTimestamp)))
         }
       }
     }

@@ -16,22 +16,13 @@
 
 package collector.repositories
 
-import java.time.{ Instant, LocalDate, LocalDateTime }
+import java.time.Instant
 
 import consolidator.repositories.ConsolidatorJobData
 import org.scalacheck.Gen
 import reactivemongo.bson.BSONObjectID
 
 trait DataGenerators {
-
-  val genLocalDateTime: Gen[LocalDateTime] = for {
-    year       <- Gen.const(LocalDate.now().getYear)
-    month      <- Gen.choose(1, LocalDate.now().getMonthValue)
-    dayOfMonth <- Gen.choose(1, LocalDate.now().getDayOfMonth)
-    hour       <- Gen.choose(0, 23)
-    minute     <- Gen.choose(0, 59)
-    second     <- Gen.choose(0, 59)
-  } yield LocalDateTime.of(year, month, dayOfMonth, hour, minute, second)
 
   val genInstant: Gen[Instant] = for {
     numSeconds <- Gen.choose(0, 10000)
@@ -61,11 +52,11 @@ trait DataGenerators {
 
   val genConsolidatorJobData = for {
     projectId     <- Gen.alphaNumStr.suchThat(!_.isEmpty)
-    startDateTime <- genLocalDateTime
-    endDateTime   <- genLocalDateTime
+    startTimestamp <- genInstant
+    endTimestamp   <- genInstant
     lastObjectId  <- Gen.some(BSONObjectID.generate())
     error         <- Gen.const(None)
-  } yield ConsolidatorJobData(projectId, startDateTime, endDateTime, lastObjectId, error)
+  } yield ConsolidatorJobData(projectId, startTimestamp, endTimestamp, lastObjectId, error)
 
   val genConsolidatorJobDataWithError = for {
     consolidatorData <- genConsolidatorJobData

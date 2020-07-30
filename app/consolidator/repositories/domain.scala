@@ -16,21 +16,31 @@
 
 package consolidator.repositories
 
-import java.time.LocalDateTime
+import java.time.Instant
 
-import play.api.libs.json.Json
+import play.api.libs.json.{ Format, JsValue, Json, Reads, Writes, __ }
 import reactivemongo.bson.BSONObjectID
 
 case class ConsolidatorJobData(
   projectId: String,
-  startDateTime: LocalDateTime,
-  endDateTime: LocalDateTime,
+  startTimestamp: Instant,
+  endTimestamp: Instant,
   lastObjectId: Option[BSONObjectID],
   error: Option[String],
   id: BSONObjectID = BSONObjectID.generate()
 )
 object ConsolidatorJobData {
   import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.{ mongoEntity, objectIdFormats }
+
+  val instantWrites: Writes[Instant] = new Writes[Instant] {
+    def writes(datetime: Instant): JsValue = Json.obj("$date" -> datetime.toEpochMilli)
+  }
+
+  val instantReads: Reads[Instant] =
+    (__ \ "$date").read[Long].map(Instant.ofEpochMilli)
+
+  implicit val instantFormats: Format[Instant] = Format(instantReads, instantWrites)
+
   implicit val formats = mongoEntity {
     Json.format[ConsolidatorJobData]
   }

@@ -52,8 +52,8 @@ class ConsolidatorJobDataRepository @Inject()(mongoComponent: ReactiveMongoCompo
         name = Some("lastObjectIdIdx")
       ),
       Index(
-        key = Seq("endDateTime" -> IndexType.Ascending),
-        name = Some("endDateTimeIdx")
+        key = Seq("endTimestamp" -> IndexType.Ascending),
+        name = Some("endTimestampIdx")
       )
     )
 
@@ -74,20 +74,20 @@ class ConsolidatorJobDataRepository @Inject()(mongoComponent: ReactiveMongoCompo
     // considers records that have lastObjectId defined i.e successful job execution
     val matchQuery = Match(Json.obj("projectId" -> projectId, "lastObjectId" -> Json.obj("$exists" -> true)))
 
-    // get the max endDateTime
+    // get the max endTimestamp
     val group = Group(Json.obj())(
-      "maxEndDateTime" -> Max(JsString("$endDateTime")),
+      "maxEndTimestamp" -> Max(JsString("$endTimestamp")),
       "docs"           -> Push(JsString("$$ROOT"))
     )
 
-    // project record with max endDateTime value
+    // project record with max endTimestamp value
     val project = Project(
       Json.obj(
         "maxDoc" -> Filter(
           JsString("$docs"),
           "doc",
           Json.obj(
-            "$eq" -> Json.arr("$$doc.endDateTime", "$maxEndDateTime")
+            "$eq" -> Json.arr("$$doc.endTimestamp", "$maxEndTimestamp")
           )
         )
       )
