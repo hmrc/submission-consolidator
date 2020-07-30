@@ -18,9 +18,8 @@ package consolidator.repositories
 
 import javax.inject.{ Inject, Singleton }
 import org.slf4j.{ Logger, LoggerFactory }
-import play.api.libs.json.{ JsObject, JsString, Json }
+import play.api.libs.json.{ JsString, Json }
 import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.api.Cursor.FailOnError
 import reactivemongo.api.indexes.{ Index, IndexType }
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.ImplicitBSONHandlers
@@ -30,7 +29,7 @@ import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class ConsolidatorJobDataRepository @Inject()(mongoComponent: ReactiveMongoComponent)
+class ConsolidatorJobDataRepository @Inject() (mongoComponent: ReactiveMongoComponent)
     extends ReactiveRepository[ConsolidatorJobData, BSONObjectID](
       collectionName = "consolidator_job_datas",
       mongo = mongoComponent.mongoConnector.db,
@@ -72,16 +71,16 @@ class ConsolidatorJobDataRepository @Inject()(mongoComponent: ReactiveMongoCompo
     import collection.BatchCommands.AggregationFramework._
 
     // considers records that have lastObjectId defined i.e successful job execution
-    val matchQuery = Match(Json.obj("projectId" -> projectId, "lastObjectId" -> Json.obj("$exists" -> true)))
+    val matchQueryStage = Match(Json.obj("projectId" -> projectId, "lastObjectId" -> Json.obj("$exists" -> true)))
 
     // get the max endTimestamp
-    val group = Group(Json.obj())(
+    val groupStage = Group(Json.obj())(
       "maxEndTimestamp" -> Max(JsString("$endTimestamp")),
       "docs"           -> Push(JsString("$$ROOT"))
     )
 
     // project record with max endTimestamp value
-    val project = Project(
+    val projectStage = Project(
       Json.obj(
         "maxDoc" -> Filter(
           JsString("$docs"),
@@ -93,10 +92,14 @@ class ConsolidatorJobDataRepository @Inject()(mongoComponent: ReactiveMongoCompo
       )
     )
 
+    val unwindStage = UnwindField("maxDoc")
+
+    val replaceRootStage = ReplaceRootField("maxDoc")
+
     collection
-      .aggregateWith[JsObject]()(_ => matchQuery -> List(group, project))
-      .collect[List](1, FailOnError())
-      .map(l => Right(l.headOption.map(json => (json \ "maxDoc")(0).as[ConsolidatorJobData])))
+      .aggregateWith[ConsolidatorJobData]()(_ => matchQueryStage -> List(groupStage, projectStage, unwindStage, replaceRootStage))
+      .headOption
+      .map(Right(_))
       .recover {
         case e =>
           logger.error("findMostRecentLastObjectId failed", e)
