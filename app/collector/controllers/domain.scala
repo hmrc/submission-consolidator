@@ -91,4 +91,7 @@ object APIError {
   implicit val formats = Json.format[APIError]
 }
 
-case class RequestValidationError(errors: Seq[(JsPath, Seq[JsonValidationError])]) extends ApplicationError
+case class RequestValidationError(
+  errors: Seq[(JsPath, Seq[JsonValidationError])],
+  message: String = "Request body failed validation")
+    extends ApplicationError(message)

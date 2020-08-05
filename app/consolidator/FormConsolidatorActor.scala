@@ -17,18 +17,41 @@
 package consolidator
 
 import akka.actor.{ Actor, Props }
+import cats.effect.IO
+import consolidator.FormConsolidatorActor.OK
+import consolidator.dms.FileUploaderService
 import consolidator.scheduler.ConsolidatorJobParam
+import consolidator.services.ConsolidatorService
 import org.slf4j.{ Logger, LoggerFactory }
 
-class FormConsolidatorActor extends Actor {
+import scala.concurrent.ExecutionContext
+
+class FormConsolidatorActor(consolidatorService: ConsolidatorService, fileUploaderService: FileUploaderService)
+    extends Actor {
+
   private val logger: Logger = LoggerFactory.getLogger(getClass)
+  implicit val ec: ExecutionContext = context.dispatcher
 
   override def receive: Receive = {
     case p: ConsolidatorJobParam =>
-      logger.info("Received message " + p)
+      logger.info(s"Consolidating forms $p")
+      val senderRef = sender()
+      val program = for {
+        consolidatedFile <- consolidatorService.doConsolidation(p.projectId)
+        _                <- consolidatedFile.map(f => fileUploaderService.upload(f).map(Some(_))).getOrElse(IO.pure(()))
+      } yield ()
+      program.unsafeRunAsync {
+        case Left(error) => senderRef ! error
+        case Right(_)    => senderRef ! OK
+      }
   }
 }
 
 object FormConsolidatorActor {
-  def props(): Props = Props(new FormConsolidatorActor())
+
+  sealed trait Status
+  case object OK extends Status
+
+  def props(consolidatorService: ConsolidatorService, fileUploaderService: FileUploaderService): Props =
+    Props(new FormConsolidatorActor(consolidatorService, fileUploaderService))
 }

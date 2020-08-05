@@ -14,19 +14,16 @@
  * limitations under the License.
  */
 
-package repositories
-
-import java.time.LocalDateTime
+package consolidator.repositories
 
 import collector.repositories.{ DataGenerators, EmbeddedMongoDBSupport }
-import consolidator.repositories.ConsolidatorJobDataRepository
 import org.scalacheck.Gen
 import org.scalacheck.rng.Seed
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{ Millis, Seconds, Span }
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.mongo.MongoConnector
@@ -116,8 +113,6 @@ class ConsolidatorJobDataRepositorySpec
         val future = repository.findRecentLastObjectId(projectId)
 
         whenReady(future) { result =>
-          implicit val localDateTimeOrdering: Ordering[LocalDateTime] =
-            (x: LocalDateTime, y: LocalDateTime) => x.compareTo(y)
           result shouldBe Right(Some(consolidatorJobDatas.maxBy(_.endTimestamp)))
         }
       }
@@ -134,8 +129,6 @@ class ConsolidatorJobDataRepositorySpec
         val future = repository.findRecentLastObjectId(projectId)
 
         whenReady(future) { result =>
-          implicit val localDateTimeOrdering: Ordering[LocalDateTime] =
-            (x: LocalDateTime, y: LocalDateTime) => x.compareTo(y)
           result shouldBe Right(Some(consolidatorJobDatas.filter(_.lastObjectId.isDefined).maxBy(_.endTimestamp)))
         }
       }

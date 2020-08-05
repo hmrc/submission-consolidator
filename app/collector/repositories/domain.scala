@@ -16,11 +16,13 @@
 
 package collector.repositories
 
-import java.time.Instant
+import java.time.format.DateTimeFormatter
+import java.time.{ Instant, ZoneId }
 
-import play.api.libs.json.{ Format, JsValue, Json, Reads, Writes, __ }
-import reactivemongo.bson.BSONObjectID
 import collector.common.ApplicationError
+import play.api.libs.functional.syntax._
+import play.api.libs.json.{ Format, JsValue, Json, Reads, Writes, __, _ }
+import reactivemongo.bson.BSONObjectID
 
 case class FormField(id: String, value: String)
 object FormField {
@@ -38,6 +40,9 @@ case class Form(
 )
 
 object Form {
+
+  val DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneId.of("UTC"))
+
   import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.{ mongoEntity, objectIdFormats }
 
   val instantWrites: Writes[Instant] = new Writes[Instant] {
@@ -52,11 +57,25 @@ object Form {
   implicit val formats: Format[Form] = mongoEntity {
     Json.format[Form]
   }
+
+  implicit class FormOps(form: Form) {
+    private val instantJsonLineWrites: Writes[Instant] = new Writes[Instant] {
+      def writes(instant: Instant): JsValue = JsString(DATE_TIME_FORMATTER.format(instant))
+    }
+    private val formJsonLineWrites: Writes[Form] = (
+      (__ \ "submissionRef").write[String] and
+        (__ \ "projectId").write[String] and
+        (__ \ "templateId").write[String] and
+        (__ \ "customerId").write[String] and
+        (__ \ "submissionTimestamp").write[Instant](instantJsonLineWrites) and
+        (__ \ "formData").write[Seq[FormField]]
+    )(f => (f.submissionRef, f.projectId, f.templateId, f.customerId, f.submissionTimestamp, f.formData))
+
+    def toJsonLine(): String = formJsonLineWrites.writes(form).toString()
+  }
 }
 
-sealed trait FormError extends ApplicationError {
-  def message: String
-}
-case class DuplicateSubmissionRef(submissionRef: String, message: String) extends FormError
-case class MongoUnavailable(message: String) extends FormError
-case class MongoGenericError(message: String) extends FormError
+abstract class FormError(message: String) extends ApplicationError(message)
+case class DuplicateSubmissionRef(submissionRef: String, message: String) extends FormError(message)
+case class MongoUnavailable(message: String) extends FormError(message)
+case class MongoGenericError(message: String) extends FormError(message)
