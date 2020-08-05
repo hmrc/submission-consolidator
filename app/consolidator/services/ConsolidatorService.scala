@@ -20,7 +20,7 @@ import java.io.{ BufferedWriter, File, FileWriter }
 import java.time.Instant
 
 import cats.effect.Resource.fromAutoCloseable
-import cats.effect.{ ContextShift, IO, Resource }
+import cats.effect.{ ContextShift, IO }
 import cats.implicits._
 import collector.repositories.FormRepository
 import consolidator.IOUtils

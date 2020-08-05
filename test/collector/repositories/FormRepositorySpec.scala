@@ -287,33 +287,6 @@ class FormRepositorySpec
     }
   }
 
-  "add form test" should {
-    "persist all forms in" in {
-      import scala.concurrent.duration._
-      val genForm = for {
-        submissionRef       <- Gen.uuid.map(_.toString)
-        projectId           <- Gen.const("test-project")
-        templateId          <- Gen.const("test-template")
-        customerId          <- Gen.const("test-customer")
-        submissionTimestamp <- genInstant
-        formData            <- Gen.const(List.empty)
-      } yield
-        Form(
-          submissionRef,
-          projectId,
-          templateId,
-          customerId,
-          submissionTimestamp,
-          formData
-        )
-      val forms = (1 to 30)
-        .map(seed => genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(submissionTimestamp = Instant.now()))
-        .toList
-      val futures: immutable.Seq[Future[Either[FormError, Unit]]] = forms.map(form => formRepository.addForm(form))
-      val result = Await.result(Future.sequence(futures), 10.seconds)
-    }
-  }
-
   private def buildFormRepository(mongoHost: String, mongoPort: Int) = {
     val connector =
       MongoConnector(s"mongodb://$mongoHost:$mongoPort/submission-consolidator")
