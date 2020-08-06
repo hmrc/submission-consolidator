@@ -30,7 +30,7 @@ class ConsolidatorJobScheduler @Inject()(config: Configuration) {
 
   def scheduleJobs(receivingActorProps: Props)(implicit system: ActorSystem): QuartzSchedulerExtension = {
     val consolidatorJobConfigs = config.underlying
-      .getConfigList("consolidator-job-config")
+      .getConfigList("consolidator-jobs")
       .asScala
       .map(c => parse(c.root().render(ConfigRenderOptions.concise())).as[ConsolidatorJobConfig])
 

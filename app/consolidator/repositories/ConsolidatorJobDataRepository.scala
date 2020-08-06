@@ -29,7 +29,7 @@ import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class ConsolidatorJobDataRepository @Inject() (mongoComponent: ReactiveMongoComponent)
+class ConsolidatorJobDataRepository @Inject()(mongoComponent: ReactiveMongoComponent)
     extends ReactiveRepository[ConsolidatorJobData, BSONObjectID](
       collectionName = "consolidator_job_datas",
       mongo = mongoComponent.mongoConnector.db,
@@ -65,6 +65,50 @@ class ConsolidatorJobDataRepository @Inject() (mongoComponent: ReactiveMongoComp
         case e => Left(GenericConsolidatorJobDataError(e.getMessage))
       }
 
+  /**
+    *  Gets the most recent ConsolidatorJobData for the given project id, based on endTimestamp.
+    *
+    *   db.consolidator_job_datas.aggregate([
+    *     {
+    *       $match: {
+    *          projectId: "some-project-id",
+    *          lastObjectId: { "$exists": true }
+    *        }
+    *     },
+    *     {
+    *       $group: {
+    *       _id: null,
+    *       maxEndTimestamp: {
+    *          $max: "$endTimestamp"
+    *       },
+    *       docs: {
+    *          $push: "$$ROOT"
+    *        }
+    *       }
+    *     },
+    *     {
+    *       $project: {
+    *       maxDoc: {
+    *          $filter: {
+    *              input: "$docs",
+    *              as: "doc",
+    *              cond: { $eq :["$$doc.endTimestamp", "$maxEndTimestamp"]}
+    *            }
+    *          }
+    *        }
+    *     },
+    *     {
+    *       $unwind: "$maxDoc"
+    *     },
+    *     {
+    *       $replaceRoot: { newRoot: "$maxDoc" }
+    *     }
+    *   ])
+    *
+    * @param projectId The project id to get recent ConsolidatorJobData for
+    * @param ec The execution context
+    * @return
+    */
   def findRecentLastObjectId(
     projectId: String
   )(implicit ec: ExecutionContext): Future[Either[ConsolidatorJobDataError, Option[ConsolidatorJobData]]] = {
@@ -76,7 +120,7 @@ class ConsolidatorJobDataRepository @Inject() (mongoComponent: ReactiveMongoComp
     // get the max endTimestamp
     val groupStage = Group(Json.obj())(
       "maxEndTimestamp" -> Max(JsString("$endTimestamp")),
-      "docs"           -> Push(JsString("$$ROOT"))
+      "docs"            -> Push(JsString("$$ROOT"))
     )
 
     // project record with max endTimestamp value
@@ -97,7 +141,8 @@ class ConsolidatorJobDataRepository @Inject() (mongoComponent: ReactiveMongoComp
     val replaceRootStage = ReplaceRootField("maxDoc")
 
     collection
-      .aggregateWith[ConsolidatorJobData]()(_ => matchQueryStage -> List(groupStage, projectStage, unwindStage, replaceRootStage))
+      .aggregateWith[ConsolidatorJobData]()(_ =>
+        matchQueryStage -> List(groupStage, projectStage, unwindStage, replaceRootStage))
       .headOption
       .map(Right(_))
       .recover {

@@ -51,11 +51,11 @@ trait DataGenerators {
     )
 
   val genConsolidatorJobData = for {
-    projectId     <- Gen.alphaNumStr.suchThat(!_.isEmpty)
+    projectId      <- Gen.alphaNumStr.suchThat(!_.isEmpty)
     startTimestamp <- genInstant
     endTimestamp   <- genInstant
-    lastObjectId  <- Gen.some(BSONObjectID.generate())
-    error         <- Gen.const(None)
+    lastObjectId   <- Gen.some(BSONObjectID.generate())
+    error          <- Gen.const(None)
   } yield ConsolidatorJobData(projectId, startTimestamp, endTimestamp, lastObjectId, error)
 
   val genConsolidatorJobDataWithError = for {

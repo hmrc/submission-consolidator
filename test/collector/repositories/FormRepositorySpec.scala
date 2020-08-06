@@ -16,7 +16,10 @@
 
 package collector.repositories
 
+import java.time.Instant
+
 import com.softwaremill.diffx.scalatest.DiffMatcher
+import consolidator.repositories.FormsMetadata
 import org.scalacheck.Gen
 import org.scalacheck.rng.Seed
 import org.scalatest.concurrent.ScalaFutures
@@ -26,10 +29,12 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import play.modules.reactivemongo.ReactiveMongoComponent
+import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.mongo.MongoConnector
 
+import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ Await, Future }
 
 class FormRepositorySpec
     extends AnyWordSpec with ScalaCheckDrivenPropertyChecks with Matchers with DataGenerators
@@ -102,7 +107,7 @@ class FormRepositorySpec
       whenReady(future) { addFormResult =>
         addFormResult.isLeft shouldBe true
         addFormResult.left.get shouldBe a[MongoUnavailable]
-        addFormResult.left.get.message contains "MongoError['No primary node is available!"
+        addFormResult.left.get.getMessage contains "MongoError['No primary node is available!"
         init()
       }
     }
@@ -144,24 +149,63 @@ class FormRepositorySpec
       }
     }
 
-    "fetch next batch based on last object id" in {
+    "fetch batch after the given afterObjectId" in {
       //given
       val projectId = "some-project-id"
-      val templateId = "some-template-id"
       val forms = (1 to 3)
-        .map(seed =>
-          genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(projectId = projectId, templateId = templateId))
+        .map(seed => genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(projectId = projectId))
         .toList
       forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
 
       //when
+      val afterObjectId = forms(1).id
       val future = for {
-        addFormResult <- formRepository.getForms(projectId, 2)(Some(forms(1).id))
+        addFormResult <- formRepository.getForms(projectId, 2)(Some(afterObjectId))
       } yield addFormResult
 
       //then
       whenReady(future) { addFormResult =>
-        addFormResult.right.get should matchTo(forms.drop(2))
+        addFormResult.right.get should matchTo(forms.filter(_.id.stringify > afterObjectId.stringify))
+      }
+    }
+
+    "fetch batch after the given afterObjectId and until the given untilObjectId (inclusive)" in {
+      val projectId = "some-project-id"
+      val forms = (1 to 4)
+        .map(seed => genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(projectId = projectId))
+        .toList
+      forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
+
+      //when
+      val afterObjectId = forms(1).id
+      val untilObjectId = forms(2).id
+      val future = for {
+        addFormResult <- formRepository.getForms(projectId, 2)(Some(afterObjectId), Some(untilObjectId))
+      } yield addFormResult
+
+      //then
+      whenReady(future) { addFormResult =>
+        addFormResult.right.get should matchTo(
+          forms.filter(_.id.stringify > afterObjectId.stringify).filter(_.id.stringify <= untilObjectId.stringify))
+      }
+    }
+
+    "fetch batch until the given untilObjectId (inclusive)" in {
+      val projectId = "some-project-id"
+      val forms = (1 to 4)
+        .map(seed => genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(projectId = projectId))
+        .toList
+      forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
+
+      //when
+      val untilObjectId = forms(2).id
+      val future = for {
+        addFormResult <- formRepository.getForms(projectId, 4)(None, Some(untilObjectId))
+      } yield addFormResult
+
+      //then
+      whenReady(future) { addFormResult =>
+        addFormResult.right.get should matchTo(forms.filter(_.id.stringify <= untilObjectId.stringify))
       }
     }
 
@@ -180,8 +224,65 @@ class FormRepositorySpec
       whenReady(future) { addFormResult =>
         addFormResult.isLeft shouldBe true
         addFormResult.left.get shouldBe a[MongoGenericError]
-        addFormResult.left.get.message contains "MongoError['No primary node is available!"
+        addFormResult.left.get.getMessage contains "MongoError['No primary node is available!"
         init()
+      }
+    }
+  }
+
+  "getFormsMetadata" should {
+
+    "retun None when there is no form data" in {
+      val projectId = "some-project-id"
+      assert(formRepository.findAll().futureValue.isEmpty)
+
+      val future = for {
+        addFormResult <- formRepository.getFormsMetadata(projectId)
+      } yield addFormResult
+      whenReady(future) { addFormResult =>
+        addFormResult shouldBe Right(None)
+      }
+    }
+
+    "return the count and max object id, in the group for the given project id" in {
+      //given
+      implicit val bsonIdOrdering: Ordering[BSONObjectID] =
+        (left: BSONObjectID, right: BSONObjectID) => left.stringify.compareTo(right.stringify)
+      val projectId = "some-project-id"
+      val forms = (1 to 3)
+        .map(seed => genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(projectId = projectId))
+        .toList
+      forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
+
+      //when
+      val future = for {
+        addFormResult <- formRepository.getFormsMetadata(projectId)
+      } yield addFormResult
+
+      //then
+      whenReady(future) { addFormResult =>
+        addFormResult shouldBe Right(Some(FormsMetadata(forms.size, forms.map(_.id).max)))
+      }
+    }
+
+    "return the count and max object id, in the group for the given project id, after the given object id" in {
+      //given
+      implicit val bsonIdOrdering: Ordering[BSONObjectID] =
+        (left: BSONObjectID, right: BSONObjectID) => left.stringify.compareTo(right.stringify)
+      val projectId = "some-project-id"
+      val forms = (1 to 3)
+        .map(seed => genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(projectId = projectId))
+        .toList
+      forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
+
+      //when
+      val future = for {
+        addFormResult <- formRepository.getFormsMetadata(projectId, Some(forms.head.id))
+      } yield addFormResult
+
+      //then
+      whenReady(future) { addFormResult =>
+        addFormResult shouldBe Right(Some(FormsMetadata(forms.drop(1).size, forms.drop(1).map(_.id).max)))
       }
     }
   }

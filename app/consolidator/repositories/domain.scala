@@ -18,6 +18,7 @@ package consolidator.repositories
 
 import java.time.Instant
 
+import collector.common.ApplicationError
 import play.api.libs.json.{ Format, JsValue, Json, Reads, Writes, __ }
 import reactivemongo.bson.BSONObjectID
 
@@ -46,5 +47,11 @@ object ConsolidatorJobData {
   }
 }
 
-sealed trait ConsolidatorJobDataError
-case class GenericConsolidatorJobDataError(message: String) extends ConsolidatorJobDataError
+case class FormsMetadata(count: Int, maxId: BSONObjectID)
+object FormsMetadata {
+  import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.objectIdFormats
+  implicit val formats = Json.format[FormsMetadata]
+}
+
+abstract class ConsolidatorJobDataError(message: String) extends ApplicationError(message)
+case class GenericConsolidatorJobDataError(message: String) extends ConsolidatorJobDataError(message)

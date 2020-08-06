@@ -14,8 +14,20 @@
  * limitations under the License.
  */
 
-package collector.common
+package consolidator.dms
 
-import scala.util.control.NoStackTrace
+import java.io.File
 
-abstract class ApplicationError(message: String) extends Exception(message) with NoStackTrace
+import cats.effect.IO
+import javax.inject.Singleton
+import org.slf4j.{ Logger, LoggerFactory }
+
+@Singleton
+class FileUploaderService {
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
+
+  def upload(file: File): IO[Unit] = {
+    logger.info("Uploading file " + file)
+    IO.pure(())
+  }
+}

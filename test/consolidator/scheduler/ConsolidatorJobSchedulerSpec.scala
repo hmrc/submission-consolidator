@@ -37,7 +37,7 @@ class ConsolidatorJobSchedulerSpec
   "scheduleJobs" should {
     "schedule and execute the jobs based on the provided config config" in {
       val config = Configuration(ConfigFactory.parseString("""
-                                                             |consolidator-job-config = [
+                                                             |consolidator-jobs = [
                                                              |    {
                                                              |        id = "some-project-id-1-job"
                                                              |        params = {

@@ -27,12 +27,12 @@ import collector.repositories.{ DuplicateSubmissionRef, MongoGenericError, Mongo
 trait ErrorHandler {
   def handleError(applicationError: ApplicationError): Result =
     applicationError match {
-      case RequestValidationError(errors) =>
+      case RequestValidationError(errors, message) =>
         BadRequest(
           toJson(
             APIError(
               REQUEST_VALIDATION_FAILED,
-              "Request body failed validation",
+              message,
               mapToAPIFieldErrors(errors)
             )
           )

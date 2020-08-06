@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package collector.common
+package consolidator.dms
 
-import scala.util.control.NoStackTrace
+import collector.common.ApplicationError
 
-abstract class ApplicationError(message: String) extends Exception(message) with NoStackTrace
+abstract class FileUploaderError(message: String) extends ApplicationError(message)
+case class GenericFileUploaderError(message: String) extends FileUploaderError(message)
