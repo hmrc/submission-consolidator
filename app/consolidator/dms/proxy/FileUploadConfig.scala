@@ -14,9 +14,16 @@
  * limitations under the License.
  */
 
-package consolidator.dms
+package consolidator.dms.proxy
 
-import collector.common.ApplicationError
+import javax.inject.{ Inject, Singleton }
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
-abstract class FileUploaderError(message: String) extends ApplicationError(message)
-case class GenericFileUploaderError(message: String) extends FileUploaderError(message)
+@Singleton
+class FileUploadConfig @Inject()(
+  servicesConfig: ServicesConfig
+) {
+
+  val fileUploadBaseUrl: String = servicesConfig.baseUrl("file-upload")
+  val fileUploadFrontendBaseUrl: String = servicesConfig.baseUrl("file-upload-frontend")
+}
