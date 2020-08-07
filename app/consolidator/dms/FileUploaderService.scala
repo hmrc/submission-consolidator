@@ -19,11 +19,15 @@ package consolidator.dms
 import java.io.File
 
 import cats.effect.IO
-import javax.inject.Singleton
+import consolidator.dms.proxy.{ FileUploadFrontEndProxy, FileUploadProxy }
+import javax.inject.{ Inject, Singleton }
 import org.slf4j.{ Logger, LoggerFactory }
 
 @Singleton
-class FileUploaderService {
+class FileUploaderService @Inject()(
+  fileUploadProxy: FileUploadProxy,
+  fileUploadFrontEndProxy: FileUploadFrontEndProxy) {
+
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
   def upload(file: File): IO[Unit] = {
