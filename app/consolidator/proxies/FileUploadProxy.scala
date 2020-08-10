@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-package consolidator.dms.proxy
+package consolidator.proxies
 
 import common.WSHttpClient
 import javax.inject.{ Inject, Singleton }
+import org.slf4j.{ Logger, LoggerFactory }
 import play.api.http.HeaderNames.LOCATION
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
@@ -28,11 +29,14 @@ import scala.concurrent.{ ExecutionContext, Future }
 class FileUploadProxy @Inject()(fileUploadConfig: FileUploadConfig, wsHttpClient: WSHttpClient)(
   implicit
   ex: ExecutionContext) {
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
   private lazy val headers = Seq("Csrf-Token" -> "nocheck")
+  implicit val headerCarrier: HeaderCarrier = HeaderCarrier()
 
   def createEnvelope(
     request: CreateEnvelopeRequest
-  )(implicit hc: HeaderCarrier): Future[Either[FileUploadError, String]] = {
+  ): Future[Either[FileUploadError, String]] = {
+    logger.info("Creating envelope " + request)
     val EnvelopeIdExtractor = "envelopes/([\\w\\d-]+)$".r.unanchored
     wsHttpClient
       .POST(s"${fileUploadConfig.fileUploadBaseUrl}/file-upload/envelopes", request, headers)
@@ -40,8 +44,11 @@ class FileUploadProxy @Inject()(fileUploadConfig: FileUploadConfig, wsHttpClient
         httpResponse.status match {
           case 201 =>
             httpResponse.header(LOCATION) match {
-              case Some(EnvelopeIdExtractor(envelopeId)) => Right(envelopeId)
-              case _                                     => Left(LocationHeaderMissingOrInvalid)
+              case Some(EnvelopeIdExtractor(envelopeId)) =>
+                logger.info(s"Create envelope succeeded [envelopeId=$envelopeId]")
+                Right(envelopeId)
+              case _ =>
+                Left(LocationHeaderMissingOrInvalid)
             }
           case other =>
             Left(GenericFileUploadError(s"Create envelope failed [status=$other, body=${httpResponse.body}]"))
@@ -52,7 +59,8 @@ class FileUploadProxy @Inject()(fileUploadConfig: FileUploadConfig, wsHttpClient
       }
   }
 
-  def routeEnvelope(request: RouteEnvelopeRequest)(implicit hc: HeaderCarrier): Future[Either[FileUploadError, Unit]] =
+  def routeEnvelope(request: RouteEnvelopeRequest): Future[Either[FileUploadError, Unit]] = {
+    logger.info("Routing envelope " + request)
     wsHttpClient
       .POST(s"${fileUploadConfig.fileUploadBaseUrl}/file-routing/requests", request, headers)
       .map { httpResponse =>
@@ -66,5 +74,6 @@ class FileUploadProxy @Inject()(fileUploadConfig: FileUploadConfig, wsHttpClient
       .recover {
         case e => Left(GenericFileUploadError(s"Route envelope failed [error=$e]"))
       }
+  }
 
 }

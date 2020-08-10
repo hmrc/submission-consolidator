@@ -16,8 +16,11 @@
 
 package consolidator.scheduler
 
+import java.util.Date
+
 import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
 import akka.testkit.{ ImplicitSender, TestKit, TestProbe }
+import com.typesafe.akka.extension.quartz.MessageWithFireTime
 import com.typesafe.config.ConfigFactory
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.BeforeAndAfterAll
@@ -36,35 +39,40 @@ class ConsolidatorJobSchedulerSpec
 
   "scheduleJobs" should {
     "schedule and execute the jobs based on the provided config config" in {
-      val config = Configuration(ConfigFactory.parseString("""
-                                                             |consolidator-jobs = [
-                                                             |    {
-                                                             |        id = "some-project-id-1-job"
-                                                             |        params = {
-                                                             |            projectId = "some-project-id-1"
-                                                             |            destinationQueue = "some-queue-1"
-                                                             |        }
-                                                             |        # run every 2 seconds
-                                                             |        cron = "*/2 * * ? * *"
-                                                             |    },
-                                                             |    {
-                                                             |        id = "some-project-id-2-job"
-                                                             |        params = {
-                                                             |            projectId = "some-project-id-2"
-                                                             |            destinationQueue = "some-queue-2"
-                                                             |        }
-                                                             |        # run every 2 seconds
-                                                             |        cron = "*/2 * * ? * *"
-                                                             |    }
-                                                             |]
-                                                             |""".stripMargin))
+      val config =
+        Configuration(ConfigFactory.parseString("""
+                                                  |consolidator-jobs = [
+                                                  |    {
+                                                  |        id = "some-project-id-1-job"
+                                                  |        params = {
+                                                  |            projectId = "some-project-id-1"
+                                                  |            classificationType = "some-classification-type-1"
+                                                  |            businessArea = "some-business-area-1"
+                                                  |        }
+                                                  |        # run every 2 seconds
+                                                  |        cron = "*/2 * * ? * *"
+                                                  |    },
+                                                  |    {
+                                                  |        id = "some-project-id-2-job"
+                                                  |        params = {
+                                                  |            projectId = "some-project-id-2"
+                                                  |            classificationType = "some-classification-type-2"
+                                                  |            businessArea = "some-business-area-2"
+                                                  |        }
+                                                  |        # run every 2 seconds
+                                                  |        cron = "*/2 * * ? * *"
+                                                  |    }
+                                                  |]
+                                                  |""".stripMargin))
       val testProbe = TestProbe()
       val jobScheduler = new ConsolidatorJobScheduler(config).scheduleJobs(Props(new TestJobActor(testProbe.ref)))
 
       val jobParams = testProbe.receiveN(2, 3.seconds).toList
       jobParams.size shouldBe 2
-      jobParams should contain(ConsolidatorJobParam("some-project-id-1", "some-queue-1"))
-      jobParams should contain(ConsolidatorJobParam("some-project-id-2", "some-queue-2"))
+      jobParams should contain(
+        ConsolidatorJobParam("some-project-id-1", "some-classification-type-1", "some-business-area-1"))
+      jobParams should contain(
+        ConsolidatorJobParam("some-project-id-2", "some-classification-type-2", "some-business-area-2"))
 
       jobScheduler.shutdown(true)
     }
@@ -73,7 +81,7 @@ class ConsolidatorJobSchedulerSpec
 
 class TestJobActor(senderRef: ActorRef) extends Actor {
   override def receive: Receive = {
-    case p: ConsolidatorJobParam =>
+    case MessageWithFireTime(p: ConsolidatorJobParam, _: Date) =>
       senderRef ! p
   }
 }

@@ -17,15 +17,14 @@
 package consolidator.services
 
 import java.io.{ BufferedWriter, File, FileWriter }
-import java.time.Instant
 
 import cats.effect.Resource.fromAutoCloseable
 import cats.effect.{ ContextShift, IO }
 import cats.implicits._
 import collector.repositories.FormRepository
 import consolidator.IOUtils
-import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
-import consolidator.services.ConsolidatorService.ProcessFormsResult
+import consolidator.repositories.ConsolidatorJobDataRepository
+import consolidator.services.ConsolidatorService.ConsolidationResult
 import javax.inject.{ Inject, Singleton }
 import org.slf4j.{ Logger, LoggerFactory }
 import play.api.Configuration
@@ -45,46 +44,31 @@ class ConsolidatorService @Inject()(
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ec)
   private val batchSize = config.underlying.getInt("consolidator-job-config.batchSize")
 
-  def doConsolidation(projectId: String): IO[Option[File]] = {
-    val startTimestamp = Instant.now()
-    (for {
+  def doConsolidation(projectId: String): IO[Option[ConsolidationResult]] =
+    for {
       recentConsolidatorJobData <- liftIO(consolidatorJobDataRepository.findRecentLastObjectId(projectId))
       prevLastObjectId = recentConsolidatorJobData.flatMap(_.lastObjectId)
       formsMetadata <- liftIO(formRepository.getFormsMetadata(projectId, prevLastObjectId))
-      processFormResult <- formsMetadata
-                            .filter(_.count > 0)
-                            .map { metadata =>
-                              processForms(projectId, metadata.count, prevLastObjectId, metadata.maxId)
-                                .map(Some(_))
-                            }
-                            .getOrElse(IO.pure(None))
-      consolidatorJobData = ConsolidatorJobData(
-        projectId,
-        startTimestamp,
-        Instant.now(),
-        processFormResult.flatMap(_.lastObjectId),
-        None)
-      _ <- liftIO(consolidatorJobDataRepository.add(consolidatorJobData))
-    } yield processFormResult.map(_.file)).recoverWith {
-      case e =>
-        logger.error("Failed doConsolidation", e)
-        val consolidatorJobData =
-          ConsolidatorJobData(projectId, startTimestamp, Instant.now(), None, Some(e.getMessage))
-        liftIO(consolidatorJobDataRepository.add(consolidatorJobData)).flatMap(_ => IO.raiseError(e))
-    }
-  }
+      consolidationResult <- formsMetadata
+                              .filter(_.count > 0)
+                              .map { metadata =>
+                                processForms(projectId, metadata.count, prevLastObjectId, metadata.maxId)
+                                  .map(Some(_))
+                              }
+                              .getOrElse(IO.pure(None))
+    } yield consolidationResult
 
   private def processForms(
     projectId: String,
     count: Int,
     afterObjectId: Option[BSONObjectID],
     maxId: BSONObjectID
-  ): IO[ProcessFormsResult] =
+  ): IO[ConsolidationResult] =
     for {
       outputFile <- createOutputFile(projectId)
       outputResource = fromAutoCloseable(IO(new BufferedWriter(new FileWriter(outputFile))))
       lastObjectId <- outputResource.use(writeFormsToFile(projectId, count, afterObjectId, maxId, _))
-    } yield ProcessFormsResult(lastObjectId, outputFile)
+    } yield ConsolidationResult(lastObjectId, outputFile)
 
   private def writeFormsToFile(
     projectId: String,
@@ -125,5 +109,5 @@ class ConsolidatorService @Inject()(
 }
 
 object ConsolidatorService {
-  case class ProcessFormsResult(lastObjectId: Option[BSONObjectID], file: File)
+  case class ConsolidationResult(lastObjectId: Option[BSONObjectID], file: File)
 }

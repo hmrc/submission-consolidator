@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-package consolidator.scheduler
+package common
 
-import play.api.libs.json.Json
+import java.time.Instant
 
-case class ConsolidatorJobParam(projectId: String, classificationType: String, businessArea: String)
-object ConsolidatorJobParam {
-  implicit val formats = Json.format[ConsolidatorJobParam]
+trait Time[T] {
+  def now(): T
 }
-case class ConsolidatorJobConfig(id: String, cron: String, params: ConsolidatorJobParam)
-object ConsolidatorJobConfig {
-  implicit val formats = Json.format[ConsolidatorJobConfig]
+
+object Time {
+  implicit val instantTime = new Time[Instant] {
+    override def now(): Instant = Instant.now()
+  }
 }

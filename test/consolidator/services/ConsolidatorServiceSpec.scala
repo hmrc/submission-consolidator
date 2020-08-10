@@ -17,9 +17,8 @@
 package consolidator.services
 
 import collector.repositories.{ DataGenerators, FormRepository, MongoGenericError }
-import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository, FormsMetadata, GenericConsolidatorJobDataError }
+import consolidator.repositories.{ ConsolidatorJobDataRepository, FormsMetadata, GenericConsolidatorJobDataError }
 import org.mockito.ArgumentMatchersSugar
-import org.mockito.captor.ArgCaptor
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalacheck.Gen
 import org.scalacheck.rng.Seed
@@ -63,7 +62,6 @@ class ConsolidatorServiceSpec
     )
     mockFormRepository.getForms(projectId, *)(*, *)(*) returns
       Future.successful(Right(forms))
-    mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(Right(()))
   }
 
   "doConsolidation" when {
@@ -74,22 +72,15 @@ class ConsolidatorServiceSpec
         //when
         val future = consolidatorService.doConsolidation(projectId).unsafeToFuture()
 
-        whenReady(future) { file =>
-          file.isEmpty shouldBe true
+        whenReady(future) { processFormsResult =>
+          processFormsResult.isEmpty shouldBe true
 
           mockConsolidatorJobDataRepository.findRecentLastObjectId(projectId)(*) wasCalled once
           mockFormRepository.getFormsMetadata(projectId)(*) wasCalled once
           mockFormRepository.getForms(projectId, batchSize)(*, *)(
             *
           ) wasNever called
-          val consolidatorJobDataCaptor = ArgCaptor[ConsolidatorJobData]
-          mockConsolidatorJobDataRepository.add(consolidatorJobDataCaptor)(*) wasCalled once
-          consolidatorJobDataCaptor.value.projectId shouldBe projectId
-          consolidatorJobDataCaptor.value.lastObjectId shouldBe empty
-          consolidatorJobDataCaptor.value.error shouldBe empty
-          consolidatorJobDataCaptor.value.endTimestamp.isAfter(
-            consolidatorJobDataCaptor.value.startTimestamp
-          ) shouldBe true
+
         }
       }
 
@@ -97,25 +88,18 @@ class ConsolidatorServiceSpec
         //when
         val future = consolidatorService.doConsolidation(projectId).unsafeToFuture()
 
-        whenReady(future) { file =>
-          val fileSource = Source.fromFile(file.get, "UTF-8")
+        whenReady(future) { processFormsResult =>
+          val fileSource = Source.fromFile(processFormsResult.get.file, "UTF-8")
           fileSource.getLines().toList.head shouldEqual forms.head.toJsonLine()
           fileSource.close
+
+          processFormsResult.get.lastObjectId shouldBe Some(forms.last.id)
 
           mockConsolidatorJobDataRepository.findRecentLastObjectId(projectId)(*) wasCalled once
           mockFormRepository.getFormsMetadata(projectId)(*) wasCalled once
           mockFormRepository.getForms(projectId, batchSize)(*, *)(
             *
           ) wasCalled once
-
-          val consolidatorJobDataCaptor = ArgCaptor[ConsolidatorJobData]
-          mockConsolidatorJobDataRepository.add(consolidatorJobDataCaptor)(*) wasCalled once
-          consolidatorJobDataCaptor.value.projectId shouldBe projectId
-          consolidatorJobDataCaptor.value.lastObjectId shouldBe Some(forms.last.id)
-          consolidatorJobDataCaptor.value.endTimestamp.isAfter(
-            consolidatorJobDataCaptor.value.startTimestamp
-          ) shouldBe true
-          consolidatorJobDataCaptor.value.error shouldBe empty
         }
       }
 
@@ -131,8 +115,8 @@ class ConsolidatorServiceSpec
         //when
         val future = consolidatorService.doConsolidation(projectId).unsafeToFuture()
 
-        whenReady(future) { file =>
-          val fileSource = Source.fromFile(file.get, "UTF-8")
+        whenReady(future) { processFormsResult =>
+          val fileSource = Source.fromFile(processFormsResult.get.file, "UTF-8")
           val fileLines = fileSource.getLines().toList
           fileLines shouldEqual forms.map(_.toJsonLine())
           fileSource.close
@@ -152,14 +136,6 @@ class ConsolidatorServiceSpec
 
         whenReady(future.failed) { error =>
           error shouldBe GenericConsolidatorJobDataError("some error")
-          val consolidatorJobDataCaptor = ArgCaptor[ConsolidatorJobData]
-          mockConsolidatorJobDataRepository.add(consolidatorJobDataCaptor)(*) wasCalled once
-          consolidatorJobDataCaptor.value.projectId shouldBe projectId
-          consolidatorJobDataCaptor.value.lastObjectId shouldBe None
-          consolidatorJobDataCaptor.value.endTimestamp.isAfter(
-            consolidatorJobDataCaptor.value.startTimestamp
-          ) shouldBe true
-          consolidatorJobDataCaptor.value.error shouldBe Some("some error")
         }
       }
 
@@ -193,19 +169,6 @@ class ConsolidatorServiceSpec
         whenReady(future.failed) { error =>
           error shouldBe a[RuntimeException]
           error.getMessage shouldBe "mongo db unavailable"
-        }
-      }
-
-      "handle error when ConsolidatorJobDataRepository add fails" in new TestFixture {
-        mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(
-          Left(GenericConsolidatorJobDataError("some error"))
-        )
-
-        //when
-        val future = consolidatorService.doConsolidation(projectId).unsafeToFuture()
-
-        whenReady(future.failed) { error =>
-          error shouldBe GenericConsolidatorJobDataError("some error")
         }
       }
     }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package consolidator.dms.proxy
+package consolidator.proxies
 
 import java.io.File
 import java.net.ConnectException
@@ -58,7 +58,7 @@ class FileUploadFrontEndProxySpec
         body = responseBody
       )
     )
-    mockWSHttpClient.POSTFile(*, *)(*, *) shouldReturn response
+    mockWSHttpClient.POSTFile(*, *)(*) shouldReturn response
   }
 
   "upload" when {
@@ -70,7 +70,7 @@ class FileUploadFrontEndProxySpec
           mockWSHttpClient.POSTFile(
             s"${fileUploadConfig.fileUploadFrontendBaseUrl}/file-upload/upload/envelopes/some-envelope-id/files/some-file-id",
             file
-          )(*, *) wasCalled once
+          )(*) wasCalled once
         }
       }
     }

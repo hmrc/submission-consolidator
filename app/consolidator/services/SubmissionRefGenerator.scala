@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-package consolidator.scheduler
+package consolidator.services
 
-import play.api.libs.json.Json
+import consolidator.services.SubmissionService.SubmissionRef
+import javax.inject.Singleton
+import reactivemongo.bson.BSONObjectID
 
-case class ConsolidatorJobParam(projectId: String, classificationType: String, businessArea: String)
-object ConsolidatorJobParam {
-  implicit val formats = Json.format[ConsolidatorJobParam]
-}
-case class ConsolidatorJobConfig(id: String, cron: String, params: ConsolidatorJobParam)
-object ConsolidatorJobConfig {
-  implicit val formats = Json.format[ConsolidatorJobConfig]
+@Singleton
+class SubmissionRefGenerator {
+  def generate: SubmissionRef =
+    SubmissionRef(BSONObjectID.generate().stringify.toUpperCase)
 }
