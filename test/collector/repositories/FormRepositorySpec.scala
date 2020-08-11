@@ -16,8 +16,6 @@
 
 package collector.repositories
 
-import java.time.Instant
-
 import com.softwaremill.diffx.scalatest.DiffMatcher
 import consolidator.repositories.FormsMetadata
 import org.scalacheck.Gen

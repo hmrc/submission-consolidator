@@ -17,9 +17,9 @@
 package consolidator.scheduler
 
 import akka.actor.ActorSystem
-import consolidator.dms.FileUploaderService
 import consolidator.FormConsolidatorActor
-import consolidator.services.ConsolidatorService
+import consolidator.repositories.ConsolidatorJobDataRepository
+import consolidator.services.{ ConsolidatorService, SubmissionService }
 import javax.inject.Inject
 import org.slf4j.{ Logger, LoggerFactory }
 import play.api.inject.ApplicationLifecycle
@@ -29,14 +29,16 @@ import scala.concurrent.Future
 class ConsolidatorJobSchedulerTask @Inject()(
   jobScheduler: ConsolidatorJobScheduler,
   consolidatorService: ConsolidatorService,
-  fileUploaderService: FileUploaderService,
+  fileUploaderService: SubmissionService,
+  consolidatorJobDataRepository: ConsolidatorJobDataRepository,
   applicationLifecycle: ApplicationLifecycle) {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
   logger.info("Scheduling consolidator jobs")
 
   implicit val system = ActorSystem("JobSchedulerSystem")
-  val scheduler = jobScheduler.scheduleJobs(FormConsolidatorActor.props(consolidatorService, fileUploaderService))
+  val scheduler = jobScheduler.scheduleJobs(
+    FormConsolidatorActor.props(consolidatorService, fileUploaderService, consolidatorJobDataRepository))
   applicationLifecycle.addStopHook { () =>
     Future.successful(scheduler.shutdown(true))
   }

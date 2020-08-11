@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package consolidator.dms.proxy
+package consolidator.proxies
 
 import java.net.ConnectException
 

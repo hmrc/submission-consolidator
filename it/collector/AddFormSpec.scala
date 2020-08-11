@@ -17,9 +17,10 @@ package collector
 
 import org.scalatest.time.{ Millis, Seconds, Span }
 import org.slf4j.{ Logger, LoggerFactory }
-import play.api.Application
+import play.api.{ Application, Configuration }
 import play.api.inject.guice.GuiceApplicationBuilder
 import collector.repositories.FormRepository
+import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.Await.ready
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -35,9 +36,17 @@ class AddFormSpec extends ITSpec {
     ready(app.injector.instanceOf[FormRepository].removeAll(), 5.seconds)
 
   override def fakeApplication(): Application = {
-    logger.info(s"configurationOverrides=$configurationOverrides")
+    val config =
+      Configuration(
+        ConfigFactory
+          .parseString("""
+                         | consolidator-jobs = []
+                         |""".stripMargin)
+          .withFallback(baseConfig.underlying)
+      )
+    logger.info(s"configuration=$config")
     GuiceApplicationBuilder()
-      .configure(configurationOverrides)
+      .configure(config)
       .build()
   }
 

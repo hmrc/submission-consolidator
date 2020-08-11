@@ -17,7 +17,7 @@
 package consolidator.scheduler
 
 import akka.actor.{ ActorSystem, Props }
-import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
+import com.typesafe.akka.extension.quartz.{ MessageRequireFireTime, QuartzSchedulerExtension }
 import com.typesafe.config.ConfigRenderOptions
 import javax.inject.{ Inject, Singleton }
 import play.api.Configuration
@@ -38,7 +38,12 @@ class ConsolidatorJobScheduler @Inject()(config: Configuration) {
 
     consolidatorJobConfigs.foreach { jobConfig =>
       val receivingActorRef = system.actorOf(receivingActorProps, jobConfig.id)
-      scheduler.createJobSchedule(jobConfig.id, receivingActorRef, jobConfig.params, None, jobConfig.cron)
+      scheduler.createJobSchedule(
+        jobConfig.id,
+        receivingActorRef,
+        MessageRequireFireTime(jobConfig.params),
+        None,
+        jobConfig.cron)
     }
 
     scheduler

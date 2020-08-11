@@ -20,11 +20,11 @@ import java.io.File
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.{ FileIO, Source }
 import akka.util.ByteString
 import com.typesafe.config.Config
 import javax.inject.{ Inject, Singleton }
-import play.api.libs.ws.{ WSClient, WSRequest }
+import play.api.libs.ws.WSClient
 import play.api.mvc.MultipartFormData.FilePart
 import uk.gov.hmrc.http.hooks.HttpHook
 import uk.gov.hmrc.http.{ HeaderCarrier, HttpPost, HttpResponse }
@@ -32,29 +32,26 @@ import uk.gov.hmrc.play.http.logging.Mdc.preservingMdc
 import uk.gov.hmrc.play.http.ws.{ WSHttpResponse, WSPost }
 
 import scala.concurrent.{ ExecutionContext, Future }
-
 @Singleton
 class WSHttpClient @Inject()(override val wsClient: WSClient, override val actorSystem: ActorSystem)
     extends HttpPost with WSPost {
   override def applicableHeaders(url: String)(implicit hc: HeaderCarrier): Seq[(String, String)] = hc.headers
   override protected def configuration: Option[Config] = None
   override val hooks: Seq[HttpHook] = Seq.empty
+  implicit val headerCarrier: HeaderCarrier = HeaderCarrier()
 
-  def POSTFile(url: String, file: File)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[HttpResponse] = {
-    val request: WSRequest = buildRequest(url)
+  def POSTFile(url: String, file: File)(implicit ec: ExecutionContext): Future[HttpResponse] =
     preservingMdc {
-      request.post(file).map(WSHttpResponse(_))
+      buildRequest(url)
+        .post(Source(FilePart(file.getName, file.getName, None, FileIO.fromPath(file.toPath)) :: Nil))
+        .map(WSHttpResponse(_))
     }
-  }
 
-  def POSTFile(url: String, fileName: String, body: ByteString)(
-    implicit hc: HeaderCarrier,
-    ec: ExecutionContext): Future[HttpResponse] = {
-
-    val source: Source[FilePart[Source[ByteString, NotUsed]], NotUsed] = Source(
-      FilePart(fileName, fileName, None, Source.single(body)) :: Nil)
+  def POSTFile(url: String, fileName: String, body: ByteString)(implicit ec: ExecutionContext): Future[HttpResponse] =
     preservingMdc {
+      val source: Source[FilePart[Source[ByteString, NotUsed]], NotUsed] = Source(
+        FilePart(fileName, fileName, None, Source.single(body)) :: Nil
+      )
       buildRequest(url).post(source).map(WSHttpResponse(_))
     }
-  }
 }

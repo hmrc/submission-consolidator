@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package consolidator.dms.proxy
+package consolidator.proxies
 
 import collector.common.ApplicationError
 import play.api.libs.json.Json

@@ -14,24 +14,16 @@
  * limitations under the License.
  */
 
-package consolidator.dms
+package consolidator.proxies
 
-import java.io.File
-
-import cats.effect.IO
-import consolidator.dms.proxy.{ FileUploadFrontEndProxy, FileUploadProxy }
 import javax.inject.{ Inject, Singleton }
-import org.slf4j.{ Logger, LoggerFactory }
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 @Singleton
-class FileUploaderService @Inject()(
-  fileUploadProxy: FileUploadProxy,
-  fileUploadFrontEndProxy: FileUploadFrontEndProxy) {
+class FileUploadConfig @Inject()(
+  servicesConfig: ServicesConfig
+) {
 
-  private val logger: Logger = LoggerFactory.getLogger(getClass)
-
-  def upload(file: File): IO[Unit] = {
-    logger.info("Uploading file " + file)
-    IO.pure(())
-  }
+  val fileUploadBaseUrl: String = servicesConfig.baseUrl("file-upload")
+  val fileUploadFrontendBaseUrl: String = servicesConfig.baseUrl("file-upload-frontend")
 }

@@ -14,16 +14,19 @@
  * limitations under the License.
  */
 
-package consolidator.dms.proxy
+package common
 
-import javax.inject.{ Inject, Singleton }
-import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
+import consolidator.services.SubmissionRefGenerator
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import reactivemongo.bson.BSONObjectID
 
-@Singleton
-class FileUploadConfig @Inject()(
-  servicesConfig: ServicesConfig
-) {
-
-  val fileUploadBaseUrl: String = servicesConfig.baseUrl("file-upload")
-  val fileUploadFrontendBaseUrl: String = servicesConfig.baseUrl("file-upload-frontend")
+class SubmissionRefGeneratorSpec extends AnyWordSpec with Matchers {
+  "generate" should {
+    "return a unique submission ref using BSONObjectID generator" in {
+      val submissionRefGenerator = new SubmissionRefGenerator()
+      val result = submissionRefGenerator.generate
+      BSONObjectID.parse(result.value).isSuccess shouldBe true
+    }
+  }
 }
