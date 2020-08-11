@@ -6,6 +6,8 @@ val appName = "submission-consolidator"
 
 val silencerVersion = "1.7.0"
 
+lazy val IntegrationTest = config("it") extend (Test)
+
 lazy val microservice = Project(appName, file("."))
   .enablePlugins(
     play.sbt.PlayScala,
