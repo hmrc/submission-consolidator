@@ -17,11 +17,12 @@
 package consolidator
 
 import java.time.Instant
+import java.time.Instant.ofEpochMilli
 import java.util.Date
 
 import akka.actor.{ Actor, Props }
 import cats.effect.IO
-import consolidator.FormConsolidatorActor.OK
+import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
 import consolidator.scheduler.ConsolidatorJobParam
 import consolidator.services.{ ConsolidatorService, SubmissionService }
@@ -31,11 +32,16 @@ import scala.concurrent.ExecutionContext
 import cats.implicits._
 import com.typesafe.akka.extension.quartz.MessageWithFireTime
 import reactivemongo.bson.BSONObjectID
+import uk.gov.hmrc.lock.{ LockKeeperAutoRenew, LockRepository }
+import org.joda.time.Duration
+
+import scala.util.{ Failure, Success }
 
 class FormConsolidatorActor(
   consolidatorService: ConsolidatorService,
   fileUploaderService: SubmissionService,
-  consolidatorJobDataRepository: ConsolidatorJobDataRepository
+  consolidatorJobDataRepository: ConsolidatorJobDataRepository,
+  lockRepository: LockRepository
 ) extends Actor with IOUtils {
 
   private val logger: Logger = LoggerFactory.getLogger(getClass)
@@ -45,22 +51,37 @@ class FormConsolidatorActor(
     case MessageWithFireTime(p: ConsolidatorJobParam, time: Date) =>
       logger.info(s"Consolidating forms $p")
       val senderRef = sender()
-      val startTimestamp = Instant.ofEpochMilli(time.getTime)
       val program: IO[Unit] = (for {
         consolidationResult <- consolidatorService.doConsolidation(p.projectId)
         _                   <- consolidationResult.map(cResult => fileUploaderService.submit(cResult.file, p)).getOrElse(IO.pure(()))
-        _                   <- addConsolidatorJobData(p.projectId, startTimestamp, consolidationResult.flatMap(_.lastObjectId), None)
+        _ <- addConsolidatorJobData(
+              p.projectId,
+              ofEpochMilli(time.getTime),
+              consolidationResult.flatMap(_.lastObjectId),
+              None
+            )
       } yield ()).recoverWith {
         case e =>
           logger.error("Failed to consolidate/submit forms", e)
-          addConsolidatorJobData(p.projectId, startTimestamp, None, Some(e.getMessage))
+          addConsolidatorJobData(p.projectId, ofEpochMilli(time.getTime), None, Some(e.getMessage))
             .flatMap(_ => IO.raiseError(e))
       }
 
-      program.unsafeRunAsync {
-        case Left(error) => senderRef ! error
-        case Right(_)    => senderRef ! OK
+      val lock = new LockKeeperAutoRenew {
+        override val repo: LockRepository = lockRepository
+        override val id: String = p.projectId
+        override val duration: Duration = Duration.standardMinutes(5)
       }
+
+      lock
+        .withLock(program.unsafeToFuture())
+        .onComplete {
+          case Success(Some(_)) =>
+            senderRef ! OK
+          case Success(None) =>
+            senderRef ! LockUnavailable
+          case Failure(e) => senderRef ! e
+        }
   }
 
   private def addConsolidatorJobData(
@@ -83,12 +104,19 @@ class FormConsolidatorActor(
 object FormConsolidatorActor {
 
   sealed trait Status
+  case object LockUnavailable extends Status
   case object OK extends Status
 
   def props(
     consolidatorService: ConsolidatorService,
     fileUploaderService: SubmissionService,
-    consolidatorJobDataRepository: ConsolidatorJobDataRepository
+    consolidatorJobDataRepository: ConsolidatorJobDataRepository,
+    lockRepository: LockRepository
   ): Props =
-    Props(new FormConsolidatorActor(consolidatorService, fileUploaderService, consolidatorJobDataRepository))
+    Props(
+      new FormConsolidatorActor(
+        consolidatorService,
+        fileUploaderService,
+        consolidatorJobDataRepository,
+        lockRepository))
 }

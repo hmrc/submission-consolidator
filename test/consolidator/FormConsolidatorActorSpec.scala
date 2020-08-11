@@ -24,11 +24,11 @@ import akka.testkit.{ ImplicitSender, TestKit }
 import cats.effect.IO
 import collector.repositories.DataGenerators
 import com.typesafe.akka.extension.quartz.MessageWithFireTime
-import consolidator.FormConsolidatorActor.OK
+import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
 import consolidator.scheduler.ConsolidatorJobParam
-import consolidator.services.{ ConsolidatorService, SubmissionService }
 import consolidator.services.ConsolidatorService.ConsolidationResult
+import consolidator.services.{ ConsolidatorService, SubmissionService }
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.captor.ArgCaptor
 import org.mockito.scalatest.IdiomaticMockito
@@ -36,6 +36,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import reactivemongo.bson.BSONObjectID
+import uk.gov.hmrc.lock.LockRepository
 
 import scala.concurrent.Future
 
@@ -47,17 +48,26 @@ class FormConsolidatorActorSpec
     TestKit.shutdownActorSystem(system)
 
   trait TestFixture {
-    val mockConsolidatorService = mock[ConsolidatorService]
-    val mockFileUploaderService = mock[SubmissionService]
-    val mockConsolidatorJobDataRepository = mock[ConsolidatorJobDataRepository]
+    val mockConsolidatorService = mock[ConsolidatorService](withSettings.lenient())
+    val mockFileUploaderService = mock[SubmissionService](withSettings.lenient())
+    val mockConsolidatorJobDataRepository = mock[ConsolidatorJobDataRepository](withSettings.lenient())
+    val mockLockRepository = mock[LockRepository](withSettings.lenient())
+
     val projectId = "some-project-id"
     val lastObjectId = Some(BSONObjectID.generate())
     val testFile = new File("test.txt")
     val consolidatorJobParam = ConsolidatorJobParam(projectId, "some-classification", "some-business-area")
+
     val actor = system.actorOf(
-      FormConsolidatorActor.props(mockConsolidatorService, mockFileUploaderService, mockConsolidatorJobDataRepository))
+      FormConsolidatorActor
+        .props(mockConsolidatorService, mockFileUploaderService, mockConsolidatorJobDataRepository, mockLockRepository)
+    )
 
     val messageWithFireTime = MessageWithFireTime(consolidatorJobParam, new Date())
+
+    mockLockRepository.lock(*, *, *) shouldReturn Future.successful(true)
+    mockLockRepository.renew(*, *, *) shouldReturn Future.successful(true)
+    mockLockRepository.releaseLock(*, *) shouldReturn Future.successful(())
 
     def assertConsolidatorData(lastObjectId: Option[BSONObjectID], error: Option[String]) = {
       val consolidatorJobDataCaptor = ArgCaptor[ConsolidatorJobData]
@@ -72,9 +82,10 @@ class FormConsolidatorActorSpec
   }
 
   "FormConsolidatorActor" when {
+
     "given a ConsolidatorJobParam message" should {
 
-      "skip consolidation if forms are empty" in new TestFixture {
+      "skip consolidation if forms are empty and return OK" in new TestFixture {
         mockConsolidatorService.doConsolidation(*) shouldReturn IO.pure(None)
         mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(Right(()))
 
@@ -87,10 +98,20 @@ class FormConsolidatorActorSpec
         assertConsolidatorData(None, None)
       }
 
+      "skip consolidation if lock is not available" in new TestFixture {
+
+        mockLockRepository.lock(*, *, *) shouldReturn Future.successful(false)
+
+        actor ! messageWithFireTime
+
+        expectMsg(LockUnavailable)
+      }
+
       "consolidate forms and return OK" in new TestFixture {
 
         mockConsolidatorService.doConsolidation(*) shouldReturn IO.pure(
-          Some(ConsolidationResult(lastObjectId, testFile)))
+          Some(ConsolidationResult(lastObjectId, testFile))
+        )
         mockFileUploaderService.submit(*, *) shouldReturn IO.pure(())
         mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(Right(()))
 
@@ -102,39 +123,42 @@ class FormConsolidatorActorSpec
         mockFileUploaderService.submit(testFile, consolidatorJobParam) wasCalled once
         assertConsolidatorData(lastObjectId, None)
       }
-    }
 
-    "given a ConsolidatorJobParam message and ConsolidatorService fails" should {
-      "return the error message" in new TestFixture {
-        mockConsolidatorService.doConsolidation(*) shouldReturn IO.raiseError(new Exception("consolidation error"))
-        mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(Right(()))
+      "ConsolidatorService fails" should {
 
-        actor ! messageWithFireTime
+        "return the error message" in new TestFixture {
+          mockConsolidatorService.doConsolidation(*) shouldReturn IO.raiseError(new Exception("consolidation error"))
+          mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(Right(()))
 
-        expectMsgPF() {
-          case t: Throwable =>
-            t.getMessage shouldBe "consolidation error"
-            mockFileUploaderService.submit(testFile, consolidatorJobParam) wasNever called
-            assertConsolidatorData(None, Some("consolidation error"))
+          actor ! messageWithFireTime
+
+          expectMsgPF() {
+            case t: Throwable =>
+              t.getMessage shouldBe "consolidation error"
+              mockFileUploaderService.submit(testFile, consolidatorJobParam) wasNever called
+              assertConsolidatorData(None, Some("consolidation error"))
+          }
         }
       }
-    }
 
-    "given a ConsolidatorJobParam message and FileUploaderService fails" should {
-      "return the error message" in new TestFixture {
-        mockConsolidatorService.doConsolidation(*) shouldReturn IO.pure(
-          Some(ConsolidationResult(lastObjectId, testFile)))
-        mockFileUploaderService.submit(*, *) shouldReturn IO.raiseError(new Exception("file upload error"))
-        mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(Right(()))
+      "FileUploaderService fails" should {
 
-        actor ! messageWithFireTime
+        "return the error message" in new TestFixture {
+          mockConsolidatorService.doConsolidation(*) shouldReturn IO.pure(
+            Some(ConsolidationResult(lastObjectId, testFile))
+          )
+          mockFileUploaderService.submit(*, *) shouldReturn IO.raiseError(new Exception("file upload error"))
+          mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(Right(()))
 
-        expectMsgPF() {
-          case t: Throwable =>
-            t.getMessage shouldBe "file upload error"
-            mockConsolidatorService.doConsolidation(projectId) wasCalled once
-            mockFileUploaderService.submit(testFile, consolidatorJobParam) wasCalled once
-            assertConsolidatorData(None, Some("file upload error"))
+          actor ! messageWithFireTime
+
+          expectMsgPF() {
+            case t: Throwable =>
+              t.getMessage shouldBe "file upload error"
+              mockConsolidatorService.doConsolidation(projectId) wasCalled once
+              mockFileUploaderService.submit(testFile, consolidatorJobParam) wasCalled once
+              assertConsolidatorData(None, Some("file upload error"))
+          }
         }
       }
     }

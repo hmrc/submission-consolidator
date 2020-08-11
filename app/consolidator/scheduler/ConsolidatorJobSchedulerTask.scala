@@ -23,6 +23,8 @@ import consolidator.services.{ ConsolidatorService, SubmissionService }
 import javax.inject.Inject
 import org.slf4j.{ Logger, LoggerFactory }
 import play.api.inject.ApplicationLifecycle
+import play.modules.reactivemongo.ReactiveMongoComponent
+import uk.gov.hmrc.lock.LockMongoRepository
 
 import scala.concurrent.Future
 
@@ -31,6 +33,7 @@ class ConsolidatorJobSchedulerTask @Inject()(
   consolidatorService: ConsolidatorService,
   fileUploaderService: SubmissionService,
   consolidatorJobDataRepository: ConsolidatorJobDataRepository,
+  mongoComponent: ReactiveMongoComponent,
   applicationLifecycle: ApplicationLifecycle) {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
@@ -38,7 +41,12 @@ class ConsolidatorJobSchedulerTask @Inject()(
 
   implicit val system = ActorSystem("JobSchedulerSystem")
   val scheduler = jobScheduler.scheduleJobs(
-    FormConsolidatorActor.props(consolidatorService, fileUploaderService, consolidatorJobDataRepository))
+    FormConsolidatorActor
+      .props(
+        consolidatorService,
+        fileUploaderService,
+        consolidatorJobDataRepository,
+        LockMongoRepository(mongoComponent.mongoConnector.db)))
   applicationLifecycle.addStopHook { () =>
     Future.successful(scheduler.shutdown(true))
   }
