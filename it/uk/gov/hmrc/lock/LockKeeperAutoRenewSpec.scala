@@ -15,8 +15,6 @@
  */
 package uk.gov.hmrc.lock
 
-import java.lang.Thread.sleep
-
 import collector.ITSpec
 import com.typesafe.config.ConfigFactory
 import org.joda.time.{DateTime, DateTimeZone, Duration}
@@ -39,9 +37,8 @@ class LockKeeperAutoRenewSpec
 
   var lockRepository: LockRepository = _
 
-  override def beforeAll() = {
+  override def beforeAll() =
     lockRepository = LockMongoRepository(app.injector.instanceOf[ReactiveMongoComponent].mongoConnector.db)
-  }
 
   override def beforeEach(): Unit =
     lockRepository.removeAll().futureValue
@@ -121,20 +118,15 @@ class LockKeeperAutoRenewSpec
           override val id: String = "TEST_LOCK"
           override val duration: Duration = Duration.standardSeconds(5)
         }
-        val future1 = Future {
-          lockKeeper
-            .withLock(Future {
-              1
-            })
-            .futureValue
-        }
-        val future2 = Future {
+        val future1 = lockKeeper
+          .withLock(Future {
+            1
+          })
+        val future2 =
           otherLockKeeper
             .withLock(Future {
               2
             })
-            .futureValue
-        }
 
         val future = for {
           future1Result <- future1
