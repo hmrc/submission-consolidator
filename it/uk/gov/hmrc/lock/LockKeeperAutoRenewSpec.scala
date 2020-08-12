@@ -26,7 +26,8 @@ import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.lock.LockFormats.Lock
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 
 class LockKeeperAutoRenewSpec
     extends ITSpec {
@@ -143,7 +144,7 @@ class LockKeeperAutoRenewSpec
           futureResult should (
             equal(Some(1), Option.empty) or
               equal(Option.empty, Some(2))
-          )
+            )
         }
       }
     }
@@ -151,18 +152,15 @@ class LockKeeperAutoRenewSpec
     "future body takes longer then lock duration" should {
       "auto renew the lock" in new TestFixture {
 
-        val future: Future[Option[Future[(Lock, Lock)]]] = lockKeeper
+        val future = lockKeeper
           .withLock(Future {
-            val beforeRenewFuture = lockRepository.findAll().map(_.head)
+            val lockBefore = Await.result(lockRepository.findAll().map(_.head), 2.seconds)
             Thread.sleep(7000)
-            val afterRenewFuture = lockRepository.findAll().map(_.head)
-            for {
-              lockBefore <- beforeRenewFuture
-              lockAfter <- afterRenewFuture
-            } yield (lockBefore, lockAfter)
+            val lockAfter = Await.result(lockRepository.findAll().map(_.head), 2.seconds)
+            (lockBefore, lockAfter)
           })
         whenReady(future) { locks =>
-          val (lockBefore, lockAfter)  = locks.get.futureValue
+          val (lockBefore, lockAfter)  = locks.get
           lockAfter.expiryTime.isAfter(lockBefore.expiryTime) shouldBe true
         }
       }
