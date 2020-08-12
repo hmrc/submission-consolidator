@@ -122,12 +122,14 @@ class LockKeeperAutoRenewSpec
         val future1 = Future {
           lockKeeper
             .withLock(Future {
+              Thread.sleep(1000)
               1
             })
         }
         val future2 = Future {
           otherLockKeeper
             .withLock(Future {
+              Thread.sleep(1000)
               2
             })
         }
@@ -146,21 +148,24 @@ class LockKeeperAutoRenewSpec
       }
     }
 
-//    "future body takes longer then lock duration" should {
-//      "auto renew the lock" in new TestFixture {
-//
-//        val future = lockKeeper
-//          .withLock(Future {
-//            val lockBeforeRenew = lockRepository.findAll().futureValue.head
-//            sleep(7000) // long running future
-//            val lockAfterRenew = lockRepository.findAll().futureValue.head
-//            (lockBeforeRenew, lockAfterRenew)
-//          })
-//        whenReady(future) { locks =>
-//          val (lockBeforeRenew, lockAfterRenew) = locks.get
-//          lockAfterRenew.expiryTime.isAfter(lockBeforeRenew.expiryTime) shouldBe true
-//        }
-//      }
-//    }
+    "future body takes longer then lock duration" should {
+      "auto renew the lock" in new TestFixture {
+
+        val future: Future[Option[Future[(Lock, Lock)]]] = lockKeeper
+          .withLock(Future {
+            val beforeRenewFuture = lockRepository.findAll().map(_.head)
+            Thread.sleep(7000)
+            val afterRenewFuture = lockRepository.findAll().map(_.head)
+            for {
+              lockBefore <- beforeRenewFuture
+              lockAfter <- afterRenewFuture
+            } yield (lockBefore, lockAfter)
+          })
+        whenReady(future) { locks =>
+          val (lockBefore, lockAfter)  = locks.get.futureValue
+          lockAfter.expiryTime.isAfter(lockBefore.expiryTime) shouldBe true
+        }
+      }
+    }
   }
 }
