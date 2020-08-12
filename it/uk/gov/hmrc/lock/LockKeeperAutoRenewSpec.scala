@@ -27,10 +27,8 @@ import play.api.{Application, Configuration}
 import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.lock.LockFormats.Lock
 
-import scala.concurrent.Await.ready
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.concurrent.duration._
 
 class LockKeeperAutoRenewSpec
     extends ITSpec {
@@ -46,7 +44,7 @@ class LockKeeperAutoRenewSpec
   }
 
   override def beforeEach(): Unit =
-    ready(lockRepository.removeAll(), 5.seconds)
+    lockRepository.removeAll().futureValue
 
   override def fakeApplication(): Application = {
     val config =
@@ -139,6 +137,7 @@ class LockKeeperAutoRenewSpec
             })
             .futureValue
         }
+
         val future = for {
           future1Result <- future1
           future2Result <- future2
