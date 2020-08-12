@@ -17,39 +17,51 @@ package uk.gov.hmrc.lock
 
 import java.lang.Thread.sleep
 
-import collector.repositories.EmbeddedMongoDBSupport
-import org.joda.time.{ DateTime, DateTimeZone, Duration }
-import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{ Millis, Seconds, Span }
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
+import collector.ITSpec
+import com.typesafe.config.ConfigFactory
+import org.joda.time.{DateTime, DateTimeZone, Duration}
+import org.scalatest.time.{Millis, Seconds, Span}
+import org.slf4j.{Logger, LoggerFactory}
+import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.{Application, Configuration}
+import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.lock.LockFormats.Lock
-import uk.gov.hmrc.mongo.MongoConnector
 
+import scala.concurrent.Await.ready
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 class LockKeeperAutoRenewSpec
-    extends AnyWordSpec with Matchers with EmbeddedMongoDBSupport with ScalaFutures with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+    extends ITSpec {
 
-  override implicit val patienceConfig = PatienceConfig(Span(15, Seconds), Span(1, Millis))
+  val logger: Logger = LoggerFactory.getLogger(getClass)
+
+  override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
 
   var lockRepository: LockRepository = _
 
-  override def beforeEach(): Unit =
-    lockRepository.removeAll().futureValue
-
-  override def beforeAll(): Unit = {
-    initMongoDExecutable()
-    startMongoD()
-    val mongoDbName: String = "test-" + this.getClass.getSimpleName
-    lockRepository = LockMongoRepository(MongoConnector(s"mongodb://$mongoHost:$mongoPort/$mongoDbName").db)
+  override def beforeAll() = {
+    lockRepository = LockMongoRepository(app.injector.instanceOf[ReactiveMongoComponent].mongoConnector.db)
   }
 
-  override def afterAll(): Unit =
-    stopMongoD()
+  override def beforeEach(): Unit =
+    ready(lockRepository.removeAll(), 5.seconds)
+
+  override def fakeApplication(): Application = {
+    val config =
+      Configuration(
+        ConfigFactory
+          .parseString("""
+                         | consolidator-jobs = []
+                         |""".stripMargin)
+          .withFallback(baseConfig.underlying)
+      )
+    logger.info(s"configuration=$config")
+    GuiceApplicationBuilder()
+      .configure(config)
+      .build()
+  }
 
   trait TestFixture {
     lazy val lockDuration = Duration.standardSeconds(5)
