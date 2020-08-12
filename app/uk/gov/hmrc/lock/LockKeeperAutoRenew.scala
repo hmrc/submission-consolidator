@@ -42,14 +42,14 @@ trait LockKeeperAutoRenew {
         case true =>
           val renewalScheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
           val period = duration.getMillis - 3000
-          if(period > 0) {
+          if (period > 0) {
             renewalScheduler.scheduleAtFixedRate(
               () =>
                 repo.renew(id, owner, duration).recover {
                   case e =>
                     logger.warn("Failed to renew lock via renewal renewalTimer", e)
                     ()
-                },
+              },
               period, // renew 3 seconds before lock timeout
               period,
               TimeUnit.MILLISECONDS
