@@ -37,8 +37,9 @@ class LockKeeperAutoRenewSpec
 
   var lockRepository: LockRepository = _
 
-  override def beforeAll() =
+  override def beforeAll() = {
     lockRepository = LockMongoRepository(app.injector.instanceOf[ReactiveMongoComponent].mongoConnector.db)
+  }
 
   override def beforeEach(): Unit =
     lockRepository.removeAll().futureValue
@@ -118,19 +119,22 @@ class LockKeeperAutoRenewSpec
           override val id: String = "TEST_LOCK"
           override val duration: Duration = Duration.standardSeconds(5)
         }
-        val future1 = lockKeeper
-          .withLock(Future {
-            1
-          })
-        val future2 =
+        val future1 = Future {
+          lockKeeper
+            .withLock(Future {
+              1
+            })
+        }
+        val future2 = Future {
           otherLockKeeper
             .withLock(Future {
               2
             })
+        }
 
         val future = for {
-          future1Result <- future1
-          future2Result <- future2
+          future1Result <- future1.flatten
+          future2Result <- future2.flatten
         } yield (future1Result, future2Result)
 
         whenReady(future) { futureResult =>
