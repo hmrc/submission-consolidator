@@ -13,7 +13,7 @@ To run locally using Service Manager
 
 ```sm --start SUBMISSION_CONSOLIDATOR -f```
 
-## API Details
+## Collector - API Details
 
 ### Add Form
 
@@ -58,7 +58,7 @@ Accepts form submission data and stores it in the mongodb collection (submission
  |400 |REQUEST_VALIDATION_FAILED|Request body failed validation|/formData(0)/value|Is required|
  |503|SERVICE_UNAVAILABLE|The service is not available due to downstream services (eg Mongo DB)| | |
  
-### Consolidator
+## Consolidator and Submitter
 
 Consolidator jobs are configured in application.conf and scheduled to run periodically based on a cron expression. The jobs consolidate all the forms for the given `projectId` and submits them as JSON line file to the configured DMS queue (indentified by `classificationType` and `businessArea`)
 
