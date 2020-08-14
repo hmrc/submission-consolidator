@@ -16,13 +16,13 @@
 
 package consolidator.services
 
-import java.io.File
+import java.nio.file.{ Files, Paths }
 import java.time.format.DateTimeFormatter
 import java.time.{ Instant, ZoneId }
 
 import akka.util.ByteString
 import common.Time
-import consolidator.proxies.{ Constraints, CreateEnvelopeRequest, FileUploadError, FileUploadFrontEndProxy, FileUploadProxy, GenericFileUploadError, RouteEnvelopeRequest }
+import consolidator.proxies.{ Constraints, CreateEnvelopeRequest, FileId, FileUploadError, FileUploadFrontEndProxy, FileUploadProxy, GenericFileUploadError, RouteEnvelopeRequest }
 import consolidator.scheduler.ConsolidatorJobParam
 import consolidator.services.SubmissionService.{ FileIds, SubmissionRef }
 import org.mockito.ArgumentMatchersSugar
@@ -39,7 +39,11 @@ class SubmissionServiceSpec extends AnyWordSpec with IdiomaticMockito with Argum
   private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
 
   trait TestFixture {
-    val formsFile = new File("some-file")
+    val reportFilesPath = Files.createDirectories(
+      Paths.get(System.getProperty("java.io.tmpdir") + s"/SubmissionServiceSpec-${System.currentTimeMillis()}")
+    )
+    val reportFileName = "report-0.txt"
+    val reportFile = Files.createFile(Paths.get(reportFilesPath + "/" + reportFileName)).toFile
     val config = ConsolidatorJobParam("some-project-id", "some-classification-type", "some-business-area")
     val someEnvelopedId = "some-envelope-id"
     val someSubmissionRef = "SOMESUBMISSIONREF"
@@ -64,7 +68,7 @@ class SubmissionServiceSpec extends AnyWordSpec with IdiomaticMockito with Argum
           List(
             Attribute("classification_type", "string", List(config.classificationType)),
             Attribute("business_area", "string", List(config.businessArea)),
-            Attribute("attachment_count", "int", List("2"))
+            Attribute("attachment_count", "int", List("1"))
           )
         )
       )
@@ -87,7 +91,7 @@ class SubmissionServiceSpec extends AnyWordSpec with IdiomaticMockito with Argum
     "create envelope from the given file and config and submit a routing request to DMS" in new TestFixture {
 
       //when
-      submissionService.submit(formsFile, config).unsafeRunSync()
+      submissionService.submit(reportFilesPath, config).unsafeRunSync()
 
       //then
       mockFileUploadProxy.createEnvelope(
@@ -96,7 +100,8 @@ class SubmissionServiceSpec extends AnyWordSpec with IdiomaticMockito with Argum
           Constraints(2, "25MB", "10MB", List("text/plain"), false)
         )
       ) wasCalled once
-      mockFileUploadFrontendProxy.upload(someEnvelopedId, FileIds.report, formsFile) wasCalled once
+      mockFileUploadFrontendProxy
+        .upload(someEnvelopedId, FileId(reportFileName.split("\\.").head), reportFile) wasCalled once
       mockFileUploadFrontendProxy.upload(
         someEnvelopedId,
         FileIds.xmlDocument,
@@ -112,7 +117,7 @@ class SubmissionServiceSpec extends AnyWordSpec with IdiomaticMockito with Argum
       override lazy val createEnvelopeResponse = Future.successful(Left(GenericFileUploadError("some error")))
 
       //when
-      submissionService.submit(formsFile, config).unsafeRunAsync {
+      submissionService.submit(reportFilesPath, config).unsafeRunAsync {
         case Left(error) => error shouldBe GenericFileUploadError("some error")
         case Right(_)    => fail("Should have failed")
       }

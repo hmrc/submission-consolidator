@@ -8,9 +8,10 @@ object AppDependencies {
   val compile = Seq(
     "uk.gov.hmrc"       %% "bootstrap-backend-play-27" % "2.23.0",
     "uk.gov.hmrc"       %% "simple-reactivemongo"      % "7.30.0-play-27",
+    "org.reactivemongo" %% "reactivemongo-akkastream"  % "0.18.8",
     "com.enragedginger" %% "akka-quartz-scheduler"     % "1.8.1-akka-2.5.x",
     "org.typelevel"     %% "cats-effect"               % "2.2.0-RC3",
-    "uk.gov.hmrc" %% "mongo-lock"                % "6.23.0-play-27"
+    "uk.gov.hmrc"       %% "mongo-lock"                % "6.23.0-play-27"
   )
 
   val test = Seq(

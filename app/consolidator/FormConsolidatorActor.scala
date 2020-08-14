@@ -41,8 +41,8 @@ class FormConsolidatorActor(
   consolidatorService: ConsolidatorService,
   fileUploaderService: SubmissionService,
   consolidatorJobDataRepository: ConsolidatorJobDataRepository,
-  lockRepository: LockRepository
-) extends Actor with IOUtils {
+  lockRepository: LockRepository)
+    extends Actor with IOUtils {
 
   private val logger: Logger = LoggerFactory.getLogger(getClass)
   implicit val ec: ExecutionContext = context.dispatcher
@@ -53,17 +53,24 @@ class FormConsolidatorActor(
       val senderRef = sender()
       val program: IO[Unit] = (for {
         consolidationResult <- consolidatorService.doConsolidation(p.projectId)
-        _                   <- consolidationResult.map(cResult => fileUploaderService.submit(cResult.file, p)).getOrElse(IO.pure(()))
+        envelopeId <- if (consolidationResult.isDefined) {
+                       fileUploaderService
+                         .submit(consolidationResult.get.outputPath, p)
+                         .map(Option(_))
+                     } else {
+                       IO.pure(None)
+                     }
         _ <- addConsolidatorJobData(
               p.projectId,
               ofEpochMilli(time.getTime),
               consolidationResult.flatMap(_.lastObjectId),
-              None
+              None,
+              envelopeId
             )
       } yield ()).recoverWith {
         case e =>
           logger.error("Failed to consolidate/submit forms", e)
-          addConsolidatorJobData(p.projectId, ofEpochMilli(time.getTime), None, Some(e.getMessage))
+          addConsolidatorJobData(p.projectId, ofEpochMilli(time.getTime), None, Some(e.getMessage), None)
             .flatMap(_ => IO.raiseError(e))
       }
 
@@ -88,14 +95,16 @@ class FormConsolidatorActor(
     projectId: String,
     startTime: Instant,
     lastObjectId: Option[BSONObjectID],
-    error: Option[String]
+    error: Option[String],
+    envelopeId: Option[String]
   ): IO[Unit] = {
     val consolidatorJobData = ConsolidatorJobData(
       projectId,
       startTime,
       Instant.now(),
       lastObjectId,
-      error
+      error,
+      envelopeId
     )
     liftIO(consolidatorJobDataRepository.add(consolidatorJobData))
   }
@@ -114,9 +123,6 @@ object FormConsolidatorActor {
     lockRepository: LockRepository
   ): Props =
     Props(
-      new FormConsolidatorActor(
-        consolidatorService,
-        fileUploaderService,
-        consolidatorJobDataRepository,
-        lockRepository))
+      new FormConsolidatorActor(consolidatorService, fileUploaderService, consolidatorJobDataRepository, lockRepository)
+    )
 }

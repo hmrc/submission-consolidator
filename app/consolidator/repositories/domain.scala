@@ -28,6 +28,7 @@ case class ConsolidatorJobData(
   endTimestamp: Instant,
   lastObjectId: Option[BSONObjectID],
   error: Option[String],
+  envelopeId: Option[String],
   id: BSONObjectID = BSONObjectID.generate()
 )
 object ConsolidatorJobData {
@@ -45,12 +46,6 @@ object ConsolidatorJobData {
   implicit val formats = mongoEntity {
     Json.format[ConsolidatorJobData]
   }
-}
-
-case class FormsMetadata(count: Int, maxId: BSONObjectID)
-object FormsMetadata {
-  import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.objectIdFormats
-  implicit val formats = Json.format[FormsMetadata]
 }
 
 abstract class ConsolidatorJobDataError(message: String) extends ApplicationError(message)
