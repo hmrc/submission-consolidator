@@ -56,7 +56,8 @@ trait DataGenerators {
     endTimestamp   <- genInstant
     lastObjectId   <- Gen.some(BSONObjectID.generate())
     error          <- Gen.const(None)
-  } yield ConsolidatorJobData(projectId, startTimestamp, endTimestamp, lastObjectId, error)
+    envelopeId     <- Gen.uuid.map(u => Some(u.toString))
+  } yield ConsolidatorJobData(projectId, startTimestamp, endTimestamp, lastObjectId, error, envelopeId)
 
   val genConsolidatorJobDataWithError = for {
     consolidatorData <- genConsolidatorJobData

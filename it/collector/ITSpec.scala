@@ -70,7 +70,7 @@ trait ITSpec
     )
 
     stubFor(
-      post(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/report"))
+      post(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/report-0"))
         .willReturn(
           aResponse()
             .withStatus(200)

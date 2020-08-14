@@ -102,7 +102,7 @@ class ConsolidatorSpec extends ITSpec with Eventually {
         eventually {
           verify(postRequestedFor(urlEqualTo("/file-upload/envelopes")))
           verify(postRequestedFor(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/xmlDocument")))
-          verify(postRequestedFor(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/report")))
+          verify(postRequestedFor(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/report-0")))
           verify(postRequestedFor(urlEqualTo("/file-routing/requests")))
         }
       }

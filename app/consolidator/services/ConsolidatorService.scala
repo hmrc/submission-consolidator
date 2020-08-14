@@ -16,98 +16,92 @@
 
 package consolidator.services
 
-import java.io.{ BufferedWriter, File, FileWriter }
+import java.nio.file.Files.createDirectories
+import java.nio.file.{ Path, Paths }
+import java.time.format.DateTimeFormatter
+import java.time.{ Instant, ZoneId }
 
-import cats.effect.Resource.fromAutoCloseable
+import akka.actor.ActorSystem
+import akka.stream.scaladsl.Sink
+import akka.util.ByteString
 import cats.effect.{ ContextShift, IO }
-import cats.implicits._
 import collector.repositories.FormRepository
+import common.Time
 import consolidator.IOUtils
 import consolidator.repositories.ConsolidatorJobDataRepository
 import consolidator.services.ConsolidatorService.ConsolidationResult
+import consolidator.services.FilePartOutputStage.ByteStringObjectId
 import javax.inject.{ Inject, Singleton }
-import org.slf4j.{ Logger, LoggerFactory }
 import play.api.Configuration
 import reactivemongo.bson.BSONObjectID
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.ExecutionContext
 
 @Singleton
 class ConsolidatorService @Inject()(
   formRepository: FormRepository,
   consolidatorJobDataRepository: ConsolidatorJobDataRepository,
   config: Configuration
-)(implicit ec: ExecutionContext)
-    extends IOUtils {
+)(implicit ec: ExecutionContext, system: ActorSystem)
+    extends IOUtils with FileUploadSettings {
 
-  private val logger: Logger = LoggerFactory.getLogger(getClass)
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ec)
   private val batchSize = config.underlying.getInt("consolidator-job-config.batchSize")
+  private val CREATION_TIME_BUFFER_SECONDS = 5
+  private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS")
 
-  def doConsolidation(projectId: String): IO[Option[ConsolidationResult]] =
+  def doConsolidation(projectId: String)(
+    implicit
+    time: Time[Instant]): IO[Option[ConsolidationResult]] =
     for {
       recentConsolidatorJobData <- liftIO(consolidatorJobDataRepository.findRecentLastObjectId(projectId))
       prevLastObjectId = recentConsolidatorJobData.flatMap(_.lastObjectId)
-      formsMetadata <- liftIO(formRepository.getFormsMetadata(projectId, prevLastObjectId))
-      consolidationResult <- formsMetadata
-                              .filter(_.count > 0)
-                              .map { metadata =>
-                                processForms(projectId, metadata.count, prevLastObjectId, metadata.maxId)
-                                  .map(Some(_))
-                              }
-                              .getOrElse(IO.pure(None))
+      consolidationResult <- processForms(projectId, prevLastObjectId)
     } yield consolidationResult
 
-  private def processForms(
-    projectId: String,
-    count: Int,
-    afterObjectId: Option[BSONObjectID],
-    maxId: BSONObjectID
-  ): IO[ConsolidationResult] =
+  private def processForms(projectId: String, afterObjectId: Option[BSONObjectID])(
+    implicit time: Time[Instant]): IO[Option[ConsolidationResult]] =
     for {
-      outputFile <- createOutputFile(projectId)
-      outputResource = fromAutoCloseable(IO(new BufferedWriter(new FileWriter(outputFile))))
-      lastObjectId <- outputResource.use(writeFormsToFile(projectId, count, afterObjectId, maxId, _))
-    } yield ConsolidationResult(lastObjectId, outputFile)
+      outputPath   <- createTmpPath(projectId)
+      lastObjectId <- writeFormsToFiles(projectId, afterObjectId, outputPath)
+    } yield
+      if (lastObjectId.isEmpty)
+        None
+      else
+        Some(ConsolidationResult(lastObjectId, outputPath))
 
-  private def writeFormsToFile(
-    projectId: String,
-    count: Int,
-    afterObjectId: Option[BSONObjectID],
-    maxId: BSONObjectID,
-    outputFileWriter: BufferedWriter
-  ) = {
-    val numberOfBatches = count / batchSize + (if (count % batchSize == 0) 0 else 1)
-    logger.info(s"Total number of forms to process $count")
-    logger.info(s"Max id $maxId")
-    logger.info(s"Consolidating in $numberOfBatches batches")
-    case class Accumulator(afterObjectId: Option[BSONObjectID], writer: BufferedWriter)
-    val initAccIO: IO[Accumulator] =
-      liftIO(Future.successful(Either.right(Accumulator(afterObjectId, outputFileWriter))))
-    (0 until numberOfBatches)
-      .foldLeft(initAccIO) { (accIO, batchNum) =>
-        logger.info(s"Consolidating batch $batchNum")
-        accIO.flatMap { acc =>
-          liftIO(formRepository.getForms(projectId, batchSize)(acc.afterObjectId, Some(maxId)))
-            .map { forms =>
-              forms.foreach { form =>
-                acc.writer.write(form.toJsonLine() + System.lineSeparator())
-              }
-              acc.writer.flush()
-              Accumulator(Some(forms.last.id), acc.writer)
-            }
+  private def writeFormsToFiles(projectId: String, afterObjectId: Option[BSONObjectID], outputPath: Path)(
+    implicit time: Time[Instant]): IO[Option[BSONObjectID]] =
+    liftIO {
+      val creationTime = time.now().minusSeconds(CREATION_TIME_BUFFER_SECONDS)
+      formRepository
+        .formsSource(projectId, batchSize, creationTime, afterObjectId)
+        .map { form =>
+          ByteStringObjectId(
+            form.id,
+            ByteString(form.toJsonLine())
+          )
         }
-      }
-      .map(_.afterObjectId)
-  }
+        .runWith(
+          Sink.fromGraph(
+            new FilePartOutputStage(outputPath, "report", reportTotalSizeInBytes, reportPerFileSizeInBytes)
+          )
+        )
+        .map(fileOutputResult => Right(fileOutputResult.map(_.lastByteStringObjectId.id)))
+        .recover {
+          case e => Left(e)
+        }
+    }
 
-  private def createOutputFile(projectId: String) = IO {
-    val baseDir = new File(System.getProperty("java.io.tmpdir") + "/submission-consolidator/")
-    baseDir.mkdir()
-    File.createTempFile(s"$projectId-", ".txt", baseDir)
-  }
+  private def createTmpPath(projectId: String)(implicit time: Time[Instant]) =
+    IO {
+      createDirectories(
+        Paths.get(System.getProperty("java.io.tmpdir") + s"/submission-consolidator/$projectId-${DATE_TIME_FORMAT
+          .format(time.now().atZone(ZoneId.systemDefault()))}")
+      )
+    }
 }
 
 object ConsolidatorService {
-  case class ConsolidationResult(lastObjectId: Option[BSONObjectID], file: File)
+  case class ConsolidationResult(lastObjectId: Option[BSONObjectID], outputPath: Path)
 }

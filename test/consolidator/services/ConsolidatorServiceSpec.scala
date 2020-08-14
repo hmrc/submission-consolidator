@@ -16,8 +16,14 @@
 
 package consolidator.services
 
-import collector.repositories.{ DataGenerators, FormRepository, MongoGenericError }
-import consolidator.repositories.{ ConsolidatorJobDataRepository, FormsMetadata, GenericConsolidatorJobDataError }
+import java.time.{ Instant, ZoneId }
+import java.time.format.DateTimeFormatter
+
+import akka.actor.ActorSystem
+import akka.stream.scaladsl.Source
+import collector.repositories.{ DataGenerators, FormRepository }
+import common.Time
+import consolidator.repositories.{ ConsolidatorJobDataRepository, GenericConsolidatorJobDataError }
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalacheck.Gen
@@ -31,37 +37,51 @@ import play.api.Configuration
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.io.Source
 
 class ConsolidatorServiceSpec
     extends AnyWordSpec with Matchers with BeforeAndAfterAll with IdiomaticMockito with ArgumentMatchersSugar
     with DataGenerators with ScalaFutures {
 
   override implicit val patienceConfig = PatienceConfig(Span(10, Seconds), Span(1, Millis))
+  implicit val actorSystem = ActorSystem("ConsolidatorServiceSpec")
+  private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS")
 
   trait TestFixture {
     val mockFormRepository = mock[FormRepository](withSettings.lenient())
     val mockConsolidatorJobDataRepository = mock[ConsolidatorJobDataRepository](withSettings.lenient())
-    lazy val batchSize = 100
+    lazy val _batchSize = 100
+    lazy val _maxSizeInBytes: Long = 25 * 1024 * 1024
+    lazy val _maxPerFileSizeInBytes: Long = 10 * 1024 * 1024
+    lazy val _bufferInBytes: Long = 0
     lazy val consolidatorService =
       new ConsolidatorService(
         mockFormRepository,
         mockConsolidatorJobDataRepository,
-        Configuration("consolidator-job-config.batchSize" -> batchSize)
-      )
+        Configuration(
+          "consolidator-job-config.batchSize" -> _batchSize,
+        )
+      ) {
+        override lazy val maxSizeInBytes = _maxSizeInBytes
+        override lazy val maxPerFileSizeInBytes = _maxPerFileSizeInBytes
+        override lazy val bufferInBytes = _bufferInBytes
+      }
 
     val projectId = "some-project-id"
     lazy val noOfForms = 1
+    val now = Instant.now()
+    implicit val timeInstant: Time[Instant] = () => now
     lazy val forms = (1 to noOfForms)
-      .map(seed => genForm.pureApply(Gen.Parameters.default, Seed(seed)).copy(projectId = projectId))
+      .map(
+        seed =>
+          genForm
+            .pureApply(Gen.Parameters.default, Seed(seed))
+            .copy(projectId = projectId))
       .toList
+    val nowSuffix = DATE_TIME_FORMAT.format(now.atZone(ZoneId.systemDefault()))
 
-    mockConsolidatorJobDataRepository.findRecentLastObjectId(projectId)(*) shouldReturn Future.successful(Right(None))
-    mockFormRepository.getFormsMetadata(projectId)(*) shouldReturn Future.successful(
-      Right(if (forms.isEmpty) None else Some(FormsMetadata(forms.size, forms.last.id)))
-    )
-    mockFormRepository.getForms(projectId, *)(*, *)(*) returns
-      Future.successful(Right(forms))
+    mockConsolidatorJobDataRepository.findRecentLastObjectId(*)(*) shouldReturn Future.successful(Right(None))
+    mockFormRepository.formsSource(*, *, *, *) shouldReturn Source(forms).mapMaterializedValue(_ =>
+      Future.successful(()))
   }
 
   "doConsolidation" when {
@@ -70,55 +90,85 @@ class ConsolidatorServiceSpec
         override lazy val noOfForms: Int = 0
 
         //when
-        val future = consolidatorService.doConsolidation(projectId).unsafeToFuture()
+        val future: Future[Option[ConsolidatorService.ConsolidationResult]] =
+          consolidatorService.doConsolidation(projectId).unsafeToFuture()
 
-        whenReady(future) { processFormsResult =>
-          processFormsResult.isEmpty shouldBe true
-
+        whenReady(future) { consolidationResult =>
+          consolidationResult shouldBe None
           mockConsolidatorJobDataRepository.findRecentLastObjectId(projectId)(*) wasCalled once
-          mockFormRepository.getFormsMetadata(projectId)(*) wasCalled once
-          mockFormRepository.getForms(projectId, batchSize)(*, *)(
-            *
-          ) wasNever called
-
+          mockFormRepository.formsSource(projectId, _batchSize, now.minusSeconds(5), None) wasCalled once
         }
       }
 
-      "consolidate all form submissions into a file, for the given project id" in new TestFixture {
+      "consolidate all form submissions into a single file, for the given project id" in new TestFixture {
         //when
         val future = consolidatorService.doConsolidation(projectId).unsafeToFuture()
 
-        whenReady(future) { processFormsResult =>
-          val fileSource = Source.fromFile(processFormsResult.get.file, "UTF-8")
+        whenReady(future) { consolidationResult =>
+          consolidationResult shouldNot be(empty)
+
+          consolidationResult.get.lastObjectId shouldBe Some(forms.last.id)
+          consolidationResult.get.outputPath.toString should endWith(s"/submission-consolidator/$projectId-$nowSuffix")
+
+          val files = consolidationResult.get.outputPath.toFile.listFiles
+          files.size shouldBe 1
+          files.head.getName shouldBe "report-0.txt"
+          val fileSource = scala.io.Source.fromFile(files.head, "UTF-8")
           fileSource.getLines().toList.head shouldEqual forms.head.toJsonLine()
           fileSource.close
 
-          processFormsResult.get.lastObjectId shouldBe Some(forms.last.id)
+          consolidationResult.get.lastObjectId shouldBe Some(forms.last.id)
 
           mockConsolidatorJobDataRepository.findRecentLastObjectId(projectId)(*) wasCalled once
-          mockFormRepository.getFormsMetadata(projectId)(*) wasCalled once
-          mockFormRepository.getForms(projectId, batchSize)(*, *)(
-            *
-          ) wasCalled once
+          mockFormRepository.formsSource(projectId, _batchSize, now.minusSeconds(5), None) wasCalled once
         }
       }
 
-      "consolidate form submissions, in multiple batches" in new TestFixture {
+      "consolidate form submissions into multiple files" in new TestFixture {
         //given
-        override lazy val batchSize = 1
         override lazy val noOfForms: Int = 2
-        mockFormRepository.getForms(projectId, *)(*, *)(*) returns
-          Future.successful(Right(forms.take(batchSize))) andThen Future.successful(
-          Right(forms.drop(batchSize))
-        )
+        override lazy val _maxSizeInBytes: Long = forms.map(_.toJsonLine().length).sum + 2 // +2 for new line characters
+        override lazy val _maxPerFileSizeInBytes: Long = forms.head.toJsonLine().length + 1 // + 1 for newline character
 
         //when
         val future = consolidatorService.doConsolidation(projectId).unsafeToFuture()
 
-        whenReady(future) { processFormsResult =>
-          val fileSource = Source.fromFile(processFormsResult.get.file, "UTF-8")
-          val fileLines = fileSource.getLines().toList
-          fileLines shouldEqual forms.map(_.toJsonLine())
+        whenReady(future) { consolidationResult =>
+          consolidationResult shouldNot be(empty)
+          consolidationResult.get.lastObjectId shouldBe Some(forms.last.id)
+
+          val files = consolidationResult.get.outputPath.toFile.listFiles
+          files.size shouldBe 2
+          files.sorted.zipWithIndex.zip(forms).foreach {
+            case ((file, index), form) =>
+              file.getName shouldBe s"report-$index.txt"
+              val fileSource = scala.io.Source.fromFile(file, "UTF-8")
+              val lines = fileSource.getLines().toList
+              lines.size shouldBe 1
+              lines.head shouldEqual form.toJsonLine()
+              fileSource.close
+          }
+        }
+      }
+
+      "skip forms when total files size exceeds limit" in new TestFixture {
+        //given
+        override lazy val noOfForms: Int = 2
+        override lazy val _maxSizeInBytes: Long = forms.head.toJsonLine().length + 1 // +2 for new line characters
+        override lazy val _maxPerFileSizeInBytes
+          : Long = forms.head.toJsonLine().length + 1 // + 1 for newline characters
+
+        //when
+        val future = consolidatorService.doConsolidation(projectId).unsafeToFuture()
+
+        whenReady(future) { consolidationResult =>
+          consolidationResult shouldNot be(empty)
+          consolidationResult.get.lastObjectId shouldBe Some(forms.head.id)
+
+          val files = consolidationResult.get.outputPath.toFile.listFiles
+          files.size shouldBe 1
+          val fileSource = scala.io.Source.fromFile(files.head, "UTF-8")
+          fileSource.getLines().toList.head shouldEqual forms.head.toJsonLine()
           fileSource.close
         }
       }
@@ -139,36 +189,17 @@ class ConsolidatorServiceSpec
         }
       }
 
-      "handle error when getFormsMetadata fails" in new TestFixture {
-        //given
-        mockFormRepository.getFormsMetadata(projectId)(*) shouldReturn Future.successful(
-          Left(MongoGenericError("some mongo error"))
-        )
-
-        //when
-        val future = consolidatorService.doConsolidation(projectId).unsafeToFuture()
-
-        whenReady(future.failed) { error =>
-          error shouldBe MongoGenericError("some mongo error")
-        }
-      }
-
-      "handle error when getForms fails" in new TestFixture {
-        override lazy val batchSize = 1
-        override lazy val noOfForms: Int = 2
-        mockFormRepository.getForms(projectId, *)(*, *)(*) returns
-          Future.successful(
-            Right(forms.take(batchSize))
-          ) andThen Future.failed(
-          new RuntimeException("mongo db unavailable")
-        )
+      "handle error when formsSource fails" in new TestFixture {
+        mockFormRepository.formsSource(*, *, *, *) shouldReturn Source(forms)
+          .map(_ => throw new RuntimeException("mongo db unavailable"))
+          .mapMaterializedValue(_ => Future.successful(()))
 
         //when
         val future = consolidatorService.doConsolidation(projectId).unsafeToFuture()
 
         whenReady(future.failed) { error =>
           error shouldBe a[RuntimeException]
-          error.getMessage shouldBe "mongo db unavailable"
+          error.getMessage shouldBe "IO operation was stopped unexpectedly because of java.lang.RuntimeException: mongo db unavailable"
         }
       }
     }
