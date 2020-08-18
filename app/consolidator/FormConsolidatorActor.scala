@@ -71,6 +71,7 @@ class FormConsolidatorActor(
             )
       } yield ()).recoverWith {
         case e =>
+          logger.error(s"Failed to consolidate/submit forms for project ${p.projectId}", e)
           addConsolidatorJobData(p.projectId, ofEpochMilli(time.getTime), None, Some(e.getMessage), None)
             .flatMap(_ => IO.raiseError(e))
       }
@@ -105,7 +106,6 @@ class FormConsolidatorActor(
       Duration(now.toEpochMilli - startTime.toEpochMilli, TimeUnit.MILLISECONDS)
     )
     error.foreach { e =>
-      logger.error(s"Failed to consolidate/submit forms for project $projectId", e)
       metricsClient.markMeter(name("consolidator", projectId, "failed"))
     }
     consolidationResult.foreach { cResult =>
