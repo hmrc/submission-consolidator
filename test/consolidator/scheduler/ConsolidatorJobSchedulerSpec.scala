@@ -50,7 +50,7 @@ class ConsolidatorJobSchedulerSpec
                                                   |            businessArea = "some-business-area-1"
                                                   |        }
                                                   |        # run every 2 seconds
-                                                  |        cron = "*/2 * * ? * *"
+                                                  |        cron = "*/2|*|*|?|*|*"
                                                   |    },
                                                   |    {
                                                   |        id = "some-project-id-2-job"
@@ -60,7 +60,7 @@ class ConsolidatorJobSchedulerSpec
                                                   |            businessArea = "some-business-area-2"
                                                   |        }
                                                   |        # run every 2 seconds
-                                                  |        cron = "*/2 * * ? * *"
+                                                  |        cron = "*/2|*|*|?|*|*"
                                                   |    }
                                                   |]
                                                   |""".stripMargin))
