@@ -30,18 +30,23 @@ import scala.util.Success
 import scala.util.control.NonFatal
 import akka.util.ccompat.JavaConverters._
 import consolidator.services.FilePartOutputStage.{ ByteStringObjectId, FileOutputResult }
+import org.slf4j.{ Logger, LoggerFactory }
 
 class FilePartOutputStage(
   baseDir: Path,
   filePrefix: String,
   maxTotalBytes: Long,
   maxBytesPerFile: Long,
+  projectId: String,
+  batchSize: Int,
   options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE_NEW, SYNC)
 ) extends GraphStageWithMaterializedValue[
       SinkShape[ByteStringObjectId],
       Future[
         Option[FileOutputResult]
       ]] {
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
+
   val in: Inlet[ByteStringObjectId] = Inlet("FilePartOutputStageSink")
   override val shape: SinkShape[ByteStringObjectId] = SinkShape(in)
 
@@ -57,15 +62,16 @@ class FilePartOutputStage(
     inheritedAttributes: Attributes
   ): (GraphStageLogic, Future[Option[FileOutputResult]]) = {
     val mat = Promise[Option[FileOutputResult]]()
-    val logic = new GraphStageLogic(shape) with InHandler {
+    val logic: GraphStageLogic with InHandler = new GraphStageLogic(shape) with InHandler {
       private var currentFileChanel: FileChannel = _
       private var lastByteStringWithId: ByteStringObjectId = _
       private var fileId: Int = 0
       private var byteCount: Long = 0
+      private var dataCount: Int = 0
 
       override def preStart(): Unit =
         try {
-          setNewFileChannel
+          setNewFileChannel()
           pull(in)
         } catch {
           case NonFatal(t) =>
@@ -96,6 +102,10 @@ class FilePartOutputStage(
               setNewFileChannel()
             }
             byteCount += currentFileChanel.write(nextData.toByteBuffer)
+            if (dataCount % batchSize == 0) {
+              logger.info(s"Processing batch ${(dataCount / 500) + 1} for project $projectId")
+            }
+            dataCount += 1
             lastByteStringWithId = next
             pull(in)
           }
@@ -129,7 +139,8 @@ class FilePartOutputStage(
           failed match {
             case Some(t) => mat.tryFailure(t)
             case None =>
-              mat.tryComplete(Success(if (byteCount == 0) None else Some(FileOutputResult(lastByteStringWithId))))
+              mat.tryComplete(
+                Success(if (dataCount == 0) None else Some(FileOutputResult(lastByteStringWithId.id, dataCount))))
           }
         } catch {
           case NonFatal(t) =>
@@ -143,6 +154,6 @@ class FilePartOutputStage(
 }
 
 object FilePartOutputStage {
-  case class FileOutputResult(lastByteStringObjectId: ByteStringObjectId)
+  case class FileOutputResult(lastObjectId: BSONObjectID, count: Int)
   case class ByteStringObjectId(id: BSONObjectID, byteString: ByteString)
 }

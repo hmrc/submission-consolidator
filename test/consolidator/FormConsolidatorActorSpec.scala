@@ -24,6 +24,7 @@ import akka.testkit.{ ImplicitSender, TestKit }
 import cats.effect.IO
 import collector.repositories.DataGenerators
 import com.typesafe.akka.extension.quartz.MessageWithFireTime
+import common.MetricsClient
 import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
 import consolidator.scheduler.ConsolidatorJobParam
@@ -52,6 +53,7 @@ class FormConsolidatorActorSpec
     val mockFileUploaderService = mock[SubmissionService](withSettings.lenient())
     val mockConsolidatorJobDataRepository = mock[ConsolidatorJobDataRepository](withSettings.lenient())
     val mockLockRepository = mock[LockRepository](withSettings.lenient())
+    val mockMetricsClient = mock[MetricsClient](withSettings.lenient())
 
     val projectId = "some-project-id"
     val lastObjectId = BSONObjectID.generate()
@@ -61,7 +63,12 @@ class FormConsolidatorActorSpec
 
     val actor = system.actorOf(
       FormConsolidatorActor
-        .props(mockConsolidatorService, mockFileUploaderService, mockConsolidatorJobDataRepository, mockLockRepository)
+        .props(
+          mockConsolidatorService,
+          mockFileUploaderService,
+          mockConsolidatorJobDataRepository,
+          mockLockRepository,
+          mockMetricsClient)
     )
 
     val messageWithFireTime = MessageWithFireTime(consolidatorJobParam, new Date())
@@ -100,6 +107,8 @@ class FormConsolidatorActorSpec
 
         mockConsolidatorService.doConsolidation(projectId) wasCalled once
         mockFileUploaderService.submit(*, consolidatorJobParam) wasNever called
+        mockMetricsClient.recordDuration(s"consolidator.$projectId.run", *) wasCalled once
+
         assertConsolidatorData(None, None, None)
       }
 
@@ -115,7 +124,7 @@ class FormConsolidatorActorSpec
       "consolidate forms and return OK" in new TestFixture {
 
         mockConsolidatorService.doConsolidation(*) shouldReturn IO.pure(
-          Some(ConsolidationResult(Some(lastObjectId), outputPath))
+          Some(ConsolidationResult(Some(lastObjectId), 1, outputPath))
         )
         mockFileUploaderService.submit(*, *) shouldReturn IO.pure(envelopeId)
         mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(Right(()))
@@ -126,6 +135,9 @@ class FormConsolidatorActorSpec
 
         mockConsolidatorService.doConsolidation(projectId) wasCalled once
         mockFileUploaderService.submit(outputPath, consolidatorJobParam) wasCalled once
+        mockMetricsClient.recordDuration(s"consolidator.$projectId.run", *) wasCalled once
+        mockMetricsClient.markMeter(s"consolidator.$projectId.success") wasCalled once // success
+        mockMetricsClient.markMeter(s"consolidator.$projectId.formCount", 1) wasCalled once // success
         assertConsolidatorData(Some(lastObjectId), None, Some(envelopeId))
       }
 
@@ -141,6 +153,7 @@ class FormConsolidatorActorSpec
             case t: Throwable =>
               t.getMessage shouldBe "consolidation error"
               mockFileUploaderService.submit(outputPath, consolidatorJobParam) wasNever called
+              mockMetricsClient.markMeter(s"consolidator.$projectId.failed") wasCalled once
               assertConsolidatorData(None, Some("consolidation error"), None)
           }
         }
@@ -150,7 +163,7 @@ class FormConsolidatorActorSpec
 
         "return the error message" in new TestFixture {
           mockConsolidatorService.doConsolidation(*) shouldReturn IO.pure(
-            Some(ConsolidationResult(Some(lastObjectId), outputPath))
+            Some(ConsolidationResult(Some(lastObjectId), 1, outputPath))
           )
           mockFileUploaderService.submit(*, *) shouldReturn IO.raiseError(new Exception("file upload error"))
           mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(Right(()))

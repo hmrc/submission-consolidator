@@ -108,6 +108,7 @@ class ConsolidatorServiceSpec
           consolidationResult shouldNot be(empty)
 
           consolidationResult.get.lastObjectId shouldBe Some(forms.last.id)
+          consolidationResult.get.count shouldBe noOfForms
           consolidationResult.get.outputPath.toString should endWith(s"/submission-consolidator/$projectId-$nowSuffix")
 
           val files = consolidationResult.get.outputPath.toFile.listFiles
@@ -136,7 +137,7 @@ class ConsolidatorServiceSpec
         whenReady(future) { consolidationResult =>
           consolidationResult shouldNot be(empty)
           consolidationResult.get.lastObjectId shouldBe Some(forms.last.id)
-
+          consolidationResult.get.count shouldBe noOfForms
           val files = consolidationResult.get.outputPath.toFile.listFiles
           files.size shouldBe 2
           files.sorted.zipWithIndex.zip(forms).foreach {
@@ -164,6 +165,7 @@ class ConsolidatorServiceSpec
         whenReady(future) { consolidationResult =>
           consolidationResult shouldNot be(empty)
           consolidationResult.get.lastObjectId shouldBe Some(forms.head.id)
+          consolidationResult.get.count shouldBe 1
 
           val files = consolidationResult.get.outputPath.toFile.listFiles
           files.size shouldBe 1

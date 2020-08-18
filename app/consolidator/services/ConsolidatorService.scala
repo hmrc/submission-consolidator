@@ -30,7 +30,7 @@ import common.Time
 import consolidator.IOUtils
 import consolidator.repositories.ConsolidatorJobDataRepository
 import consolidator.services.ConsolidatorService.ConsolidationResult
-import consolidator.services.FilePartOutputStage.ByteStringObjectId
+import consolidator.services.FilePartOutputStage.{ ByteStringObjectId, FileOutputResult }
 import javax.inject.{ Inject, Singleton }
 import play.api.Configuration
 import reactivemongo.bson.BSONObjectID
@@ -50,9 +50,7 @@ class ConsolidatorService @Inject()(
   private val CREATION_TIME_BUFFER_SECONDS = 5
   private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS")
 
-  def doConsolidation(projectId: String)(
-    implicit
-    time: Time[Instant]): IO[Option[ConsolidationResult]] =
+  def doConsolidation(projectId: String)(implicit time: Time[Instant]): IO[Option[ConsolidationResult]] =
     for {
       recentConsolidatorJobData <- liftIO(consolidatorJobDataRepository.findRecentLastObjectId(projectId))
       prevLastObjectId = recentConsolidatorJobData.flatMap(_.lastObjectId)
@@ -60,18 +58,26 @@ class ConsolidatorService @Inject()(
     } yield consolidationResult
 
   private def processForms(projectId: String, afterObjectId: Option[BSONObjectID])(
-    implicit time: Time[Instant]): IO[Option[ConsolidationResult]] =
+    implicit
+    time: Time[Instant]): IO[Option[ConsolidationResult]] =
     for {
-      outputPath   <- createTmpPath(projectId)
-      lastObjectId <- writeFormsToFiles(projectId, afterObjectId, outputPath)
+      outputPath       <- createTmpPath(projectId)
+      fileOutputResult <- writeFormsToFiles(projectId, afterObjectId, outputPath)
     } yield
-      if (lastObjectId.isEmpty)
+      if (fileOutputResult.isEmpty)
         None
       else
-        Some(ConsolidationResult(lastObjectId, outputPath))
+        Some(
+          ConsolidationResult(
+            fileOutputResult.map(_.lastObjectId),
+            fileOutputResult.map(_.count).getOrElse(0),
+            outputPath
+          )
+        )
 
   private def writeFormsToFiles(projectId: String, afterObjectId: Option[BSONObjectID], outputPath: Path)(
-    implicit time: Time[Instant]): IO[Option[BSONObjectID]] =
+    implicit
+    time: Time[Instant]): IO[Option[FileOutputResult]] =
     liftIO {
       val creationTime = time.now().minusSeconds(CREATION_TIME_BUFFER_SECONDS)
       formRepository
@@ -84,10 +90,19 @@ class ConsolidatorService @Inject()(
         }
         .runWith(
           Sink.fromGraph(
-            new FilePartOutputStage(outputPath, "report", reportTotalSizeInBytes, reportPerFileSizeInBytes)
+            new FilePartOutputStage(
+              outputPath,
+              "report",
+              reportTotalSizeInBytes,
+              reportPerFileSizeInBytes,
+              projectId,
+              batchSize
+            )
           )
         )
-        .map(fileOutputResult => Right(fileOutputResult.map(_.lastByteStringObjectId.id)))
+        .map { fileOutputResult =>
+          Right(fileOutputResult)
+        }
         .recover {
           case e => Left(e)
         }
@@ -103,5 +118,5 @@ class ConsolidatorService @Inject()(
 }
 
 object ConsolidatorService {
-  case class ConsolidationResult(lastObjectId: Option[BSONObjectID], outputPath: Path)
+  case class ConsolidationResult(lastObjectId: Option[BSONObjectID], count: Int, outputPath: Path)
 }
