@@ -35,6 +35,7 @@ import consolidator.services.{ ConsolidatorService, SubmissionService }
 import org.slf4j.{ Logger, LoggerFactory }
 import uk.gov.hmrc.lock.{ LockKeeperAutoRenew, LockRepository }
 
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
 import scala.util.{ Failure, Success }
@@ -50,47 +51,55 @@ class FormConsolidatorActor(
   private val logger: Logger = LoggerFactory.getLogger(getClass)
   implicit val ec: ExecutionContext = context.dispatcher
 
+  private val runningProjects: mutable.Set[String] = mutable.Set[String]()
+
   override def receive: Receive = {
     case MessageWithFireTime(p: ConsolidatorJobParam, time: Date) =>
-      logger.info(s"Received request for job $p")
-      val senderRef = sender()
-      val program: IO[Unit] = (for {
-        consolidationResult <- consolidatorService.doConsolidation(p.projectId)
-        envelopeId <- if (consolidationResult.isDefined)
-                       fileUploaderService
-                         .submit(consolidationResult.get.outputPath, p)
-                         .map(Option(_))
-                     else
-                       IO.pure(None)
-        _ <- addConsolidatorJobData(
-              p.projectId,
-              ofEpochMilli(time.getTime),
-              consolidationResult,
-              None,
-              envelopeId
-            )
-      } yield ()).recoverWith {
-        case e =>
-          logger.error(s"Failed to consolidate/submit forms for project ${p.projectId}", e)
-          addConsolidatorJobData(p.projectId, ofEpochMilli(time.getTime), None, Some(e.getMessage), None)
-            .flatMap(_ => IO.raiseError(e))
-      }
-
-      val lock = new LockKeeperAutoRenew {
-        override val repo: LockRepository = lockRepository
-        override val id: String = p.projectId
-        override val duration: org.joda.time.Duration = org.joda.time.Duration.standardMinutes(5)
-      }
-
-      lock
-        .withLock(program.unsafeToFuture())
-        .onComplete {
-          case Success(Some(_)) =>
-            senderRef ! OK
-          case Success(None) =>
-            senderRef ! LockUnavailable
-          case Failure(e) => senderRef ! e
+      if (!runningProjects.contains(p.projectId)) {
+        runningProjects += p.projectId
+        logger.info(s"Received request for job $p")
+        val senderRef = sender()
+        val program: IO[Unit] = (for {
+          consolidationResult <- consolidatorService.doConsolidation(p.projectId)
+          envelopeId <- if (consolidationResult.isDefined)
+                         fileUploaderService
+                           .submit(consolidationResult.get.outputPath, p)
+                           .map(Option(_))
+                       else
+                         IO.pure(None)
+          _ <- addConsolidatorJobData(
+                p.projectId,
+                ofEpochMilli(time.getTime),
+                consolidationResult,
+                None,
+                envelopeId
+              )
+        } yield ()).recoverWith {
+          case e =>
+            logger.error(s"Failed to consolidate/submit forms for project ${p.projectId}", e)
+            addConsolidatorJobData(p.projectId, ofEpochMilli(time.getTime), None, Some(e.getMessage), None)
+              .flatMap(_ => IO.raiseError(e))
         }
+
+        val lock = new LockKeeperAutoRenew {
+          override val repo: LockRepository = lockRepository
+          override val id: String = p.projectId
+          override val duration: org.joda.time.Duration = org.joda.time.Duration.standardMinutes(5)
+        }
+
+        lock
+          .withLock(program.unsafeToFuture())
+          .onComplete { result =>
+            runningProjects -= p.projectId
+            result match {
+              case Success(Some(_)) =>
+                senderRef ! OK
+              case Success(None) =>
+                senderRef ! LockUnavailable
+              case Failure(e) => senderRef ! e
+            }
+          }
+      }
   }
 
   private def addConsolidatorJobData(
