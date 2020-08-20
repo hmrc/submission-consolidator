@@ -49,10 +49,18 @@ class SubmissionService @Inject()(
   private val DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd")
   private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
 
+  private val REPORT_FILE_PATTERN = "report-(\\d+)\\.txt".r
+
   def submit(reportFilesPath: Path, config: ConsolidatorJobParam)(
     implicit
     time: Time[Instant]): IO[NonEmptyList[String]] = {
-    val reportFileList = reportFilesPath.toFile.listFiles().toList.sortBy(_.getName)
+    val reportFileList = reportFilesPath.toFile
+      .listFiles()
+      .toList
+      .sortBy(_.getName match {
+        case REPORT_FILE_PATTERN(reportFileId) => reportFileId.toInt
+        case _                                 => 0
+      })
     logger.info(
       s"Uploading reports to file-upload service [reportFilesPath=$reportFilesPath, config=$config]"
     )
@@ -92,7 +100,7 @@ class SubmissionService @Inject()(
         fromListUnsafe(reportFiles.map { file =>
           liftIO(
             fileUploadFrontEndProxy
-              .upload(envelopeId, FileId(file.getName.substring(0, file.getName.lastIndexOf("."))), file)
+              .upload(envelopeId, FileId(file.getName.replace(".txt", "")), file)
           )
         }).parSequence
 

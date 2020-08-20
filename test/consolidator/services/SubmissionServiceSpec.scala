@@ -125,7 +125,7 @@ class SubmissionServiceSpec
     }
 
     "create multiple envelopes when number of report files exceeds maxReportAttachments" in new TestFixture {
-      override lazy val numberOfReportFiles: Int = maxReportAttachments + 1
+      override lazy val numberOfReportFiles: Int = maxReportAttachments * 2
 
       //when
       val envelopeIds: NonEmptyList[String] = submissionService.submit(reportFilesPath, config).unsafeRunSync()
@@ -137,13 +137,7 @@ class SubmissionServiceSpec
           consolidator.proxies.Metadata("submission-consolidator"),
           Constraints(maxReportAttachments + 1, "25MB", "10MB", List("text/plain"), false)
         )
-      ) wasCalled once
-      mockFileUploadProxy.createEnvelope(
-        CreateEnvelopeRequest(
-          consolidator.proxies.Metadata("submission-consolidator"),
-          Constraints(2, "25MB", "10MB", List("text/plain"), false)
-        )
-      ) wasCalled once
+      ) wasCalled twice
       reportFilesPath.toFile.listFiles().foreach { f =>
         mockFileUploadFrontendProxy
           .upload(someEnvelopedId, FileId(f.getName.split("\\.").head), f) wasCalled once
@@ -153,13 +147,7 @@ class SubmissionServiceSpec
         FileIds.xmlDocument,
         s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-metadata.xml",
         ByteString(MetadataXml.toXml(metaDataDocument(maxReportAttachments)))
-      ) wasCalled once
-      mockFileUploadFrontendProxy.upload(
-        someEnvelopedId,
-        FileIds.xmlDocument,
-        s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-metadata.xml",
-        ByteString(MetadataXml.toXml(metaDataDocument(1)))
-      ) wasCalled once
+      ) wasCalled twice
       mockFileUploadProxy.routeEnvelope(
         RouteEnvelopeRequest(someEnvelopedId, "submission-consolidator", "DMS")
       ) wasCalled twice
