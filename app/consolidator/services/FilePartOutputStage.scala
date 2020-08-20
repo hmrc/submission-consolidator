@@ -35,7 +35,6 @@ import org.slf4j.{ Logger, LoggerFactory }
 class FilePartOutputStage(
   baseDir: Path,
   filePrefix: String,
-  maxTotalBytes: Long,
   maxBytesPerFile: Long,
   projectId: String,
   batchSize: Int,
@@ -94,21 +93,17 @@ class FilePartOutputStage(
           val nextData = next.byteString ++ ByteString("\n")
           val nextDataSize = nextData.size
 
-          if (byteCount + nextDataSize > maxTotalBytes) {
-            closeFile(None)
-            completeStage()
-          } else {
-            if (currentFileChanel.size() + nextDataSize > maxBytesPerFile) {
-              setNewFileChannel()
-            }
-            byteCount += currentFileChanel.write(nextData.toByteBuffer)
-            if (dataCount % batchSize == 0) {
-              logger.info(s"Processing batch ${(dataCount / 500) + 1} for project $projectId")
-            }
-            dataCount += 1
-            lastByteStringWithId = next
-            pull(in)
+          if (currentFileChanel.size() + nextDataSize > maxBytesPerFile) {
+            setNewFileChannel()
           }
+          byteCount += currentFileChanel.write(nextData.toByteBuffer)
+          if (dataCount % batchSize == 0) {
+            logger.info(s"Processing batch ${(dataCount / 500) + 1} for project $projectId")
+          }
+          dataCount += 1
+          lastByteStringWithId = next
+          pull(in)
+
         } catch {
           case NonFatal(t) =>
             closeFile(Some(new IOOperationIncompleteException(t)))
@@ -140,7 +135,8 @@ class FilePartOutputStage(
             case Some(t) => mat.tryFailure(t)
             case None =>
               mat.tryComplete(
-                Success(if (dataCount == 0) None else Some(FileOutputResult(lastByteStringWithId.id, dataCount))))
+                Success(if (dataCount == 0) None else Some(FileOutputResult(lastByteStringWithId.id, dataCount)))
+              )
           }
         } catch {
           case NonFatal(t) =>

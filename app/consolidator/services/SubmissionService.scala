@@ -21,6 +21,7 @@ import java.time.format.DateTimeFormatter
 import java.time.{ Instant, ZoneId }
 
 import akka.util.ByteString
+import cats.data.NonEmptyList
 import cats.data.NonEmptyList.fromListUnsafe
 import cats.effect.{ ContextShift, IO }
 import cats.syntax.parallel._
@@ -50,57 +51,61 @@ class SubmissionService @Inject()(
 
   def submit(reportFilesPath: Path, config: ConsolidatorJobParam)(
     implicit
-    time: Time[Instant]): IO[String] = {
-    val reportFiles = reportFilesPath.toFile.listFiles().toList
+    time: Time[Instant]): IO[NonEmptyList[String]] = {
+    val reportFileList = reportFilesPath.toFile.listFiles().toList.sortBy(_.getName)
     logger.info(
-      s"Uploading reports to file-upload service [reportFilesPath=$reportFilesPath, reportFiles=$reportFiles, config=$config]"
+      s"Uploading reports to file-upload service [reportFilesPath=$reportFilesPath, config=$config]"
     )
-    assert(reportFiles.nonEmpty, s"Report files directory should be non-empty $reportFilesPath")
-    val createEnvelopeRequest = CreateEnvelopeRequest(
-      consolidator.proxies.Metadata("submission-consolidator"),
-      Constraints(
-        reportFiles.size + 1, // +1 for metadata xml
-        (maxSizeInBytes / BYTES_IN_1_MB) + "MB",
-        (maxPerFileSizeInBytes / BYTES_IN_1_MB) + "MB",
-        List("text/plain"),
-        false
-      )
-    )
-    val submissionRef = submissionRefGenerator.generate
-    val zonedDateTime = time.now().atZone(ZoneId.systemDefault())
-    val fileNamePrefix = s"${submissionRef.value}-${DATE_FORMAT.format(zonedDateTime)}"
-    val reconciliationId = s"${submissionRef.value}-${DATE_TIME_FORMAT.format(zonedDateTime)}"
+    assert(reportFileList.nonEmpty, s"Report files directory should be non-empty $reportFilesPath")
 
-    def createEnvelope =
-      liftIO(fileUploadProxy.createEnvelope(createEnvelopeRequest))
-
-    def uploadMetadata(envelopeId: String) =
-      liftIO(
-        fileUploadFrontEndProxy.upload(
-          envelopeId,
-          FileIds.xmlDocument,
-          s"$fileNamePrefix-metadata.xml",
-          ByteString(MetadataXml.toXml(metaDataDocument(config, submissionRef, reconciliationId, reportFiles.size)))
+    fromListUnsafe(reportFileList.grouped(maxReportAttachments).toList.map { reportFiles =>
+      logger.info(s"Creating envelope and uploading files ${reportFiles.map(_.getName)}")
+      val createEnvelopeRequest = CreateEnvelopeRequest(
+        consolidator.proxies.Metadata("submission-consolidator"),
+        Constraints(
+          reportFiles.size + 1, // +1 for metadata xml
+          (maxSizeBytes / BYTES_IN_1_MB) + "MB",
+          (maxPerFileBytes / BYTES_IN_1_MB) + "MB",
+          List("text/plain"),
+          false
         )
       )
+      val submissionRef = submissionRefGenerator.generate
+      val zonedDateTime = time.now().atZone(ZoneId.systemDefault())
+      val fileNamePrefix = s"${submissionRef.value}-${DATE_FORMAT.format(zonedDateTime)}"
+      val reconciliationId = s"${submissionRef.value}-${DATE_TIME_FORMAT.format(zonedDateTime)}"
 
-    def uploadReports(envelopeId: String) =
-      fromListUnsafe(reportFiles.map { file =>
+      def createEnvelope =
+        liftIO(fileUploadProxy.createEnvelope(createEnvelopeRequest))
+
+      def uploadMetadata(envelopeId: String) =
         liftIO(
-          fileUploadFrontEndProxy
-            .upload(envelopeId, FileId(file.getName.substring(0, file.getName.lastIndexOf("."))), file)
+          fileUploadFrontEndProxy.upload(
+            envelopeId,
+            FileIds.xmlDocument,
+            s"$fileNamePrefix-metadata.xml",
+            ByteString(MetadataXml.toXml(metaDataDocument(config, submissionRef, reconciliationId, reportFiles.size)))
+          )
         )
-      }).parSequence
 
-    def routeEnvelope(envelopeId: String) =
-      liftIO(fileUploadProxy.routeEnvelope(RouteEnvelopeRequest(envelopeId, "submission-consolidator", "DMS")))
+      def uploadReports(envelopeId: String) =
+        fromListUnsafe(reportFiles.map { file =>
+          liftIO(
+            fileUploadFrontEndProxy
+              .upload(envelopeId, FileId(file.getName.substring(0, file.getName.lastIndexOf("."))), file)
+          )
+        }).parSequence
 
-    for {
-      envelopeId <- createEnvelope
-      _          <- uploadMetadata(envelopeId)
-      _          <- uploadReports(envelopeId)
-      _          <- routeEnvelope(envelopeId)
-    } yield envelopeId
+      def routeEnvelope(envelopeId: String) =
+        liftIO(fileUploadProxy.routeEnvelope(RouteEnvelopeRequest(envelopeId, "submission-consolidator", "DMS")))
+
+      for {
+        envelopeId <- createEnvelope
+        _          <- uploadMetadata(envelopeId)
+        _          <- uploadReports(envelopeId)
+        _          <- routeEnvelope(envelopeId)
+      } yield envelopeId
+    }).parSequence
   }
 
   private def metaDataDocument(

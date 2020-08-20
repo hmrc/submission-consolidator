@@ -22,6 +22,7 @@ import java.util.Date
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ Actor, Props }
+import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.implicits._
 import com.codahale.metrics.MetricRegistry.name
@@ -61,18 +62,18 @@ class FormConsolidatorActor(
         val senderRef = sender()
         val program: IO[Unit] = (for {
           consolidationResult <- consolidatorService.doConsolidation(p.projectId)
-          envelopeId <- if (consolidationResult.isDefined)
-                         fileUploaderService
-                           .submit(consolidationResult.get.outputPath, p)
-                           .map(Option(_))
-                       else
-                         IO.pure(None)
+          envelopeIds <- if (consolidationResult.isDefined)
+                          fileUploaderService
+                            .submit(consolidationResult.get.outputPath, p)
+                            .map(Option(_))
+                        else
+                          IO.pure(None)
           _ <- addConsolidatorJobData(
                 p.projectId,
                 ofEpochMilli(time.getTime),
                 consolidationResult,
                 None,
-                envelopeId
+                envelopeIds
               )
         } yield ()).recoverWith {
           case e =>
@@ -107,7 +108,7 @@ class FormConsolidatorActor(
     startTime: Instant,
     consolidationResult: Option[ConsolidationResult],
     error: Option[String],
-    envelopeId: Option[String]
+    envelopeIds: Option[NonEmptyList[String]]
   ): IO[Unit] = {
     val now = Instant.now()
     metricsClient.recordDuration(
@@ -127,7 +128,7 @@ class FormConsolidatorActor(
       now,
       consolidationResult.flatMap(_.lastObjectId),
       error,
-      envelopeId
+      envelopeIds.map(_.mkString_(","))
     )
     liftIO(consolidatorJobDataRepository.add(consolidatorJobData))
   }

@@ -50,9 +50,7 @@ class ConsolidatorServiceSpec
     val mockFormRepository = mock[FormRepository](withSettings.lenient())
     val mockConsolidatorJobDataRepository = mock[ConsolidatorJobDataRepository](withSettings.lenient())
     lazy val _batchSize = 100
-    lazy val _maxSizeInBytes: Long = 25 * 1024 * 1024
-    lazy val _maxPerFileSizeInBytes: Long = 10 * 1024 * 1024
-    lazy val _bufferInBytes: Long = 0
+    lazy val _reportPerFileSizeInBytes: Long = 4 * 1024 * 1024
     lazy val consolidatorService =
       new ConsolidatorService(
         mockFormRepository,
@@ -61,9 +59,7 @@ class ConsolidatorServiceSpec
           "consolidator-job-config.batchSize" -> _batchSize,
         )
       ) {
-        override lazy val maxSizeInBytes = _maxSizeInBytes
-        override lazy val maxPerFileSizeInBytes = _maxPerFileSizeInBytes
-        override lazy val bufferInBytes = _bufferInBytes
+        override lazy val reportPerFileSizeInBytes: Long = _reportPerFileSizeInBytes
       }
 
     val projectId = "some-project-id"
@@ -128,8 +124,8 @@ class ConsolidatorServiceSpec
       "consolidate form submissions into multiple files" in new TestFixture {
         //given
         override lazy val noOfForms: Int = 2
-        override lazy val _maxSizeInBytes: Long = forms.map(_.toJsonLine().length).sum + 2 // +2 for new line characters
-        override lazy val _maxPerFileSizeInBytes: Long = forms.head.toJsonLine().length + 1 // + 1 for newline character
+        override lazy val _reportPerFileSizeInBytes
+          : Long = forms.head.toJsonLine().length + 1 // + 1 for newline character
 
         //when
         val future = consolidatorService.doConsolidation(projectId).unsafeToFuture()
@@ -149,29 +145,6 @@ class ConsolidatorServiceSpec
               lines.head shouldEqual form.toJsonLine()
               fileSource.close
           }
-        }
-      }
-
-      "skip forms when total files size exceeds limit" in new TestFixture {
-        //given
-        override lazy val noOfForms: Int = 2
-        override lazy val _maxSizeInBytes: Long = forms.head.toJsonLine().length + 1 // +2 for new line characters
-        override lazy val _maxPerFileSizeInBytes
-          : Long = forms.head.toJsonLine().length + 1 // + 1 for newline characters
-
-        //when
-        val future = consolidatorService.doConsolidation(projectId).unsafeToFuture()
-
-        whenReady(future) { consolidationResult =>
-          consolidationResult shouldNot be(empty)
-          consolidationResult.get.lastObjectId shouldBe Some(forms.head.id)
-          consolidationResult.get.count shouldBe 1
-
-          val files = consolidationResult.get.outputPath.toFile.listFiles
-          files.size shouldBe 1
-          val fileSource = scala.io.Source.fromFile(files.head, "UTF-8")
-          fileSource.getLines().toList.head shouldEqual forms.head.toJsonLine()
-          fileSource.close
         }
       }
     }

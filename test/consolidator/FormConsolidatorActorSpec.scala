@@ -21,6 +21,7 @@ import java.util.Date
 
 import akka.actor.ActorSystem
 import akka.testkit.{ ImplicitSender, TestKit }
+import cats.data.NonEmptyList
 import cats.effect.IO
 import collector.repositories.DataGenerators
 import com.typesafe.akka.extension.quartz.MessageWithFireTime
@@ -126,7 +127,7 @@ class FormConsolidatorActorSpec
         mockConsolidatorService.doConsolidation(*) shouldReturn IO.pure(
           Some(ConsolidationResult(Some(lastObjectId), 1, outputPath))
         )
-        mockFileUploaderService.submit(*, *) shouldReturn IO.pure(envelopeId)
+        mockFileUploaderService.submit(*, *) shouldReturn IO.pure(NonEmptyList.of(envelopeId))
         mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(Right(()))
 
         actor ! messageWithFireTime
