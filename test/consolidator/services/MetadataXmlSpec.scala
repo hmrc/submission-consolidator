@@ -46,8 +46,8 @@ class MetadataXmlSpec extends AnyWordSpec with Matchers {
             <format>some-format</format>
             <mime_type>some-mime-type</mime_type>
             <store>true</store>
-            <source>true</source>
-            <target>true</target>
+            <source>some-source</source>
+            <target>some-target</target>
             <reconciliation_id>some-reconcilation-id</reconciliation_id>
           </header>
           <metadata>

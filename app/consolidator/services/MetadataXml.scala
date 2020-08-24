@@ -52,8 +52,8 @@ case class Header(
       <format>{format}</format>
       <mime_type>{mimeType}</mime_type>
       <store>{store}</store>
-      <source>{store}</source>
-      <target>{store}</target>
+      <source>{source}</source>
+      <target>{target}</target>
       <reconciliation_id>{reconciliationId}</reconciliation_id>
     </header>
 }
