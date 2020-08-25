@@ -15,9 +15,9 @@
  */
 package collector
 
-import org.scalatest.time.{ Millis, Seconds, Span }
-import org.slf4j.{ Logger, LoggerFactory }
-import play.api.{ Application, Configuration }
+import org.scalatest.time.{Millis, Seconds, Span}
+import org.slf4j.{Logger, LoggerFactory}
+import play.api.{Application, Configuration}
 import play.api.inject.guice.GuiceApplicationBuilder
 import collector.repositories.FormRepository
 import com.typesafe.config.ConfigFactory
