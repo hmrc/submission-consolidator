@@ -112,20 +112,23 @@ class SubmissionService @Inject()(
         liftIO(fileUploadProxy.routeEnvelope(RouteEnvelopeRequest(envelopeId, "submission-consolidator", "DMS")))
 
       for {
-        envelopeId <- createEnvelope
-        submissionRef <- liftIO(
-                          uniqueIdRepository
-                            .insertWithRetries(() => UniqueId(RandomStringUtils.randomAlphanumeric(12).toUpperCase))
-                            .map {
-                              case Some(uid) => Right(uid.value)
-                              case None      => Left(new RuntimeException("Failed to generate unique id"))
-                            })
-        _ <- uploadMetadata(envelopeId, submissionRef, now)
-        _ <- uploadReports(envelopeId)
-        _ <- routeEnvelope(envelopeId)
+        envelopeId    <- createEnvelope
+        submissionRef <- generateSubmissionRef
+        _             <- uploadMetadata(envelopeId, submissionRef, now)
+        _             <- uploadReports(envelopeId)
+        _             <- routeEnvelope(envelopeId)
       } yield envelopeId
     }).parSequence
   }
+
+  private def generateSubmissionRef =
+    liftIO(
+      uniqueIdRepository
+        .insertWithRetries(() => UniqueId(RandomStringUtils.randomAlphanumeric(12).toUpperCase))
+        .map {
+          case Some(uid) => Right(uid.value)
+          case None      => Left(new RuntimeException("Failed to generate unique id"))
+        })
 
   private def metaDataDocument(
     config: ConsolidatorJobParam,
