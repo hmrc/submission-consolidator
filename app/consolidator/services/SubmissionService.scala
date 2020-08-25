@@ -25,15 +25,13 @@ import cats.data.NonEmptyList
 import cats.data.NonEmptyList.fromListUnsafe
 import cats.effect.{ ContextShift, IO }
 import cats.syntax.parallel._
-import common.Time
-import common.repositories.UniqueIdRepository
-import common.repositories.UniqueIdRepository.UniqueId
+import common.UniqueReferenceGenerator.UniqueRef
+import common.{ Time, UniqueReferenceGenerator }
 import consolidator.proxies._
 import consolidator.scheduler.ConsolidatorJobParam
 import consolidator.services.SubmissionService.FileIds
 import consolidator.{ IOUtils, services }
 import javax.inject.{ Inject, Singleton }
-import org.apache.commons.lang3.RandomStringUtils
 import org.slf4j.{ Logger, LoggerFactory }
 
 import scala.concurrent.ExecutionContext
@@ -42,7 +40,7 @@ import scala.concurrent.ExecutionContext
 class SubmissionService @Inject()(
   fileUploadProxy: FileUploadProxy,
   fileUploadFrontEndProxy: FileUploadFrontEndProxy,
-  uniqueIdRepository: UniqueIdRepository
+  uniqueReferenceGenerator: UniqueReferenceGenerator
 )(implicit ec: ExecutionContext)
     extends IOUtils with FileUploadSettings {
 
@@ -52,7 +50,7 @@ class SubmissionService @Inject()(
   private val DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd")
   private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
   private val DDMMYYYYHHMMSS = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
-
+  private val SUBMISSION_REF_LENGTH = 12
   private val REPORT_FILE_PATTERN = "report-(\\d+)\\.txt".r
 
   def submit(reportFilesPath: Path, config: ConsolidatorJobParam)(
@@ -87,15 +85,15 @@ class SubmissionService @Inject()(
       def createEnvelope =
         liftIO(fileUploadProxy.createEnvelope(createEnvelopeRequest))
 
-      def uploadMetadata(envelopeId: String, submissionRef: String, instant: Instant) = {
+      def uploadMetadata(envelopeId: String, submissionRef: UniqueRef, instant: Instant) = {
         val zonedDateTime = instant.atZone(ZoneId.systemDefault())
-        val fileNamePrefix = s"$submissionRef-${DATE_FORMAT.format(zonedDateTime)}"
+        val fileNamePrefix = s"${submissionRef.ref}-${DATE_FORMAT.format(zonedDateTime)}"
         liftIO(
           fileUploadFrontEndProxy.upload(
             envelopeId,
             FileIds.xmlDocument,
             s"$fileNamePrefix-metadata.xml",
-            ByteString(MetadataXml.toXml(metaDataDocument(config, submissionRef, reportFiles.size, zonedDateTime)))
+            ByteString(MetadataXml.toXml(metaDataDocument(config, submissionRef.ref, reportFiles.size, zonedDateTime)))
           )
         )
       }
@@ -122,13 +120,7 @@ class SubmissionService @Inject()(
   }
 
   private def generateSubmissionRef =
-    liftIO(
-      uniqueIdRepository
-        .insertWithRetries(() => UniqueId(RandomStringUtils.randomAlphanumeric(12).toUpperCase))
-        .map {
-          case Some(uid) => Right(uid.value)
-          case None      => Left(new RuntimeException("Failed to generate unique id"))
-        })
+    liftIO(uniqueReferenceGenerator.generate(SUBMISSION_REF_LENGTH))
 
   private def metaDataDocument(
     config: ConsolidatorJobParam,

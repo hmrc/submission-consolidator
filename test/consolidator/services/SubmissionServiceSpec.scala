@@ -22,9 +22,8 @@ import java.time.{ Instant, ZoneId }
 
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import common.Time
-import common.repositories.UniqueIdRepository
-import common.repositories.UniqueIdRepository.UniqueId
+import common.UniqueReferenceGenerator.UniqueRef
+import common.{ Time, UniqueReferenceGenerator }
 import consolidator.proxies.{ Constraints, CreateEnvelopeRequest, FileId, FileUploadError, FileUploadFrontEndProxy, FileUploadProxy, GenericFileUploadError, RouteEnvelopeRequest }
 import consolidator.scheduler.ConsolidatorJobParam
 import consolidator.services.SubmissionService.FileIds
@@ -57,7 +56,7 @@ class SubmissionServiceSpec
     val config = ConsolidatorJobParam("some-project-id", "some-classification-type", "some-business-area")
     val mockFileUploadProxy = mock[FileUploadProxy](withSettings.lenient())
     val mockFileUploadFrontendProxy = mock[FileUploadFrontEndProxy](withSettings.lenient())
-    val mockUniqueIdRepository = mock[UniqueIdRepository](withSettings.lenient())
+    val mockUniqueReferenceGenerator = mock[UniqueReferenceGenerator](withSettings.lenient())
 
     val someEnvelopedId = "some-envelope-id"
     val someSubmissionRef = "ABCDEFGHIJKL"
@@ -94,14 +93,14 @@ class SubmissionServiceSpec
 
     lazy val createEnvelopeResponse: Future[Either[FileUploadError, String]] = Future.successful(Right(someEnvelopedId))
 
-    mockUniqueIdRepository.insertWithRetries(*, *)(*) shouldReturn Future.successful(Some(UniqueId(someSubmissionRef)))
+    mockUniqueReferenceGenerator.generate(*) shouldReturn Future.successful(Right(UniqueRef(someSubmissionRef)))
     mockFileUploadProxy.createEnvelope(*) shouldReturn createEnvelopeResponse
     mockFileUploadFrontendProxy.upload(*, *, *) shouldReturn Future.successful(Right(()))
     mockFileUploadFrontendProxy.upload(*, *, *, *) shouldReturn Future.successful(Right(()))
     mockFileUploadProxy.routeEnvelope(*) shouldReturn Future.successful(Right(()))
 
     val submissionService =
-      new SubmissionService(mockFileUploadProxy, mockFileUploadFrontendProxy, mockUniqueIdRepository)
+      new SubmissionService(mockFileUploadProxy, mockFileUploadFrontendProxy, mockUniqueReferenceGenerator)
   }
 
   "submit" should {
@@ -119,6 +118,7 @@ class SubmissionServiceSpec
           Constraints(numberOfReportFiles + 1, "25MB", "10MB", List("text/plain"), false)
         )
       ) wasCalled once
+      mockUniqueReferenceGenerator.generate(12) wasCalled once
       reportFilesPath.toFile.listFiles().foreach { f =>
         mockFileUploadFrontendProxy
           .upload(someEnvelopedId, FileId(f.getName.split("\\.").head), f) wasCalled once

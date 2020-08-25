@@ -16,7 +16,7 @@
 
 package common.repositories
 
-import common.repositories.UniqueIdRepository.UniqueId
+import common.repositories.UniqueIdRepository.{ UniqueId, UniqueIdGenFunction }
 import javax.inject.{ Inject, Singleton }
 import play.api.libs.json.Json
 import play.modules.reactivemongo.ReactiveMongoComponent
@@ -28,7 +28,7 @@ import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class UniqueIdRepository @Inject()(mongoComponent: ReactiveMongoComponent)
+class UniqueIdRepository @Inject()(mongoComponent: ReactiveMongoComponent)(implicit ec: ExecutionContext)
     extends ReactiveRepository[UniqueId, BSONObjectID](
       collectionName = "unique_ids",
       mongo = mongoComponent.mongoConnector.db,
@@ -45,17 +45,13 @@ class UniqueIdRepository @Inject()(mongoComponent: ReactiveMongoComponent)
       )
     )
 
-  type UniqueIdGen = () => UniqueId
-
-  def insertWithRetries(idGenerator: UniqueIdGen, attempts: Int = 5)(
-    implicit
-    ec: ExecutionContext): Future[Option[UniqueId]] =
+  def insertWithRetries(idGenFunction: UniqueIdGenFunction, attempts: Int = 5): Future[Option[UniqueId]] =
     (0 until attempts).foldLeft(Future.successful(Option.empty[UniqueId])) {
       (acc: Future[Option[UniqueId]], attempt: Int) =>
         acc.flatMap {
           case None =>
             logger.info(s"insertWithRetries $attempt")
-            val uniqueId = idGenerator()
+            val uniqueId = idGenFunction()
             insert(uniqueId)
               .map(_ => Option(uniqueId))
               .recoverWith {
@@ -69,6 +65,9 @@ class UniqueIdRepository @Inject()(mongoComponent: ReactiveMongoComponent)
 }
 
 object UniqueIdRepository {
+
+  type UniqueIdGenFunction = () => UniqueId
+
   case class UniqueId(value: String, id: BSONObjectID = BSONObjectID.generate())
 
   object UniqueId {
