@@ -23,9 +23,11 @@ import java.time.{ Instant, ZoneId }
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import common.Time
+import common.repositories.UniqueIdRepository
+import common.repositories.UniqueIdRepository.UniqueId
 import consolidator.proxies.{ Constraints, CreateEnvelopeRequest, FileId, FileUploadError, FileUploadFrontEndProxy, FileUploadProxy, GenericFileUploadError, RouteEnvelopeRequest }
 import consolidator.scheduler.ConsolidatorJobParam
-import consolidator.services.SubmissionService.{ FileIds, SubmissionRef }
+import consolidator.services.SubmissionService.FileIds
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.matchers.should.Matchers
@@ -39,6 +41,7 @@ class SubmissionServiceSpec
 
   private val DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd")
   private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
+  private val DDMMYYYYHHMMSS = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
 
   trait TestFixture {
     lazy val numberOfReportFiles: Int = maxReportAttachments
@@ -54,10 +57,10 @@ class SubmissionServiceSpec
     val config = ConsolidatorJobParam("some-project-id", "some-classification-type", "some-business-area")
     val mockFileUploadProxy = mock[FileUploadProxy](withSettings.lenient())
     val mockFileUploadFrontendProxy = mock[FileUploadFrontEndProxy](withSettings.lenient())
-    val mockSubmissionRefGenerator = mock[SubmissionRefGenerator](withSettings.lenient())
+    val mockUniqueIdRepository = mock[UniqueIdRepository](withSettings.lenient())
 
     val someEnvelopedId = "some-envelope-id"
-    val someSubmissionRef = "SOMESUBMISSIONREF"
+    val someSubmissionRef = "ABCDEFGHIJKL"
     val now = Instant.now()
     implicit val timeInstant: Time[Instant] = () => now
 
@@ -65,7 +68,7 @@ class SubmissionServiceSpec
       Document(
         Header(
           someSubmissionRef,
-          "jsonlines",
+          "text",
           "text/plain",
           true,
           "dfs",
@@ -74,6 +77,13 @@ class SubmissionServiceSpec
         ),
         Metadata(
           List(
+            Attribute("hmrc_time_of_receipt", "time", List(DDMMYYYYHHMMSS.format(now.atZone(ZoneId.systemDefault())))),
+            Attribute("time_xml_created", "time", List(DDMMYYYYHHMMSS.format(now.atZone(ZoneId.systemDefault())))),
+            Attribute("submission_reference", "string", List(someSubmissionRef)),
+            Attribute("formId", "string", List("collatedData")),
+            Attribute("submission_mark", "string", List("AUDIT_SERVICE")),
+            Attribute("case_key", "string", List("AUDIT_SERVICE")),
+            Attribute("customer_id", "string", List(DATE_FORMAT.format(now.atZone(ZoneId.systemDefault())))),
             Attribute("classification_type", "string", List(config.classificationType)),
             Attribute("business_area", "string", List(config.businessArea)),
             Attribute("attachment_count", "int", List(attachments.toString))
@@ -84,14 +94,14 @@ class SubmissionServiceSpec
 
     lazy val createEnvelopeResponse: Future[Either[FileUploadError, String]] = Future.successful(Right(someEnvelopedId))
 
-    mockSubmissionRefGenerator.generate shouldReturn SubmissionRef(someSubmissionRef)
+    mockUniqueIdRepository.insertWithRetries(*, *)(*) shouldReturn Future.successful(Some(UniqueId(someSubmissionRef)))
     mockFileUploadProxy.createEnvelope(*) shouldReturn createEnvelopeResponse
     mockFileUploadFrontendProxy.upload(*, *, *) shouldReturn Future.successful(Right(()))
     mockFileUploadFrontendProxy.upload(*, *, *, *) shouldReturn Future.successful(Right(()))
     mockFileUploadProxy.routeEnvelope(*) shouldReturn Future.successful(Right(()))
 
     val submissionService =
-      new SubmissionService(mockFileUploadProxy, mockFileUploadFrontendProxy, mockSubmissionRefGenerator)
+      new SubmissionService(mockFileUploadProxy, mockFileUploadFrontendProxy, mockUniqueIdRepository)
   }
 
   "submit" should {

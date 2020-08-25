@@ -13,19 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package collector
+package consolidator
 
 import collector.repositories.FormRepository
+import collector.{APIFormStubs, ITSpec}
 import com.github.tomakehurst.wiremock.client.WireMock._
 import com.typesafe.config.ConfigFactory
 import org.scalatest.concurrent.Eventually
-import org.scalatest.time.{ Millis, Seconds, Span }
-import org.slf4j.{ Logger, LoggerFactory }
-import play.api.{ Application, Configuration }
+import org.scalatest.time.{Millis, Seconds, Span}
+import org.slf4j.{Logger, LoggerFactory}
 import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.{Application, Configuration}
+
+import scala.concurrent.Await.ready
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.Await.ready
 
 class ConsolidatorSpec extends ITSpec with Eventually {
 
