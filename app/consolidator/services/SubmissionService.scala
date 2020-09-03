@@ -149,7 +149,8 @@ class SubmissionService @Inject()(
             Attribute("customer_id", "string", List(DATE_FORMAT.format(zonedDateTime))),
             Attribute("classification_type", "string", List(config.classificationType)),
             Attribute("business_area", "string", List(config.businessArea)),
-            Attribute("attachment_count", "int", List(attachmentCount.toString))
+            Attribute("attachment_count", "int", List(attachmentCount.toString)),
+            Attribute("backscan", "boolean", List("true"))
           )
         )
       )
