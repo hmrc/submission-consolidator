@@ -114,7 +114,7 @@ class SubmissionServiceSpec
       envelopeIds shouldEqual NonEmptyList.of(someEnvelopedId)
       mockFileUploadProxy.createEnvelope(
         CreateEnvelopeRequest(
-          consolidator.proxies.Metadata("submission-consolidator"),
+          consolidator.proxies.Metadata("gform"),
           Constraints(numberOfReportFiles + 1, "25MB", "10MB", List("text/plain"), false)
         )
       ) wasCalled once
@@ -144,7 +144,7 @@ class SubmissionServiceSpec
       envelopeIds shouldEqual NonEmptyList.of(someEnvelopedId, someEnvelopedId)
       mockFileUploadProxy.createEnvelope(
         CreateEnvelopeRequest(
-          consolidator.proxies.Metadata("submission-consolidator"),
+          consolidator.proxies.Metadata("gform"),
           Constraints(maxReportAttachments + 1, "25MB", "10MB", List("text/plain"), false)
         )
       ) wasCalled twice

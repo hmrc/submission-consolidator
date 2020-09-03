@@ -72,7 +72,7 @@ class SubmissionService @Inject()(
     fromListUnsafe(reportFileList.grouped(maxReportAttachments).toList.map { reportFiles =>
       logger.info(s"Creating envelope and uploading files ${reportFiles.map(_.getName)}")
       val createEnvelopeRequest = CreateEnvelopeRequest(
-        consolidator.proxies.Metadata("submission-consolidator"),
+        consolidator.proxies.Metadata("gform"),
         Constraints(
           reportFiles.size + 1, // +1 for metadata xml
           (maxSizeBytes / BYTES_IN_1_MB) + "MB",
