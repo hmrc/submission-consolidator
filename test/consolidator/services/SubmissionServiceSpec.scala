@@ -85,8 +85,7 @@ class SubmissionServiceSpec
             Attribute("customer_id", "string", List(DATE_FORMAT.format(now.atZone(ZoneId.systemDefault())))),
             Attribute("classification_type", "string", List(config.classificationType)),
             Attribute("business_area", "string", List(config.businessArea)),
-            Attribute("attachment_count", "int", List(attachments.toString)),
-            Attribute("backscan", "boolean", List("true"))
+            Attribute("attachment_count", "int", List(attachments.toString))
           )
         )
       )
