@@ -107,7 +107,7 @@ class SubmissionService @Inject()(
         }).parSequence
 
       def routeEnvelope(envelopeId: String) =
-        liftIO(fileUploadProxy.routeEnvelope(RouteEnvelopeRequest(envelopeId, "submission-consolidator", "DMS")))
+        liftIO(fileUploadProxy.routeEnvelope(RouteEnvelopeRequest(envelopeId, "dfs", "DMS")))
 
       for {
         envelopeId    <- createEnvelope

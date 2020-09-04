@@ -130,7 +130,7 @@ class SubmissionServiceSpec
         ByteString(MetadataXml.toXml(metaDataDocument(6)))
       ) wasCalled once
       mockFileUploadProxy.routeEnvelope(
-        RouteEnvelopeRequest(someEnvelopedId, "submission-consolidator", "DMS")
+        RouteEnvelopeRequest(someEnvelopedId, "dfs", "DMS")
       ) wasCalled once
     }
 
@@ -159,7 +159,7 @@ class SubmissionServiceSpec
         ByteString(MetadataXml.toXml(metaDataDocument(maxReportAttachments)))
       ) wasCalled twice
       mockFileUploadProxy.routeEnvelope(
-        RouteEnvelopeRequest(someEnvelopedId, "submission-consolidator", "DMS")
+        RouteEnvelopeRequest(someEnvelopedId, "dfs", "DMS")
       ) wasCalled twice
     }
 
