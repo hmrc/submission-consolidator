@@ -41,7 +41,7 @@ class FormController @Inject()(
       val apiFormResult: JsResult[APIForm] = request.body.validate[APIForm]
       apiFormResult.fold(
         errors => {
-          logger.error(s"Request body validation failed [errors=${JsError.toJson(errors)}, body=${request.body}}")
+          logger.error(s"Request body validation failed [errors=${JsError.toJson(errors)}}")
           Future.successful(handleError(RequestValidationError(errors)))
         },
         valid => {
