@@ -127,7 +127,7 @@ class SubmissionServiceSpec
         someEnvelopedId,
         FileIds.xmlDocument,
         s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-metadata.xml",
-        ByteString(MetadataXml.toXml(metaDataDocument(6)))
+        ByteString(MetadataXml.toXml(metaDataDocument(64)))
       ) wasCalled once
       mockFileUploadProxy.routeEnvelope(
         RouteEnvelopeRequest(someEnvelopedId, "dfs", "DMS")
