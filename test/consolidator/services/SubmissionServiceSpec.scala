@@ -106,7 +106,7 @@ class SubmissionServiceSpec
   "submit" should {
 
     "create a single envelope, when number of reports in less than or equals maxReportAttachments" in new TestFixture {
-
+      println(maxReportAttachments)
       //when
       val envelopeIds: NonEmptyList[String] = submissionService.submit(reportFilesPath, config).unsafeRunSync()
 
@@ -127,7 +127,7 @@ class SubmissionServiceSpec
         someEnvelopedId,
         FileIds.xmlDocument,
         s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-metadata.xml",
-        ByteString(MetadataXml.toXml(metaDataDocument(64)))
+        ByteString(MetadataXml.toXml(metaDataDocument(24)))
       ) wasCalled once
       mockFileUploadProxy.routeEnvelope(
         RouteEnvelopeRequest(someEnvelopedId, "dfs", "DMS")
