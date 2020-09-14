@@ -16,10 +16,8 @@
 
 package consolidator.services
 
-import java.nio.file.Files.createDirectories
-import java.nio.file.{ Path, Paths }
-import java.time.format.DateTimeFormatter
-import java.time.{ Instant, ZoneId }
+import java.nio.file.Path
+import java.time.Instant
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
@@ -48,31 +46,27 @@ class ConsolidatorService @Inject()(
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ec)
   private val batchSize = config.underlying.getInt("consolidator-job-config.batchSize")
   private val CREATION_TIME_BUFFER_SECONDS = 5
-  private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS")
 
-  def doConsolidation(projectId: String)(implicit time: Time[Instant]): IO[Option[ConsolidationResult]] =
+  def doConsolidation(projectId: String, outputPath: Path)(implicit time: Time[Instant]): IO[ConsolidationResult] =
     for {
       recentConsolidatorJobData <- liftIO(consolidatorJobDataRepository.findRecentLastObjectId(projectId))
       prevLastObjectId = recentConsolidatorJobData.flatMap(_.lastObjectId)
-      consolidationResult <- processForms(projectId, prevLastObjectId)
+      consolidationResult <- processForms(projectId, prevLastObjectId, outputPath)
     } yield consolidationResult
 
-  private def processForms(projectId: String, afterObjectId: Option[BSONObjectID])(
+  private def processForms(projectId: String, afterObjectId: Option[BSONObjectID], outputPath: Path)(
     implicit
-    time: Time[Instant]): IO[Option[ConsolidationResult]] =
+    time: Time[Instant]): IO[ConsolidationResult] =
     for {
-      outputPath       <- createTmpPath(projectId)
       fileOutputResult <- writeFormsToFiles(projectId, afterObjectId, outputPath)
     } yield
       if (fileOutputResult.isEmpty)
-        None
+        ConsolidationResult(outputPath = outputPath)
       else
-        Some(
-          ConsolidationResult(
-            fileOutputResult.map(_.lastObjectId),
-            fileOutputResult.map(_.count).getOrElse(0),
-            outputPath
-          )
+        ConsolidationResult(
+          lastObjectId = fileOutputResult.map(_.lastObjectId),
+          count = fileOutputResult.map(_.count).getOrElse(0),
+          outputPath = outputPath
         )
 
   private def writeFormsToFiles(projectId: String, afterObjectId: Option[BSONObjectID], outputPath: Path)(
@@ -106,16 +100,8 @@ class ConsolidatorService @Inject()(
           case e => Left(e)
         }
     }
-
-  private def createTmpPath(projectId: String)(implicit time: Time[Instant]) =
-    IO {
-      createDirectories(
-        Paths.get(System.getProperty("java.io.tmpdir") + s"/submission-consolidator/$projectId-${DATE_TIME_FORMAT
-          .format(time.now().atZone(ZoneId.systemDefault()))}")
-      )
-    }
 }
 
 object ConsolidatorService {
-  case class ConsolidationResult(lastObjectId: Option[BSONObjectID], count: Int, outputPath: Path)
+  case class ConsolidationResult(lastObjectId: Option[BSONObjectID] = None, count: Int = 0, outputPath: Path)
 }

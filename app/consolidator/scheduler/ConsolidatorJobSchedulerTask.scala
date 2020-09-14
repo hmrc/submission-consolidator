@@ -20,7 +20,7 @@ import akka.actor.ActorSystem
 import common.MetricsClient
 import consolidator.FormConsolidatorActor
 import consolidator.repositories.ConsolidatorJobDataRepository
-import consolidator.services.{ ConsolidatorService, SubmissionService }
+import consolidator.services.{ ConsolidatorService, DeleteDirService, SubmissionService }
 import javax.inject.Inject
 import org.slf4j.{ Logger, LoggerFactory }
 import play.api.inject.ApplicationLifecycle
@@ -33,6 +33,7 @@ class ConsolidatorJobSchedulerTask @Inject()(
   jobScheduler: ConsolidatorJobScheduler,
   consolidatorService: ConsolidatorService,
   fileUploaderService: SubmissionService,
+  deleteDirService: DeleteDirService,
   consolidatorJobDataRepository: ConsolidatorJobDataRepository,
   mongoComponent: ReactiveMongoComponent,
   metricsClient: MetricsClient,
@@ -50,7 +51,8 @@ class ConsolidatorJobSchedulerTask @Inject()(
         fileUploaderService,
         consolidatorJobDataRepository,
         LockMongoRepository(mongoComponent.mongoConnector.db),
-        metricsClient
+        metricsClient,
+        deleteDirService
       )
   )
   applicationLifecycle.addStopHook { () =>
