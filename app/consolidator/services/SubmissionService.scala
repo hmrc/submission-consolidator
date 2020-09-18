@@ -143,7 +143,7 @@ class SubmissionService @Inject()(
             Attribute("hmrc_time_of_receipt", "time", List(DDMMYYYYHHMMSS.format(zonedDateTime))),
             Attribute("time_xml_created", "time", List(DDMMYYYYHHMMSS.format(zonedDateTime))),
             Attribute("submission_reference", "string", List(submissionRef)),
-            Attribute("formId", "string", List("collatedData")),
+            Attribute("form_id", "string", List("collatedData")),
             Attribute("submission_mark", "string", List("AUDIT_SERVICE")),
             Attribute("case_key", "string", List("AUDIT_SERVICE")),
             Attribute("customer_id", "string", List(DATE_FORMAT.format(zonedDateTime))),

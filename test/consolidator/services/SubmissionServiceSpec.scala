@@ -79,7 +79,7 @@ class SubmissionServiceSpec
             Attribute("hmrc_time_of_receipt", "time", List(DDMMYYYYHHMMSS.format(now.atZone(ZoneId.systemDefault())))),
             Attribute("time_xml_created", "time", List(DDMMYYYYHHMMSS.format(now.atZone(ZoneId.systemDefault())))),
             Attribute("submission_reference", "string", List(someSubmissionRef)),
-            Attribute("formId", "string", List("collatedData")),
+            Attribute("form_id", "string", List("collatedData")),
             Attribute("submission_mark", "string", List("AUDIT_SERVICE")),
             Attribute("case_key", "string", List("AUDIT_SERVICE")),
             Attribute("customer_id", "string", List(DATE_FORMAT.format(now.atZone(ZoneId.systemDefault())))),
