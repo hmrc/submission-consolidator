@@ -32,6 +32,7 @@ import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
 import consolidator.scheduler.ConsolidatorJobParam
 import consolidator.services.ConsolidatorService.ConsolidationResult
+import consolidator.services.formatters.ConsolidationFormat
 import consolidator.services.{ ConsolidatorService, DeleteDirService, SubmissionService }
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.captor.ArgCaptor
@@ -106,7 +107,8 @@ class FormConsolidatorActorSpec
     "given a ConsolidatorJobParam message" should {
 
       "skip consolidation if forms are empty and return OK" in new TestFixture {
-        mockConsolidatorService.doConsolidation(*, *) shouldReturn IO.pure(ConsolidationResult(outputPath = reportDir))
+        mockConsolidatorService.doConsolidation(*, *, *) shouldReturn IO.pure(
+          ConsolidationResult(outputPath = reportDir))
         mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(Right(()))
         mockDeleteDirService.deleteDir(*) returns Future.successful(Right(()))
 
@@ -115,7 +117,7 @@ class FormConsolidatorActorSpec
         expectMsg(OK)
 
         mockDeleteDirService.deleteDir(reportDir) wasCalled once
-        mockConsolidatorService.doConsolidation(projectId, reportDir) wasCalled once
+        mockConsolidatorService.doConsolidation(projectId, reportDir, ConsolidationFormat.jsonl) wasCalled once
         mockFileUploaderService.submit(*, consolidatorJobParam) wasNever called
         mockMetricsClient.recordDuration(s"consolidator.$projectId.run", *) wasCalled once
 
@@ -135,7 +137,7 @@ class FormConsolidatorActorSpec
 
       "consolidate forms and return OK" in new TestFixture {
 
-        mockConsolidatorService.doConsolidation(*, *) shouldReturn IO.pure(
+        mockConsolidatorService.doConsolidation(*, *, *) shouldReturn IO.pure(
           ConsolidationResult(Some(lastObjectId), 1, reportDir)
         )
         mockFileUploaderService.submit(*, *) shouldReturn IO.pure(NonEmptyList.of(envelopeId))
@@ -147,7 +149,7 @@ class FormConsolidatorActorSpec
         expectMsg(OK)
 
         mockDeleteDirService.deleteDir(reportDir) wasCalled once
-        mockConsolidatorService.doConsolidation(projectId, reportDir) wasCalled once
+        mockConsolidatorService.doConsolidation(projectId, reportDir, ConsolidationFormat.jsonl) wasCalled once
         mockFileUploaderService.submit(reportDir, consolidatorJobParam) wasCalled once
         mockMetricsClient.recordDuration(s"consolidator.$projectId.run", *) wasCalled once
         mockMetricsClient.markMeter(s"consolidator.$projectId.success") wasCalled once // success
@@ -158,7 +160,8 @@ class FormConsolidatorActorSpec
       "ConsolidatorService fails" should {
 
         "return the error message" in new TestFixture {
-          mockConsolidatorService.doConsolidation(*, *) shouldReturn IO.raiseError(new Exception("consolidation error"))
+          mockConsolidatorService.doConsolidation(*, *, *) shouldReturn IO.raiseError(
+            new Exception("consolidation error"))
           mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(Right(()))
           mockDeleteDirService.deleteDir(*) shouldReturn Future.successful(Right(()))
 
@@ -178,7 +181,7 @@ class FormConsolidatorActorSpec
       "FileUploaderService fails" should {
 
         "return the error message" in new TestFixture {
-          mockConsolidatorService.doConsolidation(*, *) shouldReturn IO.pure(
+          mockConsolidatorService.doConsolidation(*, *, *) shouldReturn IO.pure(
             ConsolidationResult(Some(lastObjectId), 1, reportDir)
           )
           mockFileUploaderService.submit(*, *) shouldReturn IO.raiseError(new Exception("file upload error"))
@@ -190,7 +193,7 @@ class FormConsolidatorActorSpec
           expectMsgPF() {
             case t: Throwable =>
               t.getMessage shouldBe "file upload error"
-              mockConsolidatorService.doConsolidation(projectId, reportDir) wasCalled once
+              mockConsolidatorService.doConsolidation(projectId, reportDir, ConsolidationFormat.jsonl) wasCalled once
               mockFileUploaderService.submit(reportDir, consolidatorJobParam) wasCalled once
               mockDeleteDirService.deleteDir(reportDir) wasCalled once
               assertConsolidatorData(None, Some("file upload error"), None)

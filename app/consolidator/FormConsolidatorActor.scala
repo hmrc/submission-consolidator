@@ -67,7 +67,10 @@ class FormConsolidatorActor(
         val senderRef = sender()
         val reportOutputDir = createReportDir(jobParam.projectId, time)
         val program: IO[Unit] = (for {
-          consolidationResult <- consolidatorService.doConsolidation(jobParam.projectId, reportOutputDir)
+          consolidationResult <- consolidatorService.doConsolidation(
+                                  jobParam.projectId,
+                                  reportOutputDir,
+                                  jobParam.format)
           envelopeIds <- if (consolidationResult.count > 0)
                           fileUploaderService
                             .submit(consolidationResult.outputPath, jobParam)

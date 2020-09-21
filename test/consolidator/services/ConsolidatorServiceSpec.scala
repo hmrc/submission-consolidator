@@ -25,6 +25,7 @@ import akka.stream.scaladsl.Source
 import collector.repositories.{ DataGenerators, FormRepository }
 import common.Time
 import consolidator.repositories.{ ConsolidatorJobDataRepository, GenericConsolidatorJobDataError }
+import consolidator.services.formatters.{ CSVFormatter, ConsolidationFormat, JSONLineFormatter }
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalacheck.Gen
@@ -68,6 +69,7 @@ class ConsolidatorServiceSpec
       }
 
     val projectId = "some-project-id"
+    lazy val format = ConsolidationFormat.jsonl
     lazy val noOfForms = 1
     val now = Instant.now()
     implicit val timeInstant: Time[Instant] = () => now
@@ -85,6 +87,12 @@ class ConsolidatorServiceSpec
       Future.successful(()))
   }
 
+  trait TestFixtureCSVFormat extends TestFixture {
+    override lazy val format = ConsolidationFormat.csv
+    val headers: List[String] = forms.flatMap(_.formData).map(_.id).sorted
+    mockFormRepository.distinctFormDataIds(*, *)(*) shouldReturn Future.successful(Right(headers))
+  }
+
   "doConsolidation" when {
     "consolidation is successful" should {
       "no file if forms is empty" in new TestFixture {
@@ -92,7 +100,7 @@ class ConsolidatorServiceSpec
 
         //when
         val future: Future[ConsolidatorService.ConsolidationResult] =
-          consolidatorService.doConsolidation(projectId, reportDir).unsafeToFuture()
+          consolidatorService.doConsolidation(projectId, reportDir, format).unsafeToFuture()
 
         whenReady(future) { consolidationResult =>
           consolidationResult.lastObjectId shouldBe None
@@ -107,7 +115,7 @@ class ConsolidatorServiceSpec
 
       "consolidate all form submissions into a single file, for the given project id" in new TestFixture {
         //when
-        val future = consolidatorService.doConsolidation(projectId, reportDir).unsafeToFuture()
+        val future = consolidatorService.doConsolidation(projectId, reportDir, format).unsafeToFuture()
 
         whenReady(future) { consolidationResult =>
           consolidationResult.lastObjectId shouldBe Some(forms.last.id)
@@ -118,7 +126,7 @@ class ConsolidatorServiceSpec
           files.size shouldBe 1
           files.head.getName shouldBe "report-0.txt"
           val fileSource = scala.io.Source.fromFile(files.head, "UTF-8")
-          fileSource.getLines().toList.head shouldEqual forms.head.toJsonLine()
+          fileSource.getLines().toList.head shouldEqual JSONLineFormatter.format(forms.head)
           fileSource.close
 
           mockConsolidatorJobDataRepository.findRecentLastObjectId(projectId)(*) wasCalled once
@@ -126,14 +134,28 @@ class ConsolidatorServiceSpec
         }
       }
 
+      "consolidate all form submissions into a single file, for the given project id and csv format" in new TestFixtureCSVFormat {
+        //when
+        val future = consolidatorService.doConsolidation(projectId, reportDir, format).unsafeToFuture()
+
+        whenReady(future) { consolidationResult =>
+          val files = consolidationResult.outputPath.toFile.listFiles
+          files.size shouldBe 1
+          files.head.getName shouldBe "report-0.txt"
+          val fileSource = scala.io.Source.fromFile(files.head, "UTF-8")
+          fileSource.getLines().toList.head shouldEqual CSVFormatter(headers).format(forms.head)
+          fileSource.close
+        }
+      }
+
       "consolidate form submissions into multiple files" in new TestFixture {
         //given
         override lazy val noOfForms: Int = 2
         override lazy val _reportPerFileSizeInBytes
-          : Long = forms.head.toJsonLine().length + 1 // + 1 for newline character
+          : Long = JSONLineFormatter.format(forms.head).length + 1 // + 1 for newline character
 
         //when
-        val future = consolidatorService.doConsolidation(projectId, reportDir).unsafeToFuture()
+        val future = consolidatorService.doConsolidation(projectId, reportDir, format).unsafeToFuture()
 
         whenReady(future) { consolidationResult =>
           consolidationResult.lastObjectId shouldBe Some(forms.last.id)
@@ -146,7 +168,7 @@ class ConsolidatorServiceSpec
               val fileSource = scala.io.Source.fromFile(file, "UTF-8")
               val lines = fileSource.getLines().toList
               lines.size shouldBe 1
-              lines.head shouldEqual form.toJsonLine()
+              lines.head shouldEqual JSONLineFormatter.format(form)
               fileSource.close
           }
         }
@@ -161,7 +183,7 @@ class ConsolidatorServiceSpec
         )
 
         //when
-        val future = consolidatorService.doConsolidation(projectId, reportDir).unsafeToFuture()
+        val future = consolidatorService.doConsolidation(projectId, reportDir, format).unsafeToFuture()
 
         whenReady(future.failed) { error =>
           error shouldBe GenericConsolidatorJobDataError("some error")
@@ -174,7 +196,7 @@ class ConsolidatorServiceSpec
           .mapMaterializedValue(_ => Future.successful(()))
 
         //when
-        val future = consolidatorService.doConsolidation(projectId, reportDir).unsafeToFuture()
+        val future = consolidatorService.doConsolidation(projectId, reportDir, format).unsafeToFuture()
 
         whenReady(future.failed) { error =>
           error shouldBe a[RuntimeException]
