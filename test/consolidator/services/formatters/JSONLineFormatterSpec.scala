@@ -39,7 +39,7 @@ class JSONLineFormatterSpec extends AnyWordSpec with Matchers with DataGenerator
       (__ \ "formData").write[Seq[FormField]]
   )(f => (f.submissionRef, f.projectId, f.templateId, f.customerId, f.submissionTimestamp, f.formData))
 
-  "format" should {
+  "formLine" should {
     "return the form as formatted line in jsonline format" in {
       forAll(genForm) { form =>
         val result = JSONLineFormatter.formLine(form)

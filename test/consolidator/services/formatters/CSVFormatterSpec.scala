@@ -23,14 +23,25 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class CSVFormatterSpec extends AnyWordSpec with Matchers with DataGenerators with ScalaCheckDrivenPropertyChecks {
-  "format" should {
-    "return the form as formatted line in jsonline format" in {
+
+  "formLine" should {
+    "return the form formatted as csv" in {
       forAll(genForm) { form =>
         val headers = form.formData.map(_.id).sorted
         val result = CSVFormatter(headers).formLine(form)
         result shouldBe headers
           .map(h => form.formData.find(_.id == h).map(f => StringEscapeUtils.escapeCsv(f.value)).getOrElse(""))
           .mkString(",")
+      }
+    }
+  }
+
+  "headerLine" should {
+    "return headers formatted as csv" in {
+      forAll(genForm) { form =>
+        val headers = form.formData.map(_.id).sorted
+        val result = CSVFormatter(headers).headerLine
+        result shouldBe Some(headers.map(StringEscapeUtils.escapeCsv).mkString(","))
       }
     }
   }
