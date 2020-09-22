@@ -16,113 +16,123 @@
 
 package consolidator.services
 
+import java.io.File
 import java.nio.file.Path
 import java.time.Instant
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
-import akka.util.ByteString
 import cats.effect.{ ContextShift, IO }
-import cats.syntax.either._
-import collector.repositories.{ FormError, FormRepository }
+import collector.repositories.FormRepository
 import common.Time
 import consolidator.IOUtils
 import consolidator.repositories.ConsolidatorJobDataRepository
+import consolidator.scheduler.ConsolidatorJobParam
 import consolidator.services.ConsolidatorService.ConsolidationResult
-import consolidator.services.FilePartOutputStage.{ ByteStringObjectId, FileOutputResult }
-import consolidator.services.formatters.ConsolidationFormat.{ ConsolidationFormat, csv }
-import consolidator.services.formatters.{ CSVFormatter, JSONLineFormatter }
+import consolidator.services.FilePartOutputStage.{ FilePartOutputStageResult, Record }
+import consolidator.services.formatters.ConsolidationFormat.ConsolidationFormat
+import consolidator.services.formatters.{ CSVFormatter, ConsolidationFormat, FormFormatter, JSONLineFormatter }
 import javax.inject.{ Inject, Singleton }
 import play.api.Configuration
 import reactivemongo.bson.BSONObjectID
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.ExecutionContext
 
 @Singleton
 class ConsolidatorService @Inject()(
   formRepository: FormRepository,
   consolidatorJobDataRepository: ConsolidatorJobDataRepository,
-  config: Configuration
-)(implicit ec: ExecutionContext, system: ActorSystem)
+  config: Configuration)(implicit ec: ExecutionContext, system: ActorSystem)
     extends IOUtils with FileUploadSettings {
 
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ec)
   private val batchSize = config.underlying.getInt("consolidator-job-config.batchSize")
   private val CREATION_TIME_BUFFER_SECONDS = 5
 
-  def doConsolidation(projectId: String, outputPath: Path, format: ConsolidationFormat)(
+  def doConsolidation(outputPath: Path, consolidatorJobParam: ConsolidatorJobParam)(
     implicit
-    time: Time[Instant]): IO[ConsolidationResult] =
+    time: Time[Instant]): IO[Option[ConsolidationResult]] =
     for {
-      recentConsolidatorJobData <- liftIO(consolidatorJobDataRepository.findRecentLastObjectId(projectId))
+      recentConsolidatorJobData <- liftIO(
+                                    consolidatorJobDataRepository.findRecentLastObjectId(
+                                      consolidatorJobParam.projectId))
       prevLastObjectId = recentConsolidatorJobData.flatMap(_.lastObjectId)
-      consolidationResult <- processForms(projectId, prevLastObjectId, outputPath, format)
+      consolidationResult <- processForms(consolidatorJobParam, prevLastObjectId, outputPath)
     } yield consolidationResult
 
   private def processForms(
-    projectId: String,
+    consolidatorJobParam: ConsolidatorJobParam,
     afterObjectId: Option[BSONObjectID],
     outputPath: Path,
-    format: ConsolidationFormat
-  )(implicit time: Time[Instant]): IO[ConsolidationResult] =
+  )(
+    implicit
+    time: Time[Instant]): IO[Option[ConsolidationResult]] =
     for {
-      fileOutputResult <- writeFormsToFiles(projectId, afterObjectId, outputPath, format)
+      formatter <- formatter(consolidatorJobParam.format, consolidatorJobParam.projectId, afterObjectId)
+      filePartOutputStageResult <- writeFormsToFiles(
+                                    consolidatorJobParam.projectId,
+                                    afterObjectId,
+                                    outputPath,
+                                    formatter)
     } yield
-      if (fileOutputResult.isEmpty)
-        ConsolidationResult(outputPath = outputPath)
-      else
-        ConsolidationResult(
-          lastObjectId = fileOutputResult.map(_.lastObjectId),
-          count = fileOutputResult.map(_.count).getOrElse(0),
-          outputPath = outputPath
-        )
+      filePartOutputStageResult
+        .map(f => ConsolidationResult(f.lastObjectId, f.count, f.reportFiles.toList))
 
   private def writeFormsToFiles(
     projectId: String,
     afterObjectId: Option[BSONObjectID],
     outputPath: Path,
-    format: ConsolidationFormat
-  )(implicit time: Time[Instant]): IO[Option[FileOutputResult]] =
+    formatter: FormFormatter
+  )(implicit time: Time[Instant]): IO[Option[FilePartOutputStageResult]] =
     for {
-      formDataIds <- liftIO(
-                      if (format == csv) formRepository.distinctFormDataIds(projectId, afterObjectId)
-                      else Future.successful(List.empty[String].asRight[FormError])
-                    )
-      formatter = if (format == csv) CSVFormatter(formDataIds) else JSONLineFormatter
-      fileOutputResult <- liftIO(
-                           formRepository
-                             .formsSource(
-                               projectId,
-                               batchSize,
-                               time.now().minusSeconds(CREATION_TIME_BUFFER_SECONDS),
-                               afterObjectId)
-                             .map { form =>
-                               ByteStringObjectId(
-                                 form.id,
-                                 ByteString(formatter.format(form))
-                               )
-                             }
-                             .runWith(
-                               Sink.fromGraph(
-                                 new FilePartOutputStage(
-                                   outputPath,
-                                   "report",
-                                   reportPerFileSizeInBytes,
-                                   projectId,
-                                   batchSize
-                                 )
-                               )
-                             )
-                             .map { fileOutputResult =>
-                               Right(fileOutputResult)
-                             }
-                             .recover {
-                               case e => Left(e)
-                             }
-                         )
-    } yield fileOutputResult
+      filePartOutputStageResult <- processFormsStream(projectId, afterObjectId, outputPath, formatter)
+    } yield filePartOutputStageResult
+
+  private def processFormsStream(
+    projectId: String,
+    afterObjectId: Option[BSONObjectID],
+    outputPath: Path,
+    formatter: FormFormatter)(
+    implicit
+    time: Time[Instant]) =
+    liftIO(
+      formRepository
+        .formsSource(projectId, batchSize, time.now().minusSeconds(CREATION_TIME_BUFFER_SECONDS), afterObjectId)
+        .map(form => {
+          Record(formatter.formLine(form), form.id)
+        })
+        .runWith(
+          Sink.fromGraph(
+            new FilePartOutputStage(
+              outputPath,
+              "report",
+              reportPerFileSizeInBytes,
+              projectId,
+              batchSize,
+              formatter.headerLine
+            )
+          )
+        )
+        .map { filePartOutputStageResult =>
+          Right(filePartOutputStageResult)
+        }
+        .recover {
+          case e => Left(e)
+        }
+    )
+
+  def formatter(
+    format: ConsolidationFormat,
+    projectId: String,
+    afterObjectId: Option[BSONObjectID]): IO[FormFormatter] = format match {
+    case ConsolidationFormat.csv =>
+      for {
+        formDataIds <- liftIO(formRepository.distinctFormDataIds(projectId, afterObjectId))
+      } yield CSVFormatter(formDataIds)
+    case ConsolidationFormat.jsonl => IO.pure(JSONLineFormatter)
+  }
 }
 
 object ConsolidatorService {
-  case class ConsolidationResult(lastObjectId: Option[BSONObjectID] = None, count: Int = 0, outputPath: Path)
+  case class ConsolidationResult(lastObjectId: BSONObjectID, count: Int, reportFiles: List[File])
 }

@@ -18,28 +18,32 @@ package consolidator.services.formatters
 
 import java.time.Instant
 
-import collector.repositories.{ Form, FormField }
 import collector.repositories.Form.DATE_TIME_FORMATTER
+import collector.repositories.{ Form, FormField }
 import org.apache.commons.text.StringEscapeUtils
-import play.api.libs.json.{ JsString, Writes, __ }
 import play.api.libs.functional.syntax._
+import play.api.libs.json.{ JsString, Writes, __ }
 
 trait FormFormatter {
-  def format(form: Form): String
+
+  def headerLine: Option[String]
+
+  def formLine(form: Form): String
 }
 
-class CSVFormatter(headers: List[String]) extends FormFormatter {
-  override def format(form: Form): String =
+case class CSVFormatter(headers: List[String]) extends FormFormatter {
+
+  override def headerLine = Some(headers.map(StringEscapeUtils.escapeCsv).mkString(","))
+
+  override def formLine(form: Form): String =
     headers
       .map(h => form.formData.find(_.id == h).map(f => StringEscapeUtils.escapeCsv(f.value)).getOrElse(""))
       .mkString(",")
 }
 
-object CSVFormatter {
-  def apply(headers: List[String]) = new CSVFormatter(headers)
-}
+case object JSONLineFormatter extends FormFormatter {
 
-object JSONLineFormatter extends FormFormatter {
+  override def headerLine: Option[String] = None
 
   private val instantJsonLineWrites: Writes[Instant] = (instant: Instant) =>
     JsString(DATE_TIME_FORMATTER.format(instant))
@@ -52,5 +56,5 @@ object JSONLineFormatter extends FormFormatter {
       (__ \ "formData").write[Seq[FormField]]
   )(f => (f.submissionRef, f.projectId, f.templateId, f.customerId, f.submissionTimestamp, f.formData))
 
-  override def format(form: Form): String = formJsonLineWrites.writes(form).toString()
+  override def formLine(form: Form): String = formJsonLineWrites.writes(form).toString()
 }

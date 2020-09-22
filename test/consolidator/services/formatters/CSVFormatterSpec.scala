@@ -27,7 +27,7 @@ class CSVFormatterSpec extends AnyWordSpec with Matchers with DataGenerators wit
     "return the form as formatted line in jsonline format" in {
       forAll(genForm) { form =>
         val headers = form.formData.map(_.id).sorted
-        val result = CSVFormatter(headers).format(form)
+        val result = CSVFormatter(headers).formLine(form)
         result shouldBe headers
           .map(h => form.formData.find(_.id == h).map(f => StringEscapeUtils.escapeCsv(f.value)).getOrElse(""))
           .mkString(",")

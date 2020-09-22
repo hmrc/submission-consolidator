@@ -20,7 +20,7 @@ import java.time.format.DateTimeFormatter
 import java.time.{ Instant, ZoneId }
 
 import collector.common.ApplicationError
-import play.api.libs.json.{ Format, JsValue, Json, Reads, Writes, __, _ }
+import play.api.libs.json.{ Format, JsValue, Json, Reads, Writes, __ }
 import reactivemongo.bson.BSONObjectID
 
 case class FormField(id: String, value: String)

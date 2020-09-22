@@ -16,7 +16,8 @@
 
 package consolidator.services
 
-import java.nio.file.{ Files, Path, Paths }
+import java.io.File
+import java.nio.file.{ Files, Paths }
 import java.time.format.DateTimeFormatter
 import java.time.{ Instant, ZoneId }
 
@@ -26,6 +27,7 @@ import common.UniqueReferenceGenerator.UniqueRef
 import common.{ Time, UniqueReferenceGenerator }
 import consolidator.proxies.{ Constraints, CreateEnvelopeRequest, FileId, FileUploadError, FileUploadFrontEndProxy, FileUploadProxy, GenericFileUploadError, RouteEnvelopeRequest }
 import consolidator.scheduler.ConsolidatorJobParam
+import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
 import consolidator.services.SubmissionService.FileIds
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
@@ -39,57 +41,28 @@ class SubmissionServiceSpec
     extends AnyWordSpec with IdiomaticMockito with ArgumentMatchersSugar with Matchers with FileUploadSettings {
 
   private val DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd")
-  private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-  private val DDMMYYYYHHMMSS = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
 
   trait TestFixture {
     lazy val numberOfReportFiles: Int = maxReportAttachments
-    lazy val reportFilesPath: Path = {
+    private val reportFilesDir: File = {
       val path = Files.createDirectories(
         Paths.get(System.getProperty("java.io.tmpdir") + s"/SubmissionServiceSpec-${System.currentTimeMillis()}")
       )
       (0 until numberOfReportFiles).foreach { i =>
         Files.createFile(Paths.get(path + "/" + s"report-$i.txt")).toFile
       }
-      path
+      path.toFile
     }
-    val config = ConsolidatorJobParam("some-project-id", "some-classification-type", "some-business-area")
+    val reportFiles = reportFilesDir.listFiles().toList
+    val config = ConsolidatorJobParam("some-project-id", "some-classification", "some-business-area")
     val mockFileUploadProxy = mock[FileUploadProxy](withSettings.lenient())
     val mockFileUploadFrontendProxy = mock[FileUploadFrontEndProxy](withSettings.lenient())
     val mockUniqueReferenceGenerator = mock[UniqueReferenceGenerator](withSettings.lenient())
 
     val someEnvelopedId = "some-envelope-id"
-    val someSubmissionRef = "ABCDEFGHIJKL"
+    val someSubmissionRef = "some-unique-id"
     val now = Instant.now()
     implicit val timeInstant: Time[Instant] = () => now
-
-    def metaDataDocument(attachments: Int) = Documents(
-      Document(
-        Header(
-          someSubmissionRef,
-          "text",
-          "text/plain",
-          true,
-          "dfs",
-          "DMS",
-          s"$someSubmissionRef-${DATE_TIME_FORMAT.format(now.atZone(ZoneId.systemDefault()))}"
-        ),
-        Metadata(
-          List(
-            Attribute("hmrc_time_of_receipt", "time", List(DDMMYYYYHHMMSS.format(now.atZone(ZoneId.systemDefault())))),
-            Attribute("time_xml_created", "time", List(DDMMYYYYHHMMSS.format(now.atZone(ZoneId.systemDefault())))),
-            Attribute("submission_reference", "string", List(someSubmissionRef)),
-            Attribute("form_id", "string", List("collatedData")),
-            Attribute("submission_mark", "string", List("AUDIT_SERVICE")),
-            Attribute("case_key", "string", List("AUDIT_SERVICE")),
-            Attribute("customer_id", "string", List(DATE_FORMAT.format(now.atZone(ZoneId.systemDefault())))),
-            Attribute("classification_type", "string", List(config.classificationType)),
-            Attribute("business_area", "string", List(config.businessArea)),
-            Attribute("attachment_count", "int", List(attachments.toString))
-          )
-        )
-      )
-    )
 
     lazy val createEnvelopeResponse: Future[Either[FileUploadError, String]] = Future.successful(Right(someEnvelopedId))
 
@@ -106,20 +79,19 @@ class SubmissionServiceSpec
   "submit" should {
 
     "create a single envelope, when number of reports in less than or equals maxReportAttachments" in new TestFixture {
-      println(maxReportAttachments)
       //when
-      val envelopeIds: NonEmptyList[String] = submissionService.submit(reportFilesPath, config).unsafeRunSync()
+      val envelopeIds: NonEmptyList[String] = submissionService.submit(reportFiles, config).unsafeRunSync()
 
       //then
       envelopeIds shouldEqual NonEmptyList.of(someEnvelopedId)
       mockFileUploadProxy.createEnvelope(
         CreateEnvelopeRequest(
           consolidator.proxies.Metadata("gform"),
-          Constraints(numberOfReportFiles + 1, "25MB", "10MB", List("text/plain"), false)
+          Constraints(numberOfReportFiles + 1, "25MB", "10MB", List("text/plain", "text/csv"), false)
         )
       ) wasCalled once
       mockUniqueReferenceGenerator.generate(12) wasCalled once
-      reportFilesPath.toFile.listFiles().foreach { f =>
+      reportFiles.foreach { f =>
         mockFileUploadFrontendProxy
           .upload(someEnvelopedId, FileId(f.getName.split("\\.").head), f) wasCalled once
       }
@@ -127,7 +99,7 @@ class SubmissionServiceSpec
         someEnvelopedId,
         FileIds.xmlDocument,
         s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-metadata.xml",
-        ByteString(MetadataXml.toXml(metaDataDocument(24)))
+        ByteString(buildMetadataDocument(now.atZone(ZoneId.systemDefault()), "text", "text/plain", 24).toXml)
       ) wasCalled once
       mockFileUploadProxy.routeEnvelope(
         RouteEnvelopeRequest(someEnvelopedId, "dfs", "DMS")
@@ -138,17 +110,17 @@ class SubmissionServiceSpec
       override lazy val numberOfReportFiles: Int = maxReportAttachments * 2
 
       //when
-      val envelopeIds: NonEmptyList[String] = submissionService.submit(reportFilesPath, config).unsafeRunSync()
+      val envelopeIds: NonEmptyList[String] = submissionService.submit(reportFiles, config).unsafeRunSync()
 
       //then
       envelopeIds shouldEqual NonEmptyList.of(someEnvelopedId, someEnvelopedId)
       mockFileUploadProxy.createEnvelope(
         CreateEnvelopeRequest(
           consolidator.proxies.Metadata("gform"),
-          Constraints(maxReportAttachments + 1, "25MB", "10MB", List("text/plain"), false)
+          Constraints(maxReportAttachments + 1, "25MB", "10MB", List("text/plain", "text/csv"), false)
         )
       ) wasCalled twice
-      reportFilesPath.toFile.listFiles().foreach { f =>
+      reportFiles.foreach { f =>
         mockFileUploadFrontendProxy
           .upload(someEnvelopedId, FileId(f.getName.split("\\.").head), f) wasCalled once
       }
@@ -156,7 +128,8 @@ class SubmissionServiceSpec
         someEnvelopedId,
         FileIds.xmlDocument,
         s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-metadata.xml",
-        ByteString(MetadataXml.toXml(metaDataDocument(maxReportAttachments)))
+        ByteString(
+          buildMetadataDocument(now.atZone(ZoneId.systemDefault()), "text", "text/plain", maxReportAttachments).toXml)
       ) wasCalled twice
       mockFileUploadProxy.routeEnvelope(
         RouteEnvelopeRequest(someEnvelopedId, "dfs", "DMS")
@@ -167,7 +140,7 @@ class SubmissionServiceSpec
       override lazy val createEnvelopeResponse = Future.successful(Left(GenericFileUploadError("some error")))
 
       //when
-      submissionService.submit(reportFilesPath, config).unsafeRunAsync {
+      submissionService.submit(reportFiles, config).unsafeRunAsync {
         case Left(error) => error shouldBe GenericFileUploadError("some error")
         case Right(_)    => fail("Should have failed")
       }

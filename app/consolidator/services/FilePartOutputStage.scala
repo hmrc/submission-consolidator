@@ -16,6 +16,7 @@
 
 package consolidator.services
 
+import java.io.File
 import java.nio.channels.FileChannel
 import java.nio.file.{ OpenOption, Path, Paths }
 import java.nio.file.StandardOpenOption.{ CREATE_NEW, SYNC, TRUNCATE_EXISTING, WRITE }
@@ -29,7 +30,7 @@ import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 import scala.util.control.NonFatal
 import akka.util.ccompat.JavaConverters._
-import consolidator.services.FilePartOutputStage.{ ByteStringObjectId, FileOutputResult }
+import consolidator.services.FilePartOutputStage.{ FilePartOutputStageResult, Record }
 import org.slf4j.{ Logger, LoggerFactory }
 
 class FilePartOutputStage(
@@ -38,16 +39,17 @@ class FilePartOutputStage(
   maxBytesPerFile: Long,
   projectId: String,
   batchSize: Int,
+  headerLine: Option[String],
   options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE_NEW, SYNC)
 ) extends GraphStageWithMaterializedValue[
-      SinkShape[ByteStringObjectId],
+      SinkShape[Record],
       Future[
-        Option[FileOutputResult]
+        Option[FilePartOutputStageResult]
       ]] {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  val in: Inlet[ByteStringObjectId] = Inlet("FilePartOutputStageSink")
-  override val shape: SinkShape[ByteStringObjectId] = SinkShape(in)
+  val in: Inlet[Record] = Inlet("FilePartOutputStageSink")
+  override val shape: SinkShape[Record] = SinkShape(in)
 
   final class IOOperationIncompleteException(message: String, cause: Throwable)
       extends RuntimeException(message, cause) {
@@ -59,11 +61,11 @@ class FilePartOutputStage(
 
   override def createLogicAndMaterializedValue(
     inheritedAttributes: Attributes
-  ): (GraphStageLogic, Future[Option[FileOutputResult]]) = {
-    val mat = Promise[Option[FileOutputResult]]()
+  ): (GraphStageLogic, Future[Option[FilePartOutputStageResult]]) = {
+    val mat = Promise[Option[FilePartOutputStageResult]]()
     val logic: GraphStageLogic with InHandler = new GraphStageLogic(shape) with InHandler {
       private var currentFileChanel: FileChannel = _
-      private var lastByteStringWithId: ByteStringObjectId = _
+      private var lastRecord: Record = _
       private var fileId: Int = 0
       private var byteCount: Long = 0
       private var dataCount: Int = 0
@@ -84,13 +86,16 @@ class FilePartOutputStage(
           path,
           options.asJava
         )
+        headerLine.foreach { h =>
+          byteCount += currentFileChanel.write(ByteString(h + "\n").toByteBuffer)
+        }
         fileId += 1
       }
 
       override def onPush(): Unit = {
         val next = grab(in)
         try {
-          val nextData = next.byteString ++ ByteString("\n")
+          val nextData = ByteString(next.line + "\n")
           val nextDataSize = nextData.size
 
           if (currentFileChanel.size() + nextDataSize > maxBytesPerFile) {
@@ -101,7 +106,7 @@ class FilePartOutputStage(
             logger.info(s"Processing batch ${(dataCount / 500) + 1} for project $projectId")
           }
           dataCount += 1
-          lastByteStringWithId = next
+          lastRecord = next
           pull(in)
 
         } catch {
@@ -135,7 +140,17 @@ class FilePartOutputStage(
             case Some(t) => mat.tryFailure(t)
             case None =>
               mat.tryComplete(
-                Success(if (dataCount == 0) None else Some(FileOutputResult(lastByteStringWithId.id, dataCount)))
+                Success(
+                  if (dataCount == 0) None
+                  else
+                    Some(
+                      FilePartOutputStageResult(
+                        lastRecord.id,
+                        dataCount,
+                        baseDir.toFile.listFiles((_, name) => name.startsWith(filePrefix))
+                      )
+                    )
+                )
               )
           }
         } catch {
@@ -150,6 +165,6 @@ class FilePartOutputStage(
 }
 
 object FilePartOutputStage {
-  case class FileOutputResult(lastObjectId: BSONObjectID, count: Int)
-  case class ByteStringObjectId(id: BSONObjectID, byteString: ByteString)
+  case class FilePartOutputStageResult(lastObjectId: BSONObjectID, count: Int, reportFiles: Array[File])
+  case class Record(line: String, id: BSONObjectID)
 }
