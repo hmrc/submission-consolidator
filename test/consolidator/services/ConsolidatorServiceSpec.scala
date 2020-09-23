@@ -26,7 +26,7 @@ import common.Time
 import consolidator.repositories.{ ConsolidatorJobDataRepository, GenericConsolidatorJobDataError }
 import consolidator.scheduler.ConsolidatorJobParam
 import consolidator.services.formatters.ConsolidationFormat.ConsolidationFormat
-import consolidator.services.formatters.{ CSVFormatter, ConsolidationFormat, FormFormatter, JSONLineFormatter }
+import consolidator.services.formatters.{ CSVFormatter, ConsolidationFormat, FormFormatter, FormFormatterFactory, JSONLineFormatter }
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalacheck.Gen
@@ -63,6 +63,7 @@ class ConsolidatorServiceSpec
       new ConsolidatorService(
         mockFormRepository,
         mockConsolidatorJobDataRepository,
+        new FormFormatterFactory(mockFormRepository),
         Configuration(
           "consolidator-job-config.batchSize" -> _batchSize,
         )

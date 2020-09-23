@@ -30,8 +30,7 @@ import consolidator.repositories.ConsolidatorJobDataRepository
 import consolidator.scheduler.ConsolidatorJobParam
 import consolidator.services.ConsolidatorService.ConsolidationResult
 import consolidator.services.FilePartOutputStage.{ FilePartOutputStageResult, Record }
-import consolidator.services.formatters.ConsolidationFormat.ConsolidationFormat
-import consolidator.services.formatters.{ CSVFormatter, ConsolidationFormat, FormFormatter, JSONLineFormatter }
+import consolidator.services.formatters.{ FormFormatter, FormFormatterFactory }
 import javax.inject.{ Inject, Singleton }
 import play.api.Configuration
 import reactivemongo.bson.BSONObjectID
@@ -42,6 +41,7 @@ import scala.concurrent.ExecutionContext
 class ConsolidatorService @Inject()(
   formRepository: FormRepository,
   consolidatorJobDataRepository: ConsolidatorJobDataRepository,
+  formFormatterFactory: FormFormatterFactory,
   config: Configuration)(implicit ec: ExecutionContext, system: ActorSystem)
     extends IOUtils with FileUploadSettings {
 
@@ -68,7 +68,7 @@ class ConsolidatorService @Inject()(
     implicit
     time: Time[Instant]): IO[Option[ConsolidationResult]] =
     for {
-      formatter <- formatter(consolidatorJobParam.format, consolidatorJobParam.projectId, afterObjectId)
+      formatter <- formFormatterFactory(consolidatorJobParam.format, consolidatorJobParam.projectId, afterObjectId)
       filePartOutputStageResult <- writeFormsToFiles(
                                     consolidatorJobParam.projectId,
                                     afterObjectId,
@@ -120,17 +120,6 @@ class ConsolidatorService @Inject()(
           case e => Left(e)
         }
     )
-
-  def formatter(
-    format: ConsolidationFormat,
-    projectId: String,
-    afterObjectId: Option[BSONObjectID]): IO[FormFormatter] = format match {
-    case ConsolidationFormat.csv =>
-      for {
-        formDataIds <- liftIO(formRepository.distinctFormDataIds(projectId, afterObjectId))
-      } yield CSVFormatter(formDataIds)
-    case ConsolidationFormat.jsonl => IO.pure(JSONLineFormatter)
-  }
 }
 
 object ConsolidatorService {

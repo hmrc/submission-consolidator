@@ -18,11 +18,18 @@ package consolidator.services.formatters
 
 import java.time.Instant
 
+import cats.effect.IO
 import collector.repositories.Form.DATE_TIME_FORMATTER
-import collector.repositories.{ Form, FormField }
+import collector.repositories.{ Form, FormField, FormRepository }
+import consolidator.IOUtils
+import consolidator.services.formatters.ConsolidationFormat.ConsolidationFormat
+import javax.inject.{ Inject, Singleton }
 import org.apache.commons.text.StringEscapeUtils
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{ JsString, Writes, __ }
+import reactivemongo.bson.BSONObjectID
+
+import scala.concurrent.ExecutionContext
 
 trait FormFormatter {
 
@@ -57,4 +64,20 @@ case object JSONLineFormatter extends FormFormatter {
   )(f => (f.submissionRef, f.projectId, f.templateId, f.customerId, f.submissionTimestamp, f.formData))
 
   override def formLine(form: Form): String = formJsonLineWrites.writes(form).toString()
+}
+
+@Singleton
+class FormFormatterFactory @Inject()(formRepository: FormRepository)(implicit ec: ExecutionContext) extends IOUtils {
+  def apply(
+    consolidationFormat: ConsolidationFormat,
+    projectId: String,
+    afterObjectId: Option[BSONObjectID]
+  ): IO[FormFormatter] =
+    consolidationFormat match {
+      case ConsolidationFormat.csv =>
+        for {
+          formDataIds <- liftIO(formRepository.distinctFormDataIds(projectId, afterObjectId))
+        } yield CSVFormatter(formDataIds)
+      case ConsolidationFormat.jsonl => IO.pure(JSONLineFormatter)
+    }
 }

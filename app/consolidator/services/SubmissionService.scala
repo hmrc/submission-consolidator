@@ -31,7 +31,6 @@ import consolidator.IOUtils
 import consolidator.proxies._
 import consolidator.scheduler.ConsolidatorJobParam
 import consolidator.services.SubmissionService.FileIds
-import consolidator.services.formatters.{ CSVMetadataDocumentBuilder, ConsolidationFormat, JSONLineMetadaDocumentBuilder }
 import javax.inject.{ Inject, Singleton }
 import org.slf4j.{ Logger, LoggerFactory }
 
@@ -54,7 +53,6 @@ class SubmissionService @Inject()(
 
   def submit(reportFiles: List[File], config: ConsolidatorJobParam)(
     implicit time: Time[Instant]): IO[NonEmptyList[String]] = {
-
     val now: Instant = time.now()
 
     val reportFileList = reportFiles
@@ -86,16 +84,13 @@ class SubmissionService @Inject()(
       def uploadMetadata(envelopeId: String, submissionRef: UniqueRef) = {
         val zonedDateTime = now.atZone(ZoneId.systemDefault())
         val fileNamePrefix = s"${submissionRef.ref}-${DATE_FORMAT.format(zonedDateTime)}"
-        val metadataDocumentBuilder = config.format match {
-          case ConsolidationFormat.csv   => CSVMetadataDocumentBuilder
-          case ConsolidationFormat.jsonl => JSONLineMetadaDocumentBuilder
-        }
         liftIO(
           fileUploadFrontEndProxy.upload(
             envelopeId,
             FileIds.xmlDocument,
             s"$fileNamePrefix-metadata.xml",
-            ByteString(metadataDocumentBuilder.metaDataDocument(config, submissionRef, reportFiles.length).toXml)
+            ByteString(
+              config.format.metadataDocumentBuilder.metaDataDocument(config, submissionRef, reportFiles.length).toXml)
           )
         )
       }

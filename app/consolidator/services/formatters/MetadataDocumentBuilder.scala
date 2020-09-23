@@ -31,6 +31,9 @@ trait MetadataDocumentBuilder {
   private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
   private val DDMMYYYYHHMMSS = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
 
+  def metaDataDocument(config: ConsolidatorJobParam, submissionRef: UniqueRef, attachmentCount: Int)(
+    implicit time: Time[Instant]): MetadataDocument
+
   protected def buildMetaDataDocument(
     consolidatorJobParam: ConsolidatorJobParam,
     submissionRef: UniqueRef,
@@ -68,9 +71,6 @@ trait MetadataDocumentBuilder {
         )
       ))
   }
-
-  def metaDataDocument(config: ConsolidatorJobParam, submissionRef: UniqueRef, attachmentCount: Int)(
-    implicit time: Time[Instant]): MetadataDocument
 }
 
 object CSVMetadataDocumentBuilder extends MetadataDocumentBuilder {

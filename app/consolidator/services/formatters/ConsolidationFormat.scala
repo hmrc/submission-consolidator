@@ -23,4 +23,11 @@ object ConsolidationFormat extends Enumeration {
   val csv, jsonl = Value
 
   implicit val formats = Json.formatEnum(ConsolidationFormat)
+
+  implicit class ConsolidationFormatOps(consolidationFormat: ConsolidationFormat) {
+    def metadataDocumentBuilder: MetadataDocumentBuilder = consolidationFormat match {
+      case ConsolidationFormat.csv   => CSVMetadataDocumentBuilder
+      case ConsolidationFormat.jsonl => JSONLineMetadaDocumentBuilder
+    }
+  }
 }
