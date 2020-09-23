@@ -60,6 +60,21 @@ class FormRepositorySpec
   override def afterAll(): Unit =
     stopMongoD()
 
+  trait FormsTestFixture {
+    val projectId = "some-project-id"
+    val currentTimeInMillis = System.currentTimeMillis()
+    val creationTime = Instant.ofEpochMilli(currentTimeInMillis + 1000)
+    val afterObjectId = BSONObjectID.fromTime(currentTimeInMillis - 1000, false)
+    lazy val forms = (1 to 3)
+      .map(
+        seed =>
+          genForm
+            .pureApply(Gen.Parameters.default, Seed(seed))
+            .copy(projectId = projectId, id = BSONObjectID.fromTime(currentTimeInMillis, false)))
+      .toList
+    forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
+  }
+
   "addForm" should {
     "add the form data to the forms collection" in {
       forAll(genForm) { form =>
@@ -114,24 +129,9 @@ class FormRepositorySpec
     }
   }
 
-  trait FormsSourceTestFixture {
-    val projectId = "some-project-id"
-    val currentTimeInMillis = System.currentTimeMillis()
-    val creationTime = Instant.ofEpochMilli(currentTimeInMillis + 1000)
-    val afterObjectId = BSONObjectID.fromTime(currentTimeInMillis - 1000, false)
-    lazy val forms = (1 to 3)
-      .map(
-        seed =>
-          genForm
-            .pureApply(Gen.Parameters.default, Seed(seed))
-            .copy(projectId = projectId, id = BSONObjectID.fromTime(currentTimeInMillis, false)))
-      .toList
-    forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
-  }
-
   "formsSource" should {
 
-    "return forms before the given creation time" in new FormsSourceTestFixture {
+    "return forms before the given creation time" in new FormsTestFixture {
 
       val source = formRepository.formsSource(projectId, forms.size, creationTime, None)
 
@@ -142,7 +142,7 @@ class FormRepositorySpec
       }
     }
 
-    "return forms after given object id, before the given creation time" in new FormsSourceTestFixture {
+    "return forms after given object id, before the given creation time" in new FormsTestFixture {
 
       val source = formRepository.formsSource(projectId, forms.size, creationTime, Some(afterObjectId))
 
@@ -150,6 +150,32 @@ class FormRepositorySpec
 
       whenReady(future) { result =>
         result shouldEqual forms
+      }
+    }
+  }
+
+  "distinctFormDataIds" should {
+
+    "return distinct formData ids" in new FormsTestFixture {
+
+      val future: Future[Either[FormError, List[String]]] =
+        formRepository.distinctFormDataIds(projectId, Some(afterObjectId))
+
+      whenReady(future) { result =>
+        result.isRight shouldBe true
+        result.right.get shouldBe forms.flatMap(_.formData).map(_.id).distinct.sorted
+      }
+    }
+
+    "return error when aggregation fails" in new FormsTestFixture {
+      stopMongoD()
+      val future: Future[Either[FormError, List[String]]] =
+        formRepository.distinctFormDataIds(projectId, Some(afterObjectId))
+      whenReady(future) { result =>
+        result.isLeft shouldBe true
+        result.left.get shouldBe a[MongoGenericError]
+        result.left.get.getMessage contains "MongoError['No primary node is available!"
+        init()
       }
     }
   }

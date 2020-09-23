@@ -21,8 +21,8 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import scala.xml.Utility
 
-class MetadataXmlSpec extends AnyWordSpec with Matchers {
-  "getXml" should {
+class MetadataDocumentSpec extends AnyWordSpec with Matchers {
+  "toXml" should {
     "return the xml for the given Documents" in {
       val documents = Documents(
         Document(
@@ -62,7 +62,7 @@ class MetadataXmlSpec extends AnyWordSpec with Matchers {
         </document>
       </documents>
       )
-      MetadataXml.toXml(documents) shouldBe expected
+      MetadataDocument(documents).toXml shouldBe expected
     }
   }
 }

@@ -20,8 +20,7 @@ import java.time.format.DateTimeFormatter
 import java.time.{ Instant, ZoneId }
 
 import collector.common.ApplicationError
-import play.api.libs.functional.syntax._
-import play.api.libs.json.{ Format, JsValue, Json, Reads, Writes, __, _ }
+import play.api.libs.json.{ Format, JsValue, Json, Reads, Writes, __ }
 import reactivemongo.bson.BSONObjectID
 
 case class FormField(id: String, value: String)
@@ -56,22 +55,6 @@ object Form {
 
   implicit val formats: Format[Form] = mongoEntity {
     Json.format[Form]
-  }
-
-  implicit class FormOps(form: Form) {
-    private val instantJsonLineWrites: Writes[Instant] = new Writes[Instant] {
-      def writes(instant: Instant): JsValue = JsString(DATE_TIME_FORMATTER.format(instant))
-    }
-    private val formJsonLineWrites: Writes[Form] = (
-      (__ \ "submissionRef").write[String] and
-        (__ \ "projectId").write[String] and
-        (__ \ "templateId").write[String] and
-        (__ \ "customerId").write[String] and
-        (__ \ "submissionTimestamp").write[Instant](instantJsonLineWrites) and
-        (__ \ "formData").write[Seq[FormField]]
-    )(f => (f.submissionRef, f.projectId, f.templateId, f.customerId, f.submissionTimestamp, f.formData))
-
-    def toJsonLine(): String = formJsonLineWrites.writes(form).toString()
   }
 }
 

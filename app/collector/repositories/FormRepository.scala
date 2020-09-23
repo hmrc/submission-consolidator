@@ -20,15 +20,16 @@ import java.time.Instant
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
+import cats.syntax.either._
 import javax.inject.{ Inject, Singleton }
 import org.slf4j.{ Logger, LoggerFactory }
-import play.api.libs.json.JsObject
 import play.api.libs.json.Json.{ obj, toJson }
+import play.api.libs.json.{ JsObject, JsString, Json }
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.akkastream.cursorProducer
-import reactivemongo.api.QueryOpts
 import reactivemongo.api.commands.LastError
 import reactivemongo.api.indexes.{ Index, IndexType }
+import reactivemongo.api.{ Cursor, QueryOpts }
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.core.actors.Exceptions.PrimaryUnavailableException
 import reactivemongo.play.json.ImplicitBSONHandlers
@@ -88,6 +89,57 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent)(implicit 
         case other =>
           logger.error("Mongodb error", other)
           Left(MongoGenericError(other.getMessage))
+      }
+
+  /**
+    * db.getCollection('forms').aggregate([
+    * {
+    *    $match: {
+    *       projectId: "****",
+    *       _id: { $gt: ObjectId("******************") }
+    *    }
+    * },
+    * {
+    *    $unwind: {
+    *       path: "$formData"
+    *    }
+    * },
+    * {
+    *    $group: {
+    *       _id: "$formData.id"
+    *    }
+    * },
+    * {
+    *    $sort: {
+    *       _id: 1
+    *    }
+    * }
+    * ])
+    *
+    * @param projectId
+    * @param afterObjectId
+    * @param ec
+    * @return
+    */
+  def distinctFormDataIds(projectId: String, afterObjectId: Option[BSONObjectID] = None)(
+    implicit
+    ec: ExecutionContext): Future[Either[FormError, List[String]]] =
+    collection
+      .aggregateWith[JsObject]() { framework =>
+        import framework._
+        val afterObjectIdSelector: JsObject = afterObjectId
+          .map(aoid => obj("_id" -> obj("$gt" -> ReactiveMongoFormats.objectIdWrite.writes(aoid))))
+          .getOrElse(obj())
+        Match(Json.obj("projectId" -> JsString(projectId)) ++ afterObjectIdSelector) -> List(
+          UnwindField("formData"),
+          GroupField("formData.id")(),
+          Sort(Ascending("_id"))
+        )
+      }
+      .collect[List](-1, Cursor.FailOnError())
+      .map(jsObjectList => jsObjectList.map(jsObject => (jsObject \ "_id").get.as[JsString].value).asRight[FormError])
+      .recover {
+        case e => MongoGenericError(e.getMessage).asLeft[List[String]]
       }
 
   def formsSource(

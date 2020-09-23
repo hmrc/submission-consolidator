@@ -16,11 +16,26 @@
 
 package consolidator.scheduler
 
-import play.api.libs.json.Json
+import consolidator.services.formatters.ConsolidationFormat
+import consolidator.services.formatters.ConsolidationFormat.ConsolidationFormat
+import play.api.libs.functional.syntax._
+import play.api.libs.json.{ Format, Json, __ }
 
-case class ConsolidatorJobParam(projectId: String, classificationType: String, businessArea: String)
+case class ConsolidatorJobParam(
+  projectId: String,
+  classificationType: String,
+  businessArea: String,
+  format: ConsolidationFormat = ConsolidationFormat.jsonl)
 object ConsolidatorJobParam {
-  implicit val formats = Json.format[ConsolidatorJobParam]
+  val writes = Json.writes[ConsolidatorJobParam]
+  val reads = (
+    (__ \ "projectId").read[String] and
+      (__ \ "classificationType").read[String] and
+      (__ \ "businessArea").read[String] and
+      (__ \ "format").readWithDefault[ConsolidationFormat](ConsolidationFormat.jsonl)
+  )(ConsolidatorJobParam.apply _)
+
+  implicit val formats = Format(reads, writes)
 }
 case class ConsolidatorJobConfig(id: String, cron: String, params: ConsolidatorJobParam)
 object ConsolidatorJobConfig {

@@ -18,6 +18,11 @@ package consolidator.services
 
 import scala.xml.Utility
 
+case class MetadataDocument(documents: Documents) {
+  val xmlDec = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>"""
+  def toXml = xmlDec + Utility.trim(documents.toXml)
+}
+
 case class Documents(document: Document) {
   def toXml =
     <documents xmlns="http://govtalk.gov.uk/hmrc/gis/content/1">
@@ -78,8 +83,3 @@ case class Metadata(attributes: List[Attribute]) {
     </metadata>
 }
 case class Attribute(name: String, `type`: String, values: List[String])
-
-object MetadataXml {
-  val xmlDec = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>"""
-  def toXml(documents: Documents) = xmlDec + Utility.trim(documents.toXml)
-}

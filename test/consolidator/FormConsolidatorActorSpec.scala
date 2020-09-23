@@ -65,6 +65,7 @@ class FormConsolidatorActorSpec
     val projectId = "some-project-id"
     val lastObjectId = BSONObjectID.generate()
     val reportDir = createReportDir(projectId, now)
+    val reportFiles = reportDir.toFile.listFiles().toList
     val envelopeId = "some-envelope-id"
     val consolidatorJobParam = ConsolidatorJobParam(projectId, "some-classification", "some-business-area")
 
@@ -106,7 +107,7 @@ class FormConsolidatorActorSpec
     "given a ConsolidatorJobParam message" should {
 
       "skip consolidation if forms are empty and return OK" in new TestFixture {
-        mockConsolidatorService.doConsolidation(*, *) shouldReturn IO.pure(ConsolidationResult(outputPath = reportDir))
+        mockConsolidatorService.doConsolidation(*, *) shouldReturn IO.pure(None)
         mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(Right(()))
         mockDeleteDirService.deleteDir(*) returns Future.successful(Right(()))
 
@@ -115,8 +116,8 @@ class FormConsolidatorActorSpec
         expectMsg(OK)
 
         mockDeleteDirService.deleteDir(reportDir) wasCalled once
-        mockConsolidatorService.doConsolidation(projectId, reportDir) wasCalled once
-        mockFileUploaderService.submit(*, consolidatorJobParam) wasNever called
+        mockConsolidatorService.doConsolidation(reportDir, consolidatorJobParam) wasCalled once
+        mockFileUploaderService.submit(*, *) wasNever called
         mockMetricsClient.recordDuration(s"consolidator.$projectId.run", *) wasCalled once
 
         assertConsolidatorData(None, None, None)
@@ -136,7 +137,7 @@ class FormConsolidatorActorSpec
       "consolidate forms and return OK" in new TestFixture {
 
         mockConsolidatorService.doConsolidation(*, *) shouldReturn IO.pure(
-          ConsolidationResult(Some(lastObjectId), 1, reportDir)
+          Some(ConsolidationResult(lastObjectId, 1, reportFiles))
         )
         mockFileUploaderService.submit(*, *) shouldReturn IO.pure(NonEmptyList.of(envelopeId))
         mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(Right(()))
@@ -147,8 +148,8 @@ class FormConsolidatorActorSpec
         expectMsg(OK)
 
         mockDeleteDirService.deleteDir(reportDir) wasCalled once
-        mockConsolidatorService.doConsolidation(projectId, reportDir) wasCalled once
-        mockFileUploaderService.submit(reportDir, consolidatorJobParam) wasCalled once
+        mockConsolidatorService.doConsolidation(reportDir, consolidatorJobParam) wasCalled once
+        mockFileUploaderService.submit(reportFiles, consolidatorJobParam) wasCalled once
         mockMetricsClient.recordDuration(s"consolidator.$projectId.run", *) wasCalled once
         mockMetricsClient.markMeter(s"consolidator.$projectId.success") wasCalled once // success
         mockMetricsClient.markMeter(s"consolidator.$projectId.formCount", 1) wasCalled once // success
@@ -167,7 +168,7 @@ class FormConsolidatorActorSpec
           expectMsgPF() {
             case t: Throwable =>
               t.getMessage shouldBe "consolidation error"
-              mockFileUploaderService.submit(reportDir, consolidatorJobParam) wasNever called
+              mockFileUploaderService.submit(reportFiles, consolidatorJobParam) wasNever called
               mockDeleteDirService.deleteDir(reportDir) wasCalled once
               mockMetricsClient.markMeter(s"consolidator.$projectId.failed") wasCalled once
               assertConsolidatorData(None, Some("consolidation error"), None)
@@ -179,7 +180,7 @@ class FormConsolidatorActorSpec
 
         "return the error message" in new TestFixture {
           mockConsolidatorService.doConsolidation(*, *) shouldReturn IO.pure(
-            ConsolidationResult(Some(lastObjectId), 1, reportDir)
+            Option(ConsolidationResult(lastObjectId, 1, reportFiles))
           )
           mockFileUploaderService.submit(*, *) shouldReturn IO.raiseError(new Exception("file upload error"))
           mockDeleteDirService.deleteDir(*) shouldReturn Future.successful(Right(()))
@@ -190,8 +191,8 @@ class FormConsolidatorActorSpec
           expectMsgPF() {
             case t: Throwable =>
               t.getMessage shouldBe "file upload error"
-              mockConsolidatorService.doConsolidation(projectId, reportDir) wasCalled once
-              mockFileUploaderService.submit(reportDir, consolidatorJobParam) wasCalled once
+              mockConsolidatorService.doConsolidation(reportDir, consolidatorJobParam) wasCalled once
+              mockFileUploaderService.submit(reportFiles, consolidatorJobParam) wasCalled once
               mockDeleteDirService.deleteDir(reportDir) wasCalled once
               assertConsolidatorData(None, Some("file upload error"), None)
           }

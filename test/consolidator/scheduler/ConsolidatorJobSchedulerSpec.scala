@@ -22,6 +22,7 @@ import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
 import akka.testkit.{ ImplicitSender, TestKit, TestProbe }
 import com.typesafe.akka.extension.quartz.MessageWithFireTime
 import com.typesafe.config.ConfigFactory
+import consolidator.services.formatters.ConsolidationFormat
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
@@ -58,6 +59,7 @@ class ConsolidatorJobSchedulerSpec
                                                   |            projectId = "some-project-id-2"
                                                   |            classificationType = "some-classification-type-2"
                                                   |            businessArea = "some-business-area-2"
+                                                  |            format = "csv"
                                                   |        }
                                                   |        # run every 2 seconds
                                                   |        cron = "*/2|*|*|?|*|*"
@@ -72,7 +74,11 @@ class ConsolidatorJobSchedulerSpec
       jobParams should contain(
         ConsolidatorJobParam("some-project-id-1", "some-classification-type-1", "some-business-area-1"))
       jobParams should contain(
-        ConsolidatorJobParam("some-project-id-2", "some-classification-type-2", "some-business-area-2"))
+        ConsolidatorJobParam(
+          "some-project-id-2",
+          "some-classification-type-2",
+          "some-business-area-2",
+          ConsolidationFormat.csv))
 
       jobScheduler.shutdown(true)
     }

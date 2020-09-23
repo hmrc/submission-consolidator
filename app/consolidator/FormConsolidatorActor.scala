@@ -67,21 +67,22 @@ class FormConsolidatorActor(
         val senderRef = sender()
         val reportOutputDir = createReportDir(jobParam.projectId, time)
         val program: IO[Unit] = (for {
-          consolidationResult <- consolidatorService.doConsolidation(jobParam.projectId, reportOutputDir)
-          envelopeIds <- if (consolidationResult.count > 0)
-                          fileUploaderService
-                            .submit(consolidationResult.outputPath, jobParam)
-                            .map(Option(_))
-                        else
-                          IO.pure(None)
+          consolidationResult <- consolidatorService.doConsolidation(reportOutputDir, jobParam)
+          envelopeIds <- consolidationResult
+                          .map(
+                            c =>
+                              fileUploaderService
+                                .submit(c.reportFiles, jobParam)
+                                .map(Option(_)))
+                          .getOrElse(IO.pure(None))
           _ <- addConsolidatorJobData(
                 jobParam.projectId,
                 ofEpochMilli(time.getTime),
-                Some(consolidationResult),
+                consolidationResult,
                 None,
                 envelopeIds
               )
-          _ <- deleteReportTmpDir(consolidationResult.outputPath)
+          _ <- deleteReportTmpDir(reportOutputDir)
         } yield ()).recoverWith {
           case e =>
             logger.error(s"Failed to consolidate/submit forms for project ${jobParam.projectId}", e)
@@ -141,7 +142,7 @@ class FormConsolidatorActor(
       projectId,
       startTime,
       now,
-      consolidationResult.flatMap(_.lastObjectId),
+      consolidationResult.map(_.lastObjectId),
       error,
       envelopeIds.map(_.mkString_(","))
     )

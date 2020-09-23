@@ -16,9 +16,9 @@
 
 package consolidator.services
 
-import java.nio.file.Path
+import java.io.File
 import java.time.format.DateTimeFormatter
-import java.time.{ Instant, ZoneId, ZonedDateTime }
+import java.time.{ Instant, ZoneId }
 
 import akka.util.ByteString
 import cats.data.NonEmptyList
@@ -27,10 +27,10 @@ import cats.effect.{ ContextShift, IO }
 import cats.syntax.parallel._
 import common.UniqueReferenceGenerator.UniqueRef
 import common.{ Time, UniqueReferenceGenerator }
+import consolidator.IOUtils
 import consolidator.proxies._
 import consolidator.scheduler.ConsolidatorJobParam
 import consolidator.services.SubmissionService.FileIds
-import consolidator.{ IOUtils, services }
 import javax.inject.{ Inject, Singleton }
 import org.slf4j.{ Logger, LoggerFactory }
 
@@ -48,26 +48,22 @@ class SubmissionService @Inject()(
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ec)
 
   private val DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd")
-  private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-  private val DDMMYYYYHHMMSS = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
   private val SUBMISSION_REF_LENGTH = 12
   private val REPORT_FILE_PATTERN = "report-(\\d+)\\.txt".r
 
-  def submit(reportFilesPath: Path, config: ConsolidatorJobParam)(
-    implicit
-    time: Time[Instant]): IO[NonEmptyList[String]] = {
-    val now = time.now()
-    val reportFileList = reportFilesPath.toFile
-      .listFiles()
-      .toList
+  def submit(reportFiles: List[File], config: ConsolidatorJobParam)(
+    implicit time: Time[Instant]): IO[NonEmptyList[String]] = {
+    val now: Instant = time.now()
+
+    val reportFileList = reportFiles
       .sortBy(_.getName match {
         case REPORT_FILE_PATTERN(reportFileId) => reportFileId.toInt
         case _                                 => 0
       })
+    assert(reportFileList.nonEmpty, s"Report files should be non-empty")
     logger.info(
-      s"Uploading reports to file-upload service [reportFilesPath=$reportFilesPath, config=$config]"
+      s"Uploading reports to file-upload service [reportFiles=$reportFiles, config=$config]"
     )
-    assert(reportFileList.nonEmpty, s"Report files directory should be non-empty $reportFilesPath")
 
     fromListUnsafe(reportFileList.grouped(maxReportAttachments).toList.map { reportFiles =>
       logger.info(s"Creating envelope and uploading files ${reportFiles.map(_.getName)}")
@@ -77,7 +73,7 @@ class SubmissionService @Inject()(
           reportFiles.size + 1, // +1 for metadata xml
           (maxSizeBytes / BYTES_IN_1_MB) + "MB",
           (maxPerFileBytes / BYTES_IN_1_MB) + "MB",
-          List("text/plain"),
+          List("text/plain", "text/csv"),
           false
         )
       )
@@ -85,15 +81,16 @@ class SubmissionService @Inject()(
       def createEnvelope =
         liftIO(fileUploadProxy.createEnvelope(createEnvelopeRequest))
 
-      def uploadMetadata(envelopeId: String, submissionRef: UniqueRef, instant: Instant) = {
-        val zonedDateTime = instant.atZone(ZoneId.systemDefault())
+      def uploadMetadata(envelopeId: String, submissionRef: UniqueRef) = {
+        val zonedDateTime = now.atZone(ZoneId.systemDefault())
         val fileNamePrefix = s"${submissionRef.ref}-${DATE_FORMAT.format(zonedDateTime)}"
         liftIO(
           fileUploadFrontEndProxy.upload(
             envelopeId,
             FileIds.xmlDocument,
             s"$fileNamePrefix-metadata.xml",
-            ByteString(MetadataXml.toXml(metaDataDocument(config, submissionRef.ref, reportFiles.size, zonedDateTime)))
+            ByteString(
+              config.format.metadataDocumentBuilder.metaDataDocument(config, submissionRef, reportFiles.length).toXml)
           )
         )
       }
@@ -102,7 +99,7 @@ class SubmissionService @Inject()(
         fromListUnsafe(reportFiles.map { file =>
           liftIO(
             fileUploadFrontEndProxy
-              .upload(envelopeId, FileId(file.getName.replace(".txt", "")), file)
+              .upload(envelopeId, FileId(file.getName.substring(0, file.getName.lastIndexOf("."))), file)
           )
         }).parSequence
 
@@ -112,48 +109,16 @@ class SubmissionService @Inject()(
       for {
         envelopeId    <- createEnvelope
         submissionRef <- generateSubmissionRef
-        _             <- uploadMetadata(envelopeId, submissionRef, now)
+        _             <- uploadMetadata(envelopeId, submissionRef)
         _             <- uploadReports(envelopeId)
         _             <- routeEnvelope(envelopeId)
       } yield envelopeId
     }).parSequence
   }
 
-  private def generateSubmissionRef =
-    liftIO(uniqueReferenceGenerator.generate(SUBMISSION_REF_LENGTH))
-
-  private def metaDataDocument(
-    config: ConsolidatorJobParam,
-    submissionRef: String,
-    attachmentCount: Int,
-    zonedDateTime: ZonedDateTime) =
-    Documents(
-      Document(
-        Header(
-          submissionRef,
-          "text",
-          "text/plain",
-          true,
-          "dfs",
-          "DMS",
-          s"$submissionRef-${DATE_TIME_FORMAT.format(zonedDateTime)}"
-        ),
-        services.Metadata(
-          List(
-            Attribute("hmrc_time_of_receipt", "time", List(DDMMYYYYHHMMSS.format(zonedDateTime))),
-            Attribute("time_xml_created", "time", List(DDMMYYYYHHMMSS.format(zonedDateTime))),
-            Attribute("submission_reference", "string", List(submissionRef)),
-            Attribute("form_id", "string", List("collatedData")),
-            Attribute("submission_mark", "string", List("AUDIT_SERVICE")),
-            Attribute("case_key", "string", List("AUDIT_SERVICE")),
-            Attribute("customer_id", "string", List(DATE_FORMAT.format(zonedDateTime))),
-            Attribute("classification_type", "string", List(config.classificationType)),
-            Attribute("business_area", "string", List(config.businessArea)),
-            Attribute("attachment_count", "int", List(attachmentCount.toString))
-          )
-        )
-      )
-    )
+  private def generateSubmissionRef = liftIO {
+    uniqueReferenceGenerator.generate(SUBMISSION_REF_LENGTH)
+  }
 }
 
 object SubmissionService {
