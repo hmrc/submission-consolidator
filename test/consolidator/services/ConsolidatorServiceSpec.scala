@@ -34,7 +34,6 @@ import org.scalacheck.rng.Seed
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.time.{ Millis, Seconds, Span }
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.Configuration
@@ -44,7 +43,7 @@ import scala.concurrent.Future
 
 class ConsolidatorServiceSpec
     extends AnyWordSpec with Matchers with BeforeAndAfterAll with IdiomaticMockito with ArgumentMatchersSugar
-    with DataGenerators with ScalaFutures with TableDrivenPropertyChecks {
+    with DataGenerators with ScalaFutures {
 
   override implicit val patienceConfig = PatienceConfig(Span(10, Seconds), Span(1, Millis))
   implicit val actorSystem: ActorSystem = ActorSystem("ConsolidatorServiceSpec")
@@ -131,6 +130,7 @@ class ConsolidatorServiceSpec
 
       "consolidate all form submissions into a single file, for the given project id and jsonl format" in new TestFixtureJSONLFormat {
         //when
+
         val future = consolidatorService.doConsolidation(reportDir, consolidatorJobParam).unsafeToFuture()
 
         whenReady(future) { consolidationResult =>
