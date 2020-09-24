@@ -36,6 +36,8 @@ trait FormFormatter {
   def headerLine: Option[String]
 
   def formLine(form: Form): String
+
+  def ext: String
 }
 
 case class CSVFormatter(headers: List[String]) extends FormFormatter {
@@ -46,6 +48,8 @@ case class CSVFormatter(headers: List[String]) extends FormFormatter {
     headers
       .map(h => form.formData.find(_.id == h).map(f => StringEscapeUtils.escapeCsv(f.value)).getOrElse(""))
       .mkString(",")
+
+  override def ext: String = "csv"
 }
 
 case object JSONLineFormatter extends FormFormatter {
@@ -64,6 +68,8 @@ case object JSONLineFormatter extends FormFormatter {
   )(f => (f.submissionRef, f.projectId, f.templateId, f.customerId, f.submissionTimestamp, f.formData))
 
   override def formLine(form: Form): String = formJsonLineWrites.writes(form).toString()
+
+  override def ext: String = "txt"
 }
 
 @Singleton

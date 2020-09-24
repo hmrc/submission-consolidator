@@ -106,6 +106,7 @@ class ConsolidatorService @Inject()(
             new FilePartOutputStage(
               outputPath,
               "report",
+              formatter.ext,
               reportPerFileSizeInBytes,
               projectId,
               batchSize,

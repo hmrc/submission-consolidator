@@ -159,7 +159,7 @@ class ConsolidatorServiceSpec
           consolidationResult.get.count shouldBe noOfForms
 
           val files = consolidationResult.get.reportFiles
-          files.map(_.getName) shouldBe Array("report-0.txt")
+          files.map(_.getName) shouldBe Array("report-0.csv")
           val fileSource = scala.io.Source.fromFile(files.head, "UTF-8")
           fileSource.getLines().toList shouldEqual List(formatter.headerLine.get, formatter.formLine(forms.head))
           fileSource.close
@@ -211,7 +211,7 @@ class ConsolidatorServiceSpec
           files.size shouldBe 2
           files.sorted.zipWithIndex.zip(forms).foreach {
             case ((file, index), form) =>
-              file.getName shouldBe s"report-$index.txt"
+              file.getName shouldBe s"report-$index.csv"
               val fileSource = scala.io.Source.fromFile(file, "UTF-8")
               val lines = fileSource.getLines().toList
               lines shouldEqual List(formatter.headerLine.get, formatter.formLine(form))

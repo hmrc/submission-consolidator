@@ -36,6 +36,7 @@ import org.slf4j.{ Logger, LoggerFactory }
 class FilePartOutputStage(
   baseDir: Path,
   filePrefix: String,
+  fileExt: String,
   maxBytesPerFile: Long,
   projectId: String,
   batchSize: Int,
@@ -81,7 +82,7 @@ class FilePartOutputStage(
         }
 
       private def setNewFileChannel() = {
-        val path = Paths.get(baseDir.toString, s"$filePrefix-$fileId.txt")
+        val path = Paths.get(baseDir.toString, s"$filePrefix-$fileId.$fileExt")
         currentFileChanel = FileChannel.open(
           path,
           options.asJava

@@ -47,4 +47,10 @@ class JSONLineFormatterSpec extends AnyWordSpec with Matchers with DataGenerator
       }
     }
   }
+
+  "ext" should {
+    "return txt" in {
+      JSONLineFormatter.ext shouldBe "txt"
+    }
+  }
 }
