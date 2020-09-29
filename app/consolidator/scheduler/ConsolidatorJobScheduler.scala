@@ -33,7 +33,6 @@ class ConsolidatorJobScheduler @Inject()(config: Configuration) {
       .getConfigList("consolidator-jobs")
       .asScala
       .map(c => parse(c.root().render(ConfigRenderOptions.concise())).as[ConsolidatorJobConfig])
-      .map(c => c.copy(cron = c.cron.replaceAll("\\|", " ")))
 
     val scheduler = QuartzSchedulerExtension(system)
 
