@@ -54,7 +54,6 @@ trait URLBasedConfigDecoder {
     configuration.entrySet.foreach {
       case (key, configValue) => decodeRecursive(key, configValue)
     }
-    println(decodedValues)
     Configuration(decodedValues.foldLeft(configuration.underlying) {
       case (config, (path, updatedConfig)) => config.withValue(path, updatedConfig)
     })
