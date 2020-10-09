@@ -137,7 +137,7 @@ class FormConsolidatorActor(
     consolidationResult.foreach { cResult =>
       metricsClient.markMeter(name("consolidator", projectId, "success"))
       metricsClient.markMeter(name("consolidator", projectId, "formCount"), cResult.count)
-      logger.info(s"Submitted ${cResult.count} to file-upload (DMS) for project $projectId")
+      logger.info(s"Submitted ${cResult.count} forms to file-upload (DMS) for project $projectId")
     }
     val consolidatorJobData = ConsolidatorJobData(
       projectId,
