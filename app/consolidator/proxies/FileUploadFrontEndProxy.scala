@@ -19,7 +19,7 @@ package consolidator.proxies
 import java.io.File
 
 import akka.util.ByteString
-import common.WSHttpClient
+import common.{ ContentType, WSHttpClient }
 import javax.inject.{ Inject, Singleton }
 import org.slf4j.{ Logger, LoggerFactory }
 
@@ -31,12 +31,17 @@ class FileUploadFrontEndProxy @Inject()(fileUploadConfig: FileUploadConfig, wsHt
   ex: ExecutionContext) {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  def upload(envelopeId: String, fileId: FileId, file: File): Future[Either[FileUploadError, Unit]] = {
+  def upload(
+    envelopeId: String,
+    fileId: FileId,
+    file: File,
+    contentType: ContentType): Future[Either[FileUploadError, Unit]] = {
     logger.info(s"Uploading file [envelopeId=$envelopeId, fileId=$fileId, file=$file]")
     wsHttpClient
       .POSTFile(
         s"${fileUploadConfig.fileUploadFrontendBaseUrl}/file-upload/upload/envelopes/$envelopeId/files/${fileId.value}",
-        file
+        file,
+        contentType
       )
       .map { response =>
         response.status match {
@@ -58,13 +63,15 @@ class FileUploadFrontEndProxy @Inject()(fileUploadConfig: FileUploadConfig, wsHt
     envelopeId: String,
     fileId: FileId,
     fileName: String,
-    body: ByteString): Future[Either[FileUploadError, Unit]] = {
+    body: ByteString,
+    contentType: ContentType): Future[Either[FileUploadError, Unit]] = {
     logger.info(s"Uploading file [envelopeId=$envelopeId, fileId=$fileId, fileName=$fileName]")
     wsHttpClient
       .POSTFile(
         s"${fileUploadConfig.fileUploadFrontendBaseUrl}/file-upload/upload/envelopes/$envelopeId/files/${fileId.value}",
         fileName,
-        body
+        body,
+        contentType
       )
       .map { response =>
         response.status match {

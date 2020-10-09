@@ -40,17 +40,19 @@ class WSHttpClient @Inject()(override val wsClient: WSClient, override val actor
   override val hooks: Seq[HttpHook] = Seq.empty
   implicit val headerCarrier: HeaderCarrier = HeaderCarrier()
 
-  def POSTFile(url: String, file: File)(implicit ec: ExecutionContext): Future[HttpResponse] =
+  def POSTFile(url: String, file: File, contentType: ContentType)(implicit ec: ExecutionContext): Future[HttpResponse] =
     preservingMdc {
       buildRequest(url)
-        .post(Source(FilePart(file.getName, file.getName, None, FileIO.fromPath(file.toPath)) :: Nil))
+        .post(
+          Source(FilePart(file.getName, file.getName, Some(contentType.value), FileIO.fromPath(file.toPath)) :: Nil))
         .map(WSHttpResponse(_))
     }
 
-  def POSTFile(url: String, fileName: String, body: ByteString)(implicit ec: ExecutionContext): Future[HttpResponse] =
+  def POSTFile(url: String, fileName: String, body: ByteString, contentType: ContentType)(
+    implicit ec: ExecutionContext): Future[HttpResponse] =
     preservingMdc {
       val source: Source[FilePart[Source[ByteString, NotUsed]], NotUsed] = Source(
-        FilePart(fileName, fileName, None, Source.single(body)) :: Nil
+        FilePart(fileName, fileName, Some(contentType.value), Source.single(body)) :: Nil
       )
       buildRequest(url).post(source).map(WSHttpResponse(_))
     }

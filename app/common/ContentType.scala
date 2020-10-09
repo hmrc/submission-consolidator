@@ -14,17 +14,13 @@
  * limitations under the License.
  */
 
-package consolidator.services
+package common
 
-trait FileUploadSettings {
+case class ContentType(value: String) extends AnyVal
 
-  val BYTES_IN_1_KB = 1024
-  val BYTES_IN_1_MB = BYTES_IN_1_KB * BYTES_IN_1_KB
-
-  lazy val maxSizeBytes: Int = 25 * BYTES_IN_1_MB
-  lazy val maxPerFileBytes: Int = 10 * BYTES_IN_1_MB
-
-  lazy val reportPerFileSizeInBytes: Long = 4 * BYTES_IN_1_MB
-  lazy val maxReportAttachments
-    : Int = ((maxSizeBytes - (200 * BYTES_IN_1_KB)) / reportPerFileSizeInBytes).toInt // leaving 200KB for metadata.xml and iform.pdf
+object ContentType {
+  val `text/plain` = ContentType("text/plain")
+  val `text/csv` = ContentType("text/csv")
+  val `application/xml` = ContentType("application/xml")
+  val `application/pdf` = ContentType("application/pdf")
 }

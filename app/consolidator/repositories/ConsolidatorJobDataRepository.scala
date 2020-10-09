@@ -147,7 +147,7 @@ class ConsolidatorJobDataRepository @Inject()(mongoComponent: ReactiveMongoCompo
       .map(Right(_))
       .recover {
         case e =>
-          logger.error("findMostRecentLastObjectId failed", e)
+          logger.error(s"findMostRecentLastObjectId failed [projectId=$projectId]", e)
           Left(GenericConsolidatorJobDataError(e.getMessage))
       }
   }

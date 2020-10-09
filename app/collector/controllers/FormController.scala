@@ -37,8 +37,8 @@ class FormController @Inject()(
 
   def addForm() =
     Action.async(parse.json) { request: Request[JsValue] =>
-      logger.info("addForm invoked")
       val apiFormResult: JsResult[APIForm] = request.body.validate[APIForm]
+      logger.info(s"addForm invoked [projectId=${apiFormResult.map(_.projectId).getOrElse("")}")
       apiFormResult.fold(
         errors => {
           logger.error(s"Request body validation failed [errors=${JsError.toJson(errors)}}")
