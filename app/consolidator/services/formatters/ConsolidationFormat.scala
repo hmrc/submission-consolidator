@@ -16,6 +16,7 @@
 
 package consolidator.services.formatters
 
+import common.ContentType
 import play.api.libs.json.Json
 
 object ConsolidationFormat extends Enumeration {
@@ -28,6 +29,11 @@ object ConsolidationFormat extends Enumeration {
     def metadataDocumentBuilder: MetadataDocumentBuilder = consolidationFormat match {
       case ConsolidationFormat.csv   => CSVMetadataDocumentBuilder
       case ConsolidationFormat.jsonl => JSONLineMetadaDocumentBuilder
+    }
+
+    def contentType: ContentType = consolidationFormat match {
+      case ConsolidationFormat.csv   => ContentType.`text/csv`
+      case ConsolidationFormat.jsonl => ContentType.`text/plain`
     }
   }
 }

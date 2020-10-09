@@ -84,5 +84,13 @@ trait ITSpec
             .withStatus(200)
         )
     )
+
+    stubFor(
+      post(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/pdf"))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+        )
+    )
   }
 }

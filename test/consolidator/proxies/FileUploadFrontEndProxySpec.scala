@@ -19,7 +19,7 @@ package consolidator.proxies
 import java.io.File
 import java.net.ConnectException
 
-import common.WSHttpClient
+import common.{ ContentType, WSHttpClient }
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.concurrent.ScalaFutures
@@ -58,18 +58,20 @@ class FileUploadFrontEndProxySpec
         body = responseBody
       )
     )
-    mockWSHttpClient.POSTFile(*, *)(*) shouldReturn response
+    mockWSHttpClient.POSTFile(*, *, *[ContentType])(*) shouldReturn response
   }
 
   "upload" when {
     "request is successful" should {
       "return Unit" in new TestFixture {
-        val future = fileUploadFrontEndProxy.upload("some-envelope-id", FileId("some-file-id"), file)
+        val future =
+          fileUploadFrontEndProxy.upload("some-envelope-id", FileId("some-file-id"), file, ContentType.`text/plain`)
         whenReady(future) { result =>
           result shouldBe Right(())
           mockWSHttpClient.POSTFile(
             s"${fileUploadConfig.fileUploadFrontendBaseUrl}/file-upload/upload/envelopes/some-envelope-id/files/some-file-id",
-            file
+            file,
+            ContentType.`text/plain`
           )(*) wasCalled once
         }
       }
@@ -80,7 +82,8 @@ class FileUploadFrontEndProxySpec
         override lazy val responseStatus: Int = 400
         override lazy val responseBody: String = "some error"
 
-        val future = fileUploadFrontEndProxy.upload("some-envelope-id", FileId("some-file-id"), file)
+        val future =
+          fileUploadFrontEndProxy.upload("some-envelope-id", FileId("some-file-id"), file, ContentType.`text/plain`)
 
         whenReady(future) { result =>
           result shouldBe Left(GenericFileUploadError(
@@ -93,7 +96,8 @@ class FileUploadFrontEndProxySpec
       "return GenericFileUploadError" in new TestFixture {
         override lazy val response = Future.failed(new ConnectException("connection failed"))
 
-        val future = fileUploadFrontEndProxy.upload("some-envelope-id", FileId("some-file-id"), file)
+        val future =
+          fileUploadFrontEndProxy.upload("some-envelope-id", FileId("some-file-id"), file, ContentType.`text/plain`)
 
         whenReady(future) { result =>
           result shouldBe Left(

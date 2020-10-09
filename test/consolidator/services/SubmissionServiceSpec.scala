@@ -24,8 +24,8 @@ import java.time.{ Instant, ZoneId }
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import common.UniqueReferenceGenerator.UniqueRef
-import common.{ Time, UniqueReferenceGenerator }
-import consolidator.proxies.{ Constraints, CreateEnvelopeRequest, FileId, FileUploadError, FileUploadFrontEndProxy, FileUploadProxy, GenericFileUploadError, RouteEnvelopeRequest }
+import common.{ ContentType, Time, UniqueReferenceGenerator }
+import consolidator.proxies._
 import consolidator.scheduler.ConsolidatorJobParam
 import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
 import consolidator.services.SubmissionService.FileIds
@@ -54,7 +54,8 @@ class SubmissionServiceSpec
       path.toFile
     }
     val reportFiles = reportFilesDir.listFiles().toList
-    val config = ConsolidatorJobParam("some-project-id", "some-classification", "some-business-area")
+    val projectId = "some-project-id"
+    val config = ConsolidatorJobParam(projectId, "some-classification", "some-business-area")
     val mockFileUploadProxy = mock[FileUploadProxy](withSettings.lenient())
     val mockFileUploadFrontendProxy = mock[FileUploadFrontEndProxy](withSettings.lenient())
     val mockUniqueReferenceGenerator = mock[UniqueReferenceGenerator](withSettings.lenient())
@@ -68,8 +69,8 @@ class SubmissionServiceSpec
 
     mockUniqueReferenceGenerator.generate(*) shouldReturn Future.successful(Right(UniqueRef(someSubmissionRef)))
     mockFileUploadProxy.createEnvelope(*) shouldReturn createEnvelopeResponse
-    mockFileUploadFrontendProxy.upload(*, *, *) shouldReturn Future.successful(Right(()))
-    mockFileUploadFrontendProxy.upload(*, *, *, *) shouldReturn Future.successful(Right(()))
+    mockFileUploadFrontendProxy.upload(*, *, *, *[ContentType]) shouldReturn Future.successful(Right(()))
+    mockFileUploadFrontendProxy.upload(*, *, *, *, *[ContentType]) shouldReturn Future.successful(Right(()))
     mockFileUploadProxy.routeEnvelope(*) shouldReturn Future.successful(Right(()))
 
     val submissionService =
@@ -87,19 +88,27 @@ class SubmissionServiceSpec
       mockFileUploadProxy.createEnvelope(
         CreateEnvelopeRequest(
           consolidator.proxies.Metadata("gform"),
-          Constraints(numberOfReportFiles + 1, "25MB", "10MB", List("text/plain", "text/csv"), false)
+          Constraints(numberOfReportFiles + 2, "25MB", "10MB", List("text/plain", "text/csv", "application/pdf"), false)
         )
       ) wasCalled once
       mockUniqueReferenceGenerator.generate(12) wasCalled once
       reportFiles.foreach { f =>
         mockFileUploadFrontendProxy
-          .upload(someEnvelopedId, FileId(f.getName.split("\\.").head), f) wasCalled once
+          .upload(someEnvelopedId, FileId(f.getName.split("\\.").head), f, ContentType.`text/plain`) wasCalled once
       }
       mockFileUploadFrontendProxy.upload(
         someEnvelopedId,
         FileIds.xmlDocument,
         s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-metadata.xml",
-        ByteString(buildMetadataDocument(now.atZone(ZoneId.systemDefault()), "text", "text/plain", 24).toXml)
+        ByteString(buildMetadataDocument(now.atZone(ZoneId.systemDefault()), "text", "text/plain", 6).toXml),
+        ContentType.`application/xml`
+      ) wasCalled once
+      mockFileUploadFrontendProxy.upload(
+        someEnvelopedId,
+        FileIds.pdf,
+        s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-iform.pdf",
+        *,
+        ContentType.`application/pdf`
       ) wasCalled once
       mockFileUploadProxy.routeEnvelope(
         RouteEnvelopeRequest(someEnvelopedId, "dfs", "DMS")
@@ -117,19 +126,32 @@ class SubmissionServiceSpec
       mockFileUploadProxy.createEnvelope(
         CreateEnvelopeRequest(
           consolidator.proxies.Metadata("gform"),
-          Constraints(maxReportAttachments + 1, "25MB", "10MB", List("text/plain", "text/csv"), false)
+          Constraints(
+            maxReportAttachments + 2,
+            "25MB",
+            "10MB",
+            List("text/plain", "text/csv", "application/pdf"),
+            false)
         )
       ) wasCalled twice
       reportFiles.foreach { f =>
         mockFileUploadFrontendProxy
-          .upload(someEnvelopedId, FileId(f.getName.split("\\.").head), f) wasCalled once
+          .upload(someEnvelopedId, FileId(f.getName.split("\\.").head), f, ContentType.`text/plain`) wasCalled once
       }
       mockFileUploadFrontendProxy.upload(
         someEnvelopedId,
         FileIds.xmlDocument,
         s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-metadata.xml",
         ByteString(
-          buildMetadataDocument(now.atZone(ZoneId.systemDefault()), "text", "text/plain", maxReportAttachments).toXml)
+          buildMetadataDocument(now.atZone(ZoneId.systemDefault()), "text", "text/plain", maxReportAttachments).toXml),
+        ContentType.`application/xml`
+      ) wasCalled twice
+      mockFileUploadFrontendProxy.upload(
+        someEnvelopedId,
+        FileIds.pdf,
+        s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-iform.pdf",
+        *,
+        ContentType.`application/pdf`
       ) wasCalled twice
       mockFileUploadProxy.routeEnvelope(
         RouteEnvelopeRequest(someEnvelopedId, "dfs", "DMS")

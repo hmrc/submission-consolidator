@@ -26,7 +26,7 @@ import cats.data.NonEmptyList.fromListUnsafe
 import cats.effect.{ ContextShift, IO }
 import cats.syntax.parallel._
 import common.UniqueReferenceGenerator.UniqueRef
-import common.{ Time, UniqueReferenceGenerator }
+import common.{ ContentType, Time, UniqueReferenceGenerator }
 import consolidator.IOUtils
 import consolidator.proxies._
 import consolidator.scheduler.ConsolidatorJobParam
@@ -52,8 +52,10 @@ class SubmissionService @Inject()(
   private val REPORT_FILE_PATTERN = "report-(\\d+)\\.(.+)".r
 
   def submit(reportFiles: List[File], config: ConsolidatorJobParam)(
-    implicit time: Time[Instant]): IO[NonEmptyList[String]] = {
-    val now: Instant = time.now()
+    implicit
+    time: Time[Instant]): IO[NonEmptyList[String]] = {
+    implicit val now: Instant = time.now()
+    val zonedDateTime = now.atZone(ZoneId.systemDefault())
 
     val reportFileList = reportFiles
       .sortBy(f =>
@@ -68,14 +70,15 @@ class SubmissionService @Inject()(
     )
 
     fromListUnsafe(reportFileList.grouped(maxReportAttachments).toList.map { reportFiles =>
-      logger.info(s"Creating envelope and uploading files ${reportFiles.map(_.getName)}")
+      logger.info(
+        s"Creating envelope and uploading files ${reportFiles.map(_.getName)} for project ${config.projectId}")
       val createEnvelopeRequest = CreateEnvelopeRequest(
         consolidator.proxies.Metadata("gform"),
         Constraints(
-          reportFiles.size + 1, // +1 for metadata xml
+          reportFiles.size + 2, // +2 for metadata xml and iform pdf
           (maxSizeBytes / BYTES_IN_1_MB) + "MB",
           (maxPerFileBytes / BYTES_IN_1_MB) + "MB",
-          List("text/plain", "text/csv"),
+          List("text/plain", "text/csv", "application/pdf"),
           false
         )
       )
@@ -83,27 +86,41 @@ class SubmissionService @Inject()(
       def createEnvelope =
         liftIO(fileUploadProxy.createEnvelope(createEnvelopeRequest))
 
-      def uploadMetadata(envelopeId: String, submissionRef: UniqueRef) = {
-        val zonedDateTime = now.atZone(ZoneId.systemDefault())
-        val fileNamePrefix = s"${submissionRef.ref}-${DATE_FORMAT.format(zonedDateTime)}"
+      def uploadMetadata(envelopeId: String, submissionRef: UniqueRef, fileNamePrefix: String) =
         liftIO(
           fileUploadFrontEndProxy.upload(
             envelopeId,
             FileIds.xmlDocument,
             s"$fileNamePrefix-metadata.xml",
             ByteString(
-              config.format.metadataDocumentBuilder.metaDataDocument(config, submissionRef, reportFiles.length).toXml)
+              config.format.metadataDocumentBuilder.metaDataDocument(config, submissionRef, reportFiles.length).toXml
+            ),
+            ContentType.`application/xml`
           )
         )
-      }
 
       def uploadReports(envelopeId: String) =
         fromListUnsafe(reportFiles.map { file =>
           liftIO(
             fileUploadFrontEndProxy
-              .upload(envelopeId, FileId(file.getName.substring(0, file.getName.lastIndexOf("."))), file)
+              .upload(
+                envelopeId,
+                FileId(file.getName.substring(0, file.getName.lastIndexOf("."))),
+                file,
+                config.format.contentType)
           )
         }).parSequence
+
+      def uploadIForm(envelopeId: String, fileNamePrefix: String) =
+        liftIO(
+          fileUploadFrontEndProxy.upload(
+            envelopeId,
+            FileIds.pdf,
+            s"$fileNamePrefix-iform.pdf",
+            PDFGenerator.generateIFormPdf(config.projectId),
+            ContentType.`application/pdf`
+          )
+        )
 
       def routeEnvelope(envelopeId: String) =
         liftIO(fileUploadProxy.routeEnvelope(RouteEnvelopeRequest(envelopeId, "dfs", "DMS")))
@@ -111,21 +128,26 @@ class SubmissionService @Inject()(
       for {
         envelopeId    <- createEnvelope
         submissionRef <- generateSubmissionRef
-        _             <- uploadMetadata(envelopeId, submissionRef)
-        _             <- uploadReports(envelopeId)
-        _             <- routeEnvelope(envelopeId)
+        fileNamePrefix = s"${submissionRef.ref}-${DATE_FORMAT.format(zonedDateTime)}"
+        _ <- uploadMetadata(envelopeId, submissionRef, fileNamePrefix)
+        _ <- uploadIForm(envelopeId, fileNamePrefix)
+        _ <- uploadReports(envelopeId)
+        _ <- routeEnvelope(envelopeId)
       } yield envelopeId
     }).parSequence
   }
 
-  private def generateSubmissionRef = liftIO {
-    uniqueReferenceGenerator.generate(SUBMISSION_REF_LENGTH)
-  }
+  private def generateSubmissionRef =
+    liftIO {
+      uniqueReferenceGenerator.generate(SUBMISSION_REF_LENGTH)
+    }
+
 }
 
 object SubmissionService {
 
   object FileIds {
     val xmlDocument = FileId("xmlDocument")
+    val pdf = FileId("pdf")
   }
 }

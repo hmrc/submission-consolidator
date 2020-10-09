@@ -1,6 +1,4 @@
 import play.core.PlayVersion.current
-import play.sbt.PlayImport._
-import sbt.Keys.libraryDependencies
 import sbt._
 
 object AppDependencies {
@@ -12,7 +10,8 @@ object AppDependencies {
     "com.enragedginger" %% "akka-quartz-scheduler"     % "1.8.1-akka-2.5.x",
     "org.typelevel"     %% "cats-effect"               % "2.2.0-RC3",
     "uk.gov.hmrc"       %% "mongo-lock"                % "6.23.0-play-27",
-    "org.apache.commons" % "commons-text"              % "1.9"
+    "org.apache.commons" % "commons-text"              % "1.9",
+    "org.xhtmlrenderer"  % "flying-saucer-pdf"         % "9.1.20"
   )
 
   val test = Seq(
