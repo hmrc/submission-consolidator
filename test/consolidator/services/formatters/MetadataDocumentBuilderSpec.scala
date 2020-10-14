@@ -29,7 +29,7 @@ import org.scalatest.wordspec.AnyWordSpec
 class MetadataDocumentBuilderSpec extends AnyWordSpec with Matchers with TableDrivenPropertyChecks {
 
   "CSVMetadataDocumentBuilder.metaDataDocument" should {
-    "return metadata document for csv format" in {
+    "return metadata document for all formats" in {
 
       val uniqueRef = UniqueRef("some-unique-id")
       val projectId = "some-project-id"
@@ -43,14 +43,14 @@ class MetadataDocumentBuilderSpec extends AnyWordSpec with Matchers with TableDr
           "consolidationFormat",
           "expectedFormat",
           "expectedMimetype"
-        ), // First tuple defines column names
-        (CSVMetadataDocumentBuilder, ConsolidationFormat.csv, "csv", "text/csv"), // Subsequent tuples define the data
+        ),
+        (CSVMetadataDocumentBuilder, ConsolidationFormat.csv, "pdf", "application/pdf"),
         (
           JSONLineMetadaDocumentBuilder,
           ConsolidationFormat.jsonl,
-          "text",
-          "text/plain"
-        ) // Subsequent tuples define the data
+          "pdf",
+          "application/pdf"
+        )
       )
 
       forAll(testData) { (metadataDocumentBuilder, consolidationFormat, expectedFormat, expectedMimetype) =>

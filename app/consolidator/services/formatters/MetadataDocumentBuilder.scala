@@ -79,7 +79,7 @@ object CSVMetadataDocumentBuilder extends MetadataDocumentBuilder {
     submissionRef: UniqueRef,
     attachmentCount: Int
   )(implicit time: Time[Instant]) =
-    buildMetaDataDocument(config, submissionRef, attachmentCount, "csv", "text/csv")
+    buildMetaDataDocument(config, submissionRef, attachmentCount, "pdf", "application/pdf")
 }
 
 object JSONLineMetadaDocumentBuilder extends MetadataDocumentBuilder {
@@ -88,5 +88,5 @@ object JSONLineMetadaDocumentBuilder extends MetadataDocumentBuilder {
     submissionRef: UniqueRef,
     attachmentCount: Int
   )(implicit time: Time[Instant]) =
-    buildMetaDataDocument(config, submissionRef, attachmentCount, "text", "text/plain")
+    buildMetaDataDocument(config, submissionRef, attachmentCount, "pdf", "application/pdf")
 }
