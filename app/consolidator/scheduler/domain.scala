@@ -16,6 +16,7 @@
 
 package consolidator.scheduler
 
+import consolidator.scheduler.UntilTime._
 import consolidator.services.formatters.ConsolidationFormat
 import consolidator.services.formatters.ConsolidationFormat.ConsolidationFormat
 import play.api.libs.functional.syntax._
@@ -25,14 +26,16 @@ case class ConsolidatorJobParam(
   projectId: String,
   classificationType: String,
   businessArea: String,
-  format: ConsolidationFormat = ConsolidationFormat.jsonl)
+  format: ConsolidationFormat,
+  untilTime: UntilTime)
 object ConsolidatorJobParam {
   val writes = Json.writes[ConsolidatorJobParam]
   val reads = (
     (__ \ "projectId").read[String] and
       (__ \ "classificationType").read[String] and
       (__ \ "businessArea").read[String] and
-      (__ \ "format").readWithDefault[ConsolidationFormat](ConsolidationFormat.jsonl)
+      (__ \ "format").readWithDefault[ConsolidationFormat](ConsolidationFormat.jsonl) and
+      (__ \ "untilTime").readWithDefault[UntilTime](UntilTime.now)
   )(ConsolidatorJobParam.apply _)
 
   implicit val formats = Format(reads, writes)

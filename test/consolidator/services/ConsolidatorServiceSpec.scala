@@ -17,14 +17,14 @@
 package consolidator.services
 
 import java.nio.file.{ Files, Path, Paths }
-import java.time.Instant
+import java.time.{ Instant, ZoneId }
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
 import collector.repositories.{ DataGenerators, Form, FormRepository }
 import common.Time
 import consolidator.repositories.{ ConsolidatorJobDataRepository, GenericConsolidatorJobDataError }
-import consolidator.scheduler.ConsolidatorJobParam
+import consolidator.scheduler.{ ConsolidatorJobParam, UntilTime }
 import consolidator.services.formatters.ConsolidationFormat.ConsolidationFormat
 import consolidator.services.formatters.{ CSVFormatter, ConsolidationFormat, FormFormatter, FormFormatterFactory, JSONLineFormatter }
 import org.mockito.ArgumentMatchersSugar
@@ -74,7 +74,7 @@ class ConsolidatorServiceSpec
     lazy val format: ConsolidationFormat = ???
     lazy val formatter: FormFormatter = ???
     val consolidatorJobParam: ConsolidatorJobParam =
-      ConsolidatorJobParam(projectId, "some-classification", "some-business-area", format)
+      ConsolidatorJobParam(projectId, "some-classification", "some-business-area", format, UntilTime.now)
     lazy val noOfForms = 1
     val now: Instant = Instant.now()
     implicit val timeInstant: Time[Instant] = () => now
@@ -124,7 +124,11 @@ class ConsolidatorServiceSpec
           consolidationResult shouldBe None
 
           mockConsolidatorJobDataRepository.findRecentLastObjectId(projectId)(*) wasCalled once
-          mockFormRepository.formsSource(projectId, _batchSize, now.minusSeconds(5), None) wasCalled once
+          mockFormRepository.formsSource(
+            projectId,
+            _batchSize,
+            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant,
+            None) wasCalled once
         }
       }
 
@@ -145,7 +149,11 @@ class ConsolidatorServiceSpec
           fileSource.close
 
           mockConsolidatorJobDataRepository.findRecentLastObjectId(projectId)(*) wasCalled once
-          mockFormRepository.formsSource(projectId, _batchSize, now.minusSeconds(5), None) wasCalled once
+          mockFormRepository.formsSource(
+            projectId,
+            _batchSize,
+            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant,
+            None) wasCalled once
         }
       }
 
@@ -165,7 +173,11 @@ class ConsolidatorServiceSpec
           fileSource.close
 
           mockConsolidatorJobDataRepository.findRecentLastObjectId(projectId)(*) wasCalled once
-          mockFormRepository.formsSource(projectId, _batchSize, now.minusSeconds(5), None) wasCalled once
+          mockFormRepository.formsSource(
+            projectId,
+            _batchSize,
+            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant,
+            None) wasCalled once
         }
       }
 

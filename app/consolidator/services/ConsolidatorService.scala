@@ -18,7 +18,7 @@ package consolidator.services
 
 import java.io.File
 import java.nio.file.Path
-import java.time.Instant
+import java.time.{ Instant, ZoneId }
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
@@ -27,7 +27,8 @@ import collector.repositories.FormRepository
 import common.Time
 import consolidator.IOUtils
 import consolidator.repositories.ConsolidatorJobDataRepository
-import consolidator.scheduler.ConsolidatorJobParam
+import consolidator.scheduler.{ ConsolidatorJobParam, UntilTime }
+import consolidator.scheduler.UntilTime.UntilTime
 import consolidator.services.ConsolidatorService.ConsolidationResult
 import consolidator.services.FilePartOutputStage.{ FilePartOutputStageResult, Record }
 import consolidator.services.formatters.{ FormFormatter, FormFormatterFactory }
@@ -47,7 +48,7 @@ class ConsolidatorService @Inject()(
 
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ec)
   private val batchSize = config.underlying.getInt("consolidator-job-config.batchSize")
-  private val CREATION_TIME_BUFFER_SECONDS = 5
+  private val UNTIL_TIME_BUFFER_SECONDS = 5
 
   def doConsolidation(outputPath: Path, consolidatorJobParam: ConsolidatorJobParam)(
     implicit
@@ -72,6 +73,7 @@ class ConsolidatorService @Inject()(
       filePartOutputStageResult <- writeFormsToFiles(
                                     consolidatorJobParam.projectId,
                                     afterObjectId,
+                                    consolidatorJobParam.untilTime,
                                     outputPath,
                                     formatter)
     } yield
@@ -81,23 +83,25 @@ class ConsolidatorService @Inject()(
   private def writeFormsToFiles(
     projectId: String,
     afterObjectId: Option[BSONObjectID],
+    untilTime: UntilTime,
     outputPath: Path,
     formatter: FormFormatter
   )(implicit time: Time[Instant]): IO[Option[FilePartOutputStageResult]] =
     for {
-      filePartOutputStageResult <- processFormsStream(projectId, afterObjectId, outputPath, formatter)
+      filePartOutputStageResult <- processFormsStream(projectId, afterObjectId, untilTime, outputPath, formatter)
     } yield filePartOutputStageResult
 
   private def processFormsStream(
     projectId: String,
     afterObjectId: Option[BSONObjectID],
+    untilTime: UntilTime,
     outputPath: Path,
     formatter: FormFormatter)(
     implicit
     time: Time[Instant]) =
     liftIO(
       formRepository
-        .formsSource(projectId, batchSize, time.now().minusSeconds(CREATION_TIME_BUFFER_SECONDS), afterObjectId)
+        .formsSource(projectId, batchSize, calculateUntilTime(untilTime, time.now()), afterObjectId)
         .map(form => {
           Record(formatter.formLine(form), form.id)
         })
@@ -121,6 +125,19 @@ class ConsolidatorService @Inject()(
           case e => Left(e)
         }
     )
+
+  private def calculateUntilTime(untilTime: UntilTime, currentTime: Instant) = untilTime match {
+    case UntilTime.now => currentTime.atZone(ZoneId.systemDefault()).minusSeconds(UNTIL_TIME_BUFFER_SECONDS).toInstant
+    case UntilTime.`previous_day` =>
+      currentTime
+        .atZone(ZoneId.systemDefault())
+        .minusDays(1)
+        .withHour(23)
+        .withMinute(59)
+        .withSecond(59)
+        .withNano(0)
+        .toInstant
+  }
 }
 
 object ConsolidatorService {

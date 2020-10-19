@@ -47,6 +47,7 @@ class ConsolidatorSpec extends ITSpec with Eventually {
                         |            projectId = "some-project-id"
                         |            classificationType = "some-classification-type"
                         |            businessArea = "some-business-area"
+                        |            untilTime = "now"
                         |        }
                         |        # run every 2 seconds
                         |        cron = "*/2 * * ? * *"

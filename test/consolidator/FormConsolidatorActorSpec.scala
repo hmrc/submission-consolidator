@@ -30,8 +30,9 @@ import com.typesafe.akka.extension.quartz.MessageWithFireTime
 import common.MetricsClient
 import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
-import consolidator.scheduler.ConsolidatorJobParam
+import consolidator.scheduler.{ ConsolidatorJobParam, UntilTime }
 import consolidator.services.ConsolidatorService.ConsolidationResult
+import consolidator.services.formatters.ConsolidationFormat
 import consolidator.services.{ ConsolidatorService, DeleteDirService, SubmissionService }
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.captor.ArgCaptor
@@ -67,7 +68,12 @@ class FormConsolidatorActorSpec
     val reportDir = createReportDir(projectId, now)
     val reportFiles = reportDir.toFile.listFiles().toList
     val envelopeId = "some-envelope-id"
-    val consolidatorJobParam = ConsolidatorJobParam(projectId, "some-classification", "some-business-area")
+    val consolidatorJobParam = ConsolidatorJobParam(
+      projectId,
+      "some-classification",
+      "some-business-area",
+      ConsolidationFormat.jsonl,
+      UntilTime.now)
 
     val actor = system.actorOf(
       FormConsolidatorActor

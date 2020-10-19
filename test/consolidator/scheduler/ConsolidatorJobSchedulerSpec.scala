@@ -72,13 +72,19 @@ class ConsolidatorJobSchedulerSpec
       val jobParams = testProbe.receiveN(2, 3.seconds).toList
       jobParams.size shouldBe 2
       jobParams should contain(
-        ConsolidatorJobParam("some-project-id-1", "some-classification-type-1", "some-business-area-1"))
+        ConsolidatorJobParam(
+          "some-project-id-1",
+          "some-classification-type-1",
+          "some-business-area-1",
+          ConsolidationFormat.jsonl,
+          UntilTime.now))
       jobParams should contain(
         ConsolidatorJobParam(
           "some-project-id-2",
           "some-classification-type-2",
           "some-business-area-2",
-          ConsolidationFormat.csv))
+          ConsolidationFormat.csv,
+          UntilTime.now))
 
       jobScheduler.shutdown(true)
     }

@@ -26,9 +26,10 @@ import cats.data.NonEmptyList
 import common.UniqueReferenceGenerator.UniqueRef
 import common.{ ContentType, Time, UniqueReferenceGenerator }
 import consolidator.proxies._
-import consolidator.scheduler.ConsolidatorJobParam
+import consolidator.scheduler.{ ConsolidatorJobParam, UntilTime }
 import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
 import consolidator.services.SubmissionService.FileIds
+import consolidator.services.formatters.ConsolidationFormat
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.matchers.should.Matchers
@@ -55,7 +56,12 @@ class SubmissionServiceSpec
     }
     val reportFiles = reportFilesDir.listFiles().toList
     val projectId = "some-project-id"
-    val config = ConsolidatorJobParam(projectId, "some-classification", "some-business-area")
+    val config = ConsolidatorJobParam(
+      projectId,
+      "some-classification",
+      "some-business-area",
+      ConsolidationFormat.jsonl,
+      UntilTime.now)
     val mockFileUploadProxy = mock[FileUploadProxy](withSettings.lenient())
     val mockFileUploadFrontendProxy = mock[FileUploadFrontEndProxy](withSettings.lenient())
     val mockUniqueReferenceGenerator = mock[UniqueReferenceGenerator](withSettings.lenient())
