@@ -100,7 +100,7 @@ class SubmissionServiceSpec
         someEnvelopedId,
         FileIds.xmlDocument,
         s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-metadata.xml",
-        ByteString(buildMetadataDocument(now.atZone(ZoneId.systemDefault()), "text", "text/plain", 6).toXml),
+        ByteString(buildMetadataDocument(now.atZone(ZoneId.systemDefault()), "pdf", "application/pdf", 6).toXml),
         ContentType.`application/xml`
       ) wasCalled once
       mockFileUploadFrontendProxy.upload(
@@ -142,8 +142,11 @@ class SubmissionServiceSpec
         someEnvelopedId,
         FileIds.xmlDocument,
         s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-metadata.xml",
-        ByteString(
-          buildMetadataDocument(now.atZone(ZoneId.systemDefault()), "text", "text/plain", maxReportAttachments).toXml),
+        ByteString(buildMetadataDocument(
+          now.atZone(ZoneId.systemDefault()),
+          "pdf",
+          "application/pdf",
+          maxReportAttachments).toXml),
         ContentType.`application/xml`
       ) wasCalled twice
       mockFileUploadFrontendProxy.upload(
