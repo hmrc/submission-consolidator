@@ -95,3 +95,7 @@ case class RequestValidationError(
   errors: Seq[(JsPath, Seq[JsonValidationError])],
   message: String = "Request body failed validation")
     extends ApplicationError(message)
+
+case class InvalidConsolidatorJobId(message: String) extends ApplicationError(message)
+
+case class ManualConsolidationFailed(message: String) extends ApplicationError(message)

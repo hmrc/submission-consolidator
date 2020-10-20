@@ -1,3 +1,4 @@
 # microservice specific routes
 
 POST    /form   collector.controllers.FormController.addForm()
+POST    /consolidate/:consolidatorJobId/:startDate/:endDate consolidator.controllers.ManualConsolidationController.consolidateAndSubmit(consolidatorJobId,startDate,endDate)

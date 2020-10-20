@@ -41,7 +41,7 @@ class ConsolidatorJobScheduler @Inject()(config: Configuration) {
       scheduler.createJobSchedule(
         jobConfig.id,
         receivingActorRef,
-        MessageRequireFireTime(jobConfig.params),
+        MessageRequireFireTime(jobConfig.params.toScheduledFormConsolidatorParams),
         None,
         jobConfig.cron)
     }

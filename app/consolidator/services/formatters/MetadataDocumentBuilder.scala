@@ -21,9 +21,8 @@ import java.time.{ Instant, ZoneId }
 
 import common.Time
 import common.UniqueReferenceGenerator.UniqueRef
-import consolidator.scheduler.ConsolidatorJobParam
 import consolidator.services
-import consolidator.services.{ Attribute, Document, Documents, Header, MetadataDocument }
+import consolidator.services.{ Attribute, Document, Documents, FormConsolidatorParams, Header, MetadataDocument }
 
 trait MetadataDocumentBuilder {
 
@@ -31,11 +30,11 @@ trait MetadataDocumentBuilder {
   private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
   private val DDMMYYYYHHMMSS = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
 
-  def metaDataDocument(config: ConsolidatorJobParam, submissionRef: UniqueRef, attachmentCount: Int)(
+  def metaDataDocument(params: FormConsolidatorParams, submissionRef: UniqueRef, attachmentCount: Int)(
     implicit time: Time[Instant]): MetadataDocument
 
   protected def buildMetaDataDocument(
-    consolidatorJobParam: ConsolidatorJobParam,
+    params: FormConsolidatorParams,
     submissionRef: UniqueRef,
     attachmentCount: Int,
     format: String,
@@ -63,8 +62,8 @@ trait MetadataDocumentBuilder {
               Attribute("submission_mark", "string", List("AUDIT_SERVICE")),
               Attribute("case_key", "string", List("AUDIT_SERVICE")),
               Attribute("customer_id", "string", List(DATE_FORMAT.format(zonedDateTime))),
-              Attribute("classification_type", "string", List(consolidatorJobParam.classificationType)),
-              Attribute("business_area", "string", List(consolidatorJobParam.businessArea)),
+              Attribute("classification_type", "string", List(params.classificationType)),
+              Attribute("business_area", "string", List(params.businessArea)),
               Attribute("attachment_count", "int", List(attachmentCount.toString))
             )
           )
@@ -75,18 +74,18 @@ trait MetadataDocumentBuilder {
 
 object CSVMetadataDocumentBuilder extends MetadataDocumentBuilder {
   override def metaDataDocument(
-    config: ConsolidatorJobParam,
+    params: FormConsolidatorParams,
     submissionRef: UniqueRef,
     attachmentCount: Int
   )(implicit time: Time[Instant]) =
-    buildMetaDataDocument(config, submissionRef, attachmentCount, "pdf", "application/pdf")
+    buildMetaDataDocument(params, submissionRef, attachmentCount, "pdf", "application/pdf")
 }
 
 object JSONLineMetadaDocumentBuilder extends MetadataDocumentBuilder {
   override def metaDataDocument(
-    config: ConsolidatorJobParam,
+    params: FormConsolidatorParams,
     submissionRef: UniqueRef,
     attachmentCount: Int
   )(implicit time: Time[Instant]) =
-    buildMetaDataDocument(config, submissionRef, attachmentCount, "pdf", "application/pdf")
+    buildMetaDataDocument(params, submissionRef, attachmentCount, "pdf", "application/pdf")
 }

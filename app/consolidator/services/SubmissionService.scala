@@ -29,7 +29,6 @@ import common.UniqueReferenceGenerator.UniqueRef
 import common.{ ContentType, Time, UniqueReferenceGenerator }
 import consolidator.IOUtils
 import consolidator.proxies._
-import consolidator.scheduler.ConsolidatorJobParam
 import consolidator.services.SubmissionService.FileIds
 import javax.inject.{ Inject, Singleton }
 import org.slf4j.{ Logger, LoggerFactory }
@@ -51,7 +50,7 @@ class SubmissionService @Inject()(
   private val SUBMISSION_REF_LENGTH = 12
   private val REPORT_FILE_PATTERN = "report-(\\d+)\\.(.+)".r
 
-  def submit(reportFiles: List[File], config: ConsolidatorJobParam)(
+  def submit(reportFiles: List[File], params: FormConsolidatorParams)(
     implicit
     time: Time[Instant]): IO[NonEmptyList[String]] = {
     implicit val now: Instant = time.now()
@@ -66,12 +65,12 @@ class SubmissionService @Inject()(
       })
     assert(reportFileList.nonEmpty, s"Report files should be non-empty")
     logger.info(
-      s"Uploading reports to file-upload service [reportFiles=$reportFiles, config=$config]"
+      s"Uploading reports to file-upload service [reportFiles=$reportFiles, params=$params]"
     )
 
     fromListUnsafe(reportFileList.grouped(maxReportAttachments).toList.map { reportFiles =>
       logger.info(
-        s"Creating envelope and uploading files ${reportFiles.map(_.getName)} for project ${config.projectId}")
+        s"Creating envelope and uploading files ${reportFiles.map(_.getName)} for project ${params.projectId}")
       val createEnvelopeRequest = CreateEnvelopeRequest(
         consolidator.proxies.Metadata("gform"),
         Constraints(
@@ -93,7 +92,7 @@ class SubmissionService @Inject()(
             FileIds.xmlDocument,
             s"$fileNamePrefix-metadata.xml",
             ByteString(
-              config.format.metadataDocumentBuilder.metaDataDocument(config, submissionRef, reportFiles.length).toXml
+              params.format.metadataDocumentBuilder.metaDataDocument(params, submissionRef, reportFiles.length).toXml
             ),
             ContentType.`application/xml`
           )
@@ -107,7 +106,7 @@ class SubmissionService @Inject()(
                 envelopeId,
                 FileId(file.getName.substring(0, file.getName.lastIndexOf("."))),
                 file,
-                config.format.contentType)
+                params.format.contentType)
           )
         }).parSequence
 
@@ -117,7 +116,7 @@ class SubmissionService @Inject()(
             envelopeId,
             FileIds.pdf,
             s"$fileNamePrefix-iform.pdf",
-            PDFGenerator.generateIFormPdf(config.projectId),
+            PDFGenerator.generateIFormPdf(params.projectId),
             ContentType.`application/pdf`
           )
         )
