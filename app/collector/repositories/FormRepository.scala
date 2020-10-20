@@ -145,10 +145,13 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent)(implicit 
   def formsSource(
     projectId: String,
     batchSize: Int,
-    creationTime: Instant,
+    untilTime: Instant, // inclusive
     afterObjectId: Option[BSONObjectID] = None
   ): Source[Form, Future[Unit]] = {
 
+    logger.info(
+      s"Fetching forms from ${afterObjectId.map(aoid => Instant.ofEpochMilli(aoid.time))}(exclusive) until $untilTime(inclusive) for project $projectId"
+    )
     val afterObjectSelector: JsObject = afterObjectId
       .map(aoid => obj("$gt" -> ReactiveMongoFormats.objectIdWrite.writes(aoid)))
       .getOrElse(obj())
@@ -156,7 +159,7 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent)(implicit 
     val selector = obj(
       "projectId" -> toJson(projectId),
       "_id" -> (obj(
-        "$lt" -> ReactiveMongoFormats.objectIdWrite.writes(BSONObjectID.fromTime(creationTime.toEpochMilli))
+        "$lte" -> ReactiveMongoFormats.objectIdWrite.writes(BSONObjectID.fromTime(untilTime.toEpochMilli))
       ) ++ afterObjectSelector)
     )
 

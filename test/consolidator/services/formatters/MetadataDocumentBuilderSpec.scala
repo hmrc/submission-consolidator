@@ -20,7 +20,7 @@ import java.time.{ Instant, ZoneId }
 
 import common.Time
 import common.UniqueReferenceGenerator.UniqueRef
-import consolidator.scheduler.ConsolidatorJobParam
+import consolidator.scheduler.{ ConsolidatorJobParam, UntilTime }
 import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -55,7 +55,12 @@ class MetadataDocumentBuilderSpec extends AnyWordSpec with Matchers with TableDr
 
       forAll(testData) { (metadataDocumentBuilder, consolidationFormat, expectedFormat, expectedMimetype) =>
         val consolidatorJobParam: ConsolidatorJobParam =
-          ConsolidatorJobParam(projectId, "some-classification", "some-business-area", consolidationFormat)
+          ConsolidatorJobParam(
+            projectId,
+            "some-classification",
+            "some-business-area",
+            consolidationFormat,
+            UntilTime.now)
         val metadataDocument = metadataDocumentBuilder.metaDataDocument(consolidatorJobParam, uniqueRef, 1)
         metadataDocument shouldBe buildMetadataDocument(zonedDateTime, expectedFormat, expectedMimetype, 1)
       }

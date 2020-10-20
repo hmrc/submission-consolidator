@@ -63,8 +63,8 @@ class FormRepositorySpec
   trait FormsTestFixture {
     val projectId = "some-project-id"
     val currentTimeInMillis = System.currentTimeMillis()
-    val creationTime = Instant.ofEpochMilli(currentTimeInMillis + 1000)
-    val afterObjectId = BSONObjectID.fromTime(currentTimeInMillis - 1000, false)
+    val untilTime = Instant.ofEpochMilli(currentTimeInMillis + 1000) // 1 second after current time
+    val afterObjectId = BSONObjectID.fromTime(currentTimeInMillis - 1000, false) // 1 second before current time
     lazy val forms = (1 to 3)
       .map(
         seed =>
@@ -133,7 +133,7 @@ class FormRepositorySpec
 
     "return forms before the given creation time" in new FormsTestFixture {
 
-      val source = formRepository.formsSource(projectId, forms.size, creationTime, None)
+      val source = formRepository.formsSource(projectId, forms.size, untilTime, None)
 
       val future = source.runWith(Sink.seq[Form])
 
@@ -144,7 +144,7 @@ class FormRepositorySpec
 
     "return forms after given object id, before the given creation time" in new FormsTestFixture {
 
-      val source = formRepository.formsSource(projectId, forms.size, creationTime, Some(afterObjectId))
+      val source = formRepository.formsSource(projectId, forms.size, untilTime, Some(afterObjectId))
 
       val future = source.runWith(Sink.seq[Form])
 
