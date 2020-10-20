@@ -16,8 +16,6 @@
 
 package consolidator.controllers
 
-import java.time.LocalDate
-
 import akka.actor.{ Actor, ActorSystem, Props }
 import akka.http.scaladsl.model.StatusCodes
 import akka.testkit.{ ImplicitSender, TestKit }
@@ -66,8 +64,7 @@ class ManualConsolidationControllerSpec
       val request = FakeRequest("POST", "/consolidate/testConsolidatorJobId/2020-01-01/2020-01-02")
 
       val result: Result = consolidationController
-        .consolidateAndSubmit("testConsolidatorJobId", "2020-01-01", "2020-01-02")(
-          request)
+        .consolidateAndSubmit("testConsolidatorJobId", "2020-01-01", "2020-01-02")(request)
         .futureValue
 
       result.header.status shouldBe StatusCodes.NoContent.intValue
