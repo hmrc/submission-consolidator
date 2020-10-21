@@ -45,7 +45,7 @@ trait ITSpec
         | }""".stripMargin).withFallback(ConfigFactory.load()))
 
   lazy val baseUrl: String =
-    s"http://localhost:$port/submission-consolidator/form"
+    s"http://localhost:$port/submission-consolidator"
   lazy val wsClient = app.injector.instanceOf[WSClient]
 
   val wiremockPort = 10000 + Random.nextInt(10000)

@@ -133,7 +133,7 @@ class FormRepositorySpec
 
     "return forms before the given creation time" in new FormsTestFixture {
 
-      val source = formRepository.formsSource(projectId, forms.size, untilTime, None)
+      val source = formRepository.formsSource(projectId, forms.size, None, untilTime)
 
       val future = source.runWith(Sink.seq[Form])
 
@@ -144,7 +144,7 @@ class FormRepositorySpec
 
     "return forms after given object id, before the given creation time" in new FormsTestFixture {
 
-      val source = formRepository.formsSource(projectId, forms.size, untilTime, Some(afterObjectId))
+      val source = formRepository.formsSource(projectId, forms.size, Some(afterObjectId), untilTime)
 
       val future = source.runWith(Sink.seq[Form])
 

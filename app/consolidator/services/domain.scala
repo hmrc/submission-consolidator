@@ -16,8 +16,9 @@
 
 package consolidator.services
 
-import java.time.Instant
+import java.time.{ Instant, ZoneId }
 
+import consolidator.scheduler.UntilTime
 import consolidator.scheduler.UntilTime.UntilTime
 import consolidator.services.formatters.ConsolidationFormat.ConsolidationFormat
 
@@ -29,6 +30,8 @@ trait FormConsolidatorParams {
   def businessArea: String
 
   def format: ConsolidationFormat
+
+  def getUntilInstant(currentInstant: Instant): Instant
 }
 
 case class ScheduledFormConsolidatorParams(
@@ -37,7 +40,21 @@ case class ScheduledFormConsolidatorParams(
   businessArea: String,
   format: ConsolidationFormat,
   untilTime: UntilTime
-) extends FormConsolidatorParams
+) extends FormConsolidatorParams {
+
+  override def getUntilInstant(currentInstant: Instant) = untilTime match {
+    case UntilTime.now => currentInstant.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant
+    case UntilTime.`previous_day` =>
+      currentInstant
+        .atZone(ZoneId.systemDefault())
+        .minusDays(1)
+        .withHour(23)
+        .withMinute(59)
+        .withSecond(59)
+        .withNano(0)
+        .toInstant
+  }
+}
 
 case class ManualFormConsolidatorParams(
   projectId: String,
@@ -46,4 +63,6 @@ case class ManualFormConsolidatorParams(
   format: ConsolidationFormat,
   startInstant: Instant,
   endInstant: Instant
-) extends FormConsolidatorParams
+) extends FormConsolidatorParams {
+  override def getUntilInstant(currentInstant: Instant): Instant = endInstant
+}

@@ -127,8 +127,8 @@ class ConsolidatorServiceSpec
           mockFormRepository.formsSource(
             projectId,
             _batchSize,
-            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant,
-            None) wasCalled once
+            None,
+            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant) wasCalled once
         }
       }
 
@@ -152,8 +152,8 @@ class ConsolidatorServiceSpec
           mockFormRepository.formsSource(
             projectId,
             _batchSize,
-            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant,
-            None) wasCalled once
+            None,
+            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant) wasCalled once
         }
       }
 
@@ -213,8 +213,8 @@ class ConsolidatorServiceSpec
           mockFormRepository.formsSource(
             projectId,
             _batchSize,
-            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant,
-            consolidatorJobData.lastObjectId) wasCalled once
+            consolidatorJobData.lastObjectId,
+            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant) wasCalled once
         }
       }
 
@@ -241,8 +241,8 @@ class ConsolidatorServiceSpec
           mockFormRepository.formsSource(
             projectId,
             _batchSize,
-            endInstant,
-            Some(BSONObjectID.fromTime(startInstant.toEpochMilli))) wasCalled once
+            Some(BSONObjectID.fromTime(startInstant.toEpochMilli)),
+            endInstant) wasCalled once
         }
       }
 
@@ -263,8 +263,8 @@ class ConsolidatorServiceSpec
           mockFormRepository.formsSource(
             projectId,
             _batchSize,
-            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant,
-            None) wasCalled once
+            None,
+            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant) wasCalled once
 
           val files = consolidationResult.get.reportFiles
           files.size shouldBe 2

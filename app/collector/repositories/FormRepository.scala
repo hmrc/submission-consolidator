@@ -145,8 +145,8 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent)(implicit 
   def formsSource(
     projectId: String,
     batchSize: Int,
-    untilInstant: Instant, // inclusive
-    afterObjectId: Option[BSONObjectID] = None
+    afterObjectId: Option[BSONObjectID],
+    untilInstant: Instant // inclusive
   ): Source[Form, Future[Unit]] = {
 
     logger.info(

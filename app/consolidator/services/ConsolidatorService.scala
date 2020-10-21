@@ -18,7 +18,7 @@ package consolidator.services
 
 import java.io.File
 import java.nio.file.Path
-import java.time.{ Instant, ZoneId }
+import java.time.Instant
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
@@ -27,7 +27,6 @@ import collector.repositories.FormRepository
 import common.Time
 import consolidator.IOUtils
 import consolidator.repositories.ConsolidatorJobDataRepository
-import consolidator.scheduler.UntilTime
 import consolidator.services.ConsolidatorService.ConsolidationResult
 import consolidator.services.FilePartOutputStage.Record
 import consolidator.services.formatters.{ FormFormatter, FormFormatterFactory }
@@ -54,7 +53,7 @@ class ConsolidatorService @Inject()(
     time: Time[Instant]): IO[Option[ConsolidationResult]] =
     for {
       afterObjectId <- getAfterObjectId(params)
-      untilInstant = getUntilInstant(params, time.now())
+      untilInstant = params.getUntilInstant(time.now())
       consolidationResult <- processForms(params, afterObjectId, untilInstant, outputPath)
     } yield consolidationResult
 
@@ -85,7 +84,7 @@ class ConsolidatorService @Inject()(
   ) =
     liftIO(
       formRepository
-        .formsSource(projectId, batchSize, untilInstant, afterObjectId)
+        .formsSource(projectId, batchSize, afterObjectId, untilInstant)
         .map { form =>
           Record(formatter.formLine(form), form.id)
         }
@@ -122,27 +121,6 @@ class ConsolidatorService @Inject()(
           Option(BSONObjectID.fromTime(u.startInstant.toEpochMilli, true))
         )
     }
-
-  private def getUntilInstant(params: FormConsolidatorParams, currentInstant: Instant) =
-    params match {
-      case s: ScheduledFormConsolidatorParams =>
-        val bufferSeconds = 5
-        s.untilTime match {
-          case UntilTime.now => currentInstant.atZone(ZoneId.systemDefault()).minusSeconds(bufferSeconds).toInstant
-          case UntilTime.`previous_day` =>
-            currentInstant
-              .atZone(ZoneId.systemDefault())
-              .minusDays(1)
-              .withHour(23)
-              .withMinute(59)
-              .withSecond(59)
-              .withNano(0)
-              .toInstant
-        }
-      case u: ManualFormConsolidatorParams =>
-        u.endInstant
-    }
-
 }
 
 object ConsolidatorService {
