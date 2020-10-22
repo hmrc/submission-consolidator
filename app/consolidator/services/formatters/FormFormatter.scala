@@ -69,7 +69,7 @@ case object JSONLineFormatter extends FormFormatter {
 
   override def formLine(form: Form): String = formJsonLineWrites.writes(form).toString()
 
-  override def ext: String = "txt"
+  override def ext: String = "xls"
 }
 
 @Singleton
