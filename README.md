@@ -58,6 +58,25 @@ Accepts form submission data and stores it in the mongodb collection (submission
  |400 |REQUEST_VALIDATION_FAILED|Request body failed validation|/formData(0)/value|Is required|
  |503|SERVICE_UNAVAILABLE|The service is not available due to downstream services (eg Mongo DB)| | |
  
+### Manual Consolidation
+
+Trigger a manual consolidation of forms, for a given consolidator job id and date range. The list of allowed `consolidatorJobId` values are available in the environment conf files (e.g: app-config-production/submission-consolidator.yaml), under the consolidator-jobs property (the id attribute).
+
+`startDate` and `endDate` specify the date ranges for the form submission date. Both are specified in `YYYY-MM-DD` format. `startDate` is set to the start of the day (00:00:00) and `endDate` is set to the end of the day (23:59:59)
+
+**Method:** `POST`
+ 
+**Path:** `/submission-consolidator/form/:consolidatorJobId/:startDate/:endDate`
+
+**Responses**
+
+|Status|Code|Message|
+|------|----|-------|
+|204| | | | |
+|409| CONSOLIDATOR_JOB_ALREADY_IN_PROGRESS | Consolidator job already in progress [consolidatorJobId=XXX] |
+|400| INVALID_CONSOLIDATOR_JOB_ID | Invalid consolidator job id XXX. No actor found |
+|500| MANUAL_CONSOLIDATION_FAILED | Failed to consolidate forms [consolidatorJobId=XXX, error=XXX] |
+
 ## Consolidator and Submitter
 
 Consolidator jobs are configured in application.conf and scheduled to run periodically based on a cron expression. The jobs consolidate all the forms for the given `projectId` and submits them as JSON line file to the configured DMS queue (indentified by `classificationType` and `businessArea`)
