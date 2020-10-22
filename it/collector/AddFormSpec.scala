@@ -44,7 +44,6 @@ class AddFormSpec extends ITSpec {
                          |""".stripMargin)
           .withFallback(baseConfig.underlying)
       )
-    logger.info(s"configuration=$config")
     GuiceApplicationBuilder()
       .configure(config)
       .build()

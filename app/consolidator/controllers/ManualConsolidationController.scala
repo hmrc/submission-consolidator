@@ -23,7 +23,8 @@ import java.util.concurrent.TimeUnit
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.util.Timeout
-import collector.controllers.{ ErrorHandler, InvalidConsolidatorJobId, ManualConsolidationFailed }
+import collector.controllers.ErrorCode.{ CONSOLIDATOR_JOB_ALREADY_IN_PROGRESS, INVALID_CONSOLIDATOR_JOB_ID, MANUAL_CONSOLIDATION_FAILED }
+import collector.controllers.{ ErrorHandler, ManualConsolidationError }
 import com.typesafe.akka.`extension`.quartz.MessageWithFireTime
 import com.typesafe.config.ConfigRenderOptions
 import consolidator.FormConsolidatorActor
@@ -71,34 +72,38 @@ class ManualConsolidationController @Inject()(controllerComponents: ControllerCo
                        startInstant(startDate),
                        endInstant(endDate)
                      )
-                     logger.info(s"Sending message with job params $params")
+                     logger.info(s"Sending message with job params $params [consolidatorJobId=$consolidatorJobId]")
                      (consolidatorActor ? MessageWithFireTime(params, new Date())).map { consolidatorResponse =>
                        logger.info(s"Consolidator job completed [consolidatorJobId=$consolidatorJobId] in ${(System
                          .currentTimeMillis() - time) / 1000} seconds")
                        consolidatorResponse match {
                          case FormConsolidatorActor.OK => NoContent
                          case FormConsolidatorActor.LockUnavailable =>
-                           Conflict(s"Consolidator job already in progress [consolidatorJobId=$consolidatorJobId]")
+                           handleError(
+                             ManualConsolidationError(
+                               CONSOLIDATOR_JOB_ALREADY_IN_PROGRESS,
+                               s"Consolidator job already in progress [consolidatorJobId=$consolidatorJobId]"))
                          case other =>
-                           val message = s"Failed to consolidate forms [consolidatorJobId=$consolidatorJobId]"
-                           logger.error(message, other)
-                           InternalServerError(s"$message. $other")
+                           val message =
+                             s"Failed to consolidate forms [consolidatorJobId=$consolidatorJobId, error=$other]"
+                           logger.error(message)
+                           handleError(ManualConsolidationError(MANUAL_CONSOLIDATION_FAILED, message))
                        }
                      }
                    }
                    .getOrElse {
-                     val message = s"Invalid consolidator job id $consolidatorJobId. No actor found"
+                     val message = s"Invalid consolidator job, no actor found [consolidatorJobId=$consolidatorJobId]"
                      logger.error(message)
                      Future.successful(
-                       handleError(InvalidConsolidatorJobId(message))
+                       handleError(ManualConsolidationError(INVALID_CONSOLIDATOR_JOB_ID, message))
                      )
                    }
       } yield result).recover {
         case exception =>
-          val message = s"Failed to consolidate forms [consolidatorJobId=$consolidatorJobId]"
+          val message = s"Failed to consolidate forms [consolidatorJobId=$consolidatorJobId, error=$exception]"
           logger.error(message, exception)
           handleError(
-            ManualConsolidationFailed(message)
+            ManualConsolidationError(MANUAL_CONSOLIDATION_FAILED, message)
           )
       }
     }

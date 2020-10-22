@@ -132,6 +132,7 @@ class FilePartOutputStage(
           val failure = new AbruptStageTerminationException(this)
           closeFile(Some(failure))
           mat.tryFailure(failure)
+          ()
         }
 
       private def closeFile(failed: Option[Throwable]): Unit =
@@ -154,9 +155,11 @@ class FilePartOutputStage(
                 )
               )
           }
+          ()
         } catch {
           case NonFatal(t) =>
             mat.tryFailure(failed.getOrElse(t))
+            ()
         }
 
       setHandler(in, this)

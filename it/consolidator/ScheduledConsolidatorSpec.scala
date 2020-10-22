@@ -77,7 +77,6 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
           .withFallback(baseConfig.underlying)
       )
 
-    logger.info(s"configuration=$config")
     GuiceApplicationBuilder()
       .configure(config)
       .build()

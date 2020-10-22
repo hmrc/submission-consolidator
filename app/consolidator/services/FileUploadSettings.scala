@@ -18,11 +18,11 @@ package consolidator.services
 
 trait FileUploadSettings {
 
-  val BYTES_IN_1_KB = 1024
-  val BYTES_IN_1_MB = BYTES_IN_1_KB * BYTES_IN_1_KB
+  val BYTES_IN_1_KB: Long = 1024
+  val BYTES_IN_1_MB: Long = BYTES_IN_1_KB * BYTES_IN_1_KB
 
-  lazy val maxSizeBytes: Int = 25 * BYTES_IN_1_MB
-  lazy val maxPerFileBytes: Int = 10 * BYTES_IN_1_MB
+  lazy val maxSizeBytes: Long = 25 * BYTES_IN_1_MB
+  lazy val maxPerFileBytes: Long = 10 * BYTES_IN_1_MB
 
   lazy val reportPerFileSizeInBytes: Long = 4 * BYTES_IN_1_MB
   lazy val maxReportAttachments

@@ -35,5 +35,5 @@ class MetricsClient @Inject()(metrics: Metrics) {
     metrics.defaultRegistry.meter(name).mark()
 
   def markMeter(name: String, eventCount: Int): Unit =
-    metrics.defaultRegistry.meter(name).mark(eventCount)
+    metrics.defaultRegistry.meter(name).mark(eventCount.toLong)
 }

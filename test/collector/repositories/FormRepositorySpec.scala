@@ -69,7 +69,7 @@ class FormRepositorySpec
       .map(
         seed =>
           genForm
-            .pureApply(Gen.Parameters.default, Seed(seed))
+            .pureApply(Gen.Parameters.default, Seed(seed.toLong))
             .copy(projectId = projectId, id = BSONObjectID.fromTime(currentTimeInMillis, false)))
       .toList
     forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))

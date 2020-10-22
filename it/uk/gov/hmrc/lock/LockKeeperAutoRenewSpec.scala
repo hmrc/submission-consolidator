@@ -54,7 +54,6 @@ class LockKeeperAutoRenewSpec
                          |""".stripMargin)
           .withFallback(baseConfig.underlying)
       )
-    logger.info(s"configuration=$config")
     GuiceApplicationBuilder()
       .configure(config)
       .build()
@@ -142,8 +141,8 @@ class LockKeeperAutoRenewSpec
 
         whenReady(future) { futureResult =>
           futureResult should (
-            equal(Some(1), Option.empty) or
-              equal(Option.empty, Some(2))
+            equal((Some(1), Option.empty)) or
+              equal((Option.empty, Some(2)))
             )
         }
       }

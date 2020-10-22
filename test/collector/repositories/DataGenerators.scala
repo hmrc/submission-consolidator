@@ -26,7 +26,7 @@ trait DataGenerators {
 
   val genInstant: Gen[Instant] = for {
     numSeconds <- Gen.choose(0, 10000)
-  } yield Instant.now().minusSeconds(numSeconds)
+  } yield Instant.now().minusSeconds(numSeconds.toLong)
 
   val genFormField: Gen[FormField] = for {
     id    <- Gen.alphaNumStr.suchThat(!_.isEmpty)

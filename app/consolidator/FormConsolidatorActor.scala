@@ -85,11 +85,10 @@ class FormConsolidatorActor(
         } yield ()).recoverWith {
           case e =>
             logger.error(s"Failed to consolidate/submit forms for project ${params.projectId}", e)
-            for {
+            (for {
               _ <- deleteReportTmpDir(reportOutputDir)
               _ <- addConsolidatorJobData(params, ofEpochMilli(time.getTime), None, Some(e.getMessage), None)
-                    .flatMap(_ => IO.raiseError(e))
-            } yield ()
+            } yield ()).flatMap(_ => IO.raiseError(e))
         }
 
         val lock = new LockKeeperAutoRenew {

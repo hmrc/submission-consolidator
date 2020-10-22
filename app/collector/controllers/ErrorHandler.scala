@@ -43,19 +43,10 @@ trait ErrorHandler {
         ServiceUnavailable(toJson(APIError(SERVICE_UNAVAILABLE, message)))
       case MongoGenericError(message) =>
         InternalServerError(toJson(APIError(INTERNAL_ERROR, message)))
-      case ManualConsolidationFailed(message) =>
+      case ManualConsolidationError(code, message) =>
         InternalServerError(
           toJson(
-            APIError(MANUAL_CONSOLIDATION_FAILED, message)
-          )
-        )
-      case InvalidConsolidatorJobId(message) =>
-        BadRequest(
-          toJson(
-            APIError(
-              INVALID_CONSOLIDATOR_JOB_ID,
-              message
-            )
+            APIError(code, message)
           )
         )
     }

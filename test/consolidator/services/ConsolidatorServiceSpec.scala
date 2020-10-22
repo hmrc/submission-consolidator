@@ -86,7 +86,7 @@ class ConsolidatorServiceSpec
       .map(
         seed =>
           genForm
-            .pureApply(Gen.Parameters.default, Seed(seed))
+            .pureApply(Gen.Parameters.default, Seed(seed.toLong))
             .copy(projectId = projectId))
       .toList
 
@@ -95,9 +95,12 @@ class ConsolidatorServiceSpec
       Future.successful(()))
 
     def maxReportFileSize(forms: List[Form]) =
-      forms.map { form =>
-        formatter.headerLine.map(_.length + 1).getOrElse(0) + formatter.formLine(form).length + 1
-      }.max
+      forms
+        .map { form =>
+          formatter.headerLine.map(_.length + 1).getOrElse(0) + formatter.formLine(form).length + 1
+        }
+        .max
+        .toLong
   }
 
   trait TestFixtureCSVFormat extends TestFixture {
