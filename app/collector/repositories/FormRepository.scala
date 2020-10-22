@@ -92,30 +92,6 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent)(implicit 
       }
 
   /**
-    * db.getCollection('forms').aggregate([
-    * {
-    *    $match: {
-    *       projectId: "****",
-    *       _id: { $gt: ObjectId("******************") }
-    *    }
-    * },
-    * {
-    *    $unwind: {
-    *       path: "$formData"
-    *    }
-    * },
-    * {
-    *    $group: {
-    *       _id: "$formData.id"
-    *    }
-    * },
-    * {
-    *    $sort: {
-    *       _id: 1
-    *    }
-    * }
-    * ])
-    *
     * @param projectId
     * @param afterObjectId
     * @param ec

@@ -68,43 +68,6 @@ class ConsolidatorJobDataRepository @Inject()(mongoComponent: ReactiveMongoCompo
   /**
     *  Gets the most recent ConsolidatorJobData for the given project id, based on endTimestamp.
     *
-    *   db.consolidator_job_datas.aggregate([
-    *     {
-    *       $match: {
-    *          projectId: "some-project-id",
-    *          lastObjectId: { "$exists": true }
-    *        }
-    *     },
-    *     {
-    *       $group: {
-    *       _id: null,
-    *       maxEndTimestamp: {
-    *          $max: "$endTimestamp"
-    *       },
-    *       docs: {
-    *          $push: "$$ROOT"
-    *        }
-    *       }
-    *     },
-    *     {
-    *       $project: {
-    *       maxDoc: {
-    *          $filter: {
-    *              input: "$docs",
-    *              as: "doc",
-    *              cond: { $eq :["$$doc.endTimestamp", "$maxEndTimestamp"]}
-    *            }
-    *          }
-    *        }
-    *     },
-    *     {
-    *       $unwind: "$maxDoc"
-    *     },
-    *     {
-    *       $replaceRoot: { newRoot: "$maxDoc" }
-    *     }
-    *   ])
-    *
     * @param projectId The project id to get recent ConsolidatorJobData for
     * @param ec The execution context
     * @return
