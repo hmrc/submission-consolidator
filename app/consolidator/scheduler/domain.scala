@@ -16,31 +16,40 @@
 
 package consolidator.scheduler
 
+import java.time.Instant
+
 import consolidator.scheduler.UntilTime._
+import consolidator.services.{ ManualFormConsolidatorParams, ScheduledFormConsolidatorParams }
 import consolidator.services.formatters.ConsolidationFormat
 import consolidator.services.formatters.ConsolidationFormat.ConsolidationFormat
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{ Format, Json, __ }
 
-case class ConsolidatorJobParam(
+case class ConsolidatorJobConfigParam(
   projectId: String,
   classificationType: String,
   businessArea: String,
   format: ConsolidationFormat,
-  untilTime: UntilTime)
-object ConsolidatorJobParam {
-  val writes = Json.writes[ConsolidatorJobParam]
+  untilTime: UntilTime) {
+  def toScheduledFormConsolidatorParams: ScheduledFormConsolidatorParams =
+    ScheduledFormConsolidatorParams(projectId, classificationType, businessArea, format, untilTime)
+
+  def toManualFormConsolidatorParams(startInstant: Instant, endInstant: Instant): ManualFormConsolidatorParams =
+    ManualFormConsolidatorParams(projectId, classificationType, businessArea, format, startInstant, endInstant)
+}
+object ConsolidatorJobConfigParam {
+  val writes = Json.writes[ConsolidatorJobConfigParam]
   val reads = (
     (__ \ "projectId").read[String] and
       (__ \ "classificationType").read[String] and
       (__ \ "businessArea").read[String] and
       (__ \ "format").readWithDefault[ConsolidationFormat](ConsolidationFormat.jsonl) and
       (__ \ "untilTime").readWithDefault[UntilTime](UntilTime.now)
-  )(ConsolidatorJobParam.apply _)
+  )(ConsolidatorJobConfigParam.apply _)
 
   implicit val formats = Format(reads, writes)
 }
-case class ConsolidatorJobConfig(id: String, cron: String, params: ConsolidatorJobParam)
+case class ConsolidatorJobConfig(id: String, cron: String, params: ConsolidatorJobConfigParam)
 object ConsolidatorJobConfig {
   implicit val formats = Json.format[ConsolidatorJobConfig]
 }

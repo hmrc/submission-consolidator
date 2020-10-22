@@ -26,7 +26,7 @@ import cats.data.NonEmptyList
 import common.UniqueReferenceGenerator.UniqueRef
 import common.{ ContentType, Time, UniqueReferenceGenerator }
 import consolidator.proxies._
-import consolidator.scheduler.{ ConsolidatorJobParam, UntilTime }
+import consolidator.scheduler.UntilTime
 import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
 import consolidator.services.SubmissionService.FileIds
 import consolidator.services.formatters.ConsolidationFormat
@@ -56,7 +56,7 @@ class SubmissionServiceSpec
     }
     val reportFiles = reportFilesDir.listFiles().toList
     val projectId = "some-project-id"
-    val config = ConsolidatorJobParam(
+    val schedulerFormConsolidatorParams = ScheduledFormConsolidatorParams(
       projectId,
       "some-classification",
       "some-business-area",
@@ -87,7 +87,8 @@ class SubmissionServiceSpec
 
     "create a single envelope, when number of reports in less than or equals maxReportAttachments" in new TestFixture {
       //when
-      val envelopeIds: NonEmptyList[String] = submissionService.submit(reportFiles, config).unsafeRunSync()
+      val envelopeIds: NonEmptyList[String] =
+        submissionService.submit(reportFiles, schedulerFormConsolidatorParams).unsafeRunSync()
 
       //then
       envelopeIds shouldEqual NonEmptyList.of(someEnvelopedId)
@@ -125,7 +126,8 @@ class SubmissionServiceSpec
       override lazy val numberOfReportFiles: Int = maxReportAttachments * 2
 
       //when
-      val envelopeIds: NonEmptyList[String] = submissionService.submit(reportFiles, config).unsafeRunSync()
+      val envelopeIds: NonEmptyList[String] =
+        submissionService.submit(reportFiles, schedulerFormConsolidatorParams).unsafeRunSync()
 
       //then
       envelopeIds shouldEqual NonEmptyList.of(someEnvelopedId, someEnvelopedId)
@@ -171,7 +173,7 @@ class SubmissionServiceSpec
       override lazy val createEnvelopeResponse = Future.successful(Left(GenericFileUploadError("some error")))
 
       //when
-      submissionService.submit(reportFiles, config).unsafeRunAsync {
+      submissionService.submit(reportFiles, schedulerFormConsolidatorParams).unsafeRunAsync {
         case Left(error) => error shouldBe GenericFileUploadError("some error")
         case Right(_)    => fail("Should have failed")
       }

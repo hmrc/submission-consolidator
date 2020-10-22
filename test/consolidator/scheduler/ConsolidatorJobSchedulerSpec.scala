@@ -22,6 +22,7 @@ import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
 import akka.testkit.{ ImplicitSender, TestKit, TestProbe }
 import com.typesafe.akka.extension.quartz.MessageWithFireTime
 import com.typesafe.config.ConfigFactory
+import consolidator.services.ScheduledFormConsolidatorParams
 import consolidator.services.formatters.ConsolidationFormat
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.BeforeAndAfterAll
@@ -60,6 +61,7 @@ class ConsolidatorJobSchedulerSpec
                                                   |            classificationType = "some-classification-type-2"
                                                   |            businessArea = "some-business-area-2"
                                                   |            format = "csv"
+                                                  |            untilTime = "previous_day"
                                                   |        }
                                                   |        # run every 2 seconds
                                                   |        cron = "*/2 * * ? * *"
@@ -72,19 +74,19 @@ class ConsolidatorJobSchedulerSpec
       val jobParams = testProbe.receiveN(2, 3.seconds).toList
       jobParams.size shouldBe 2
       jobParams should contain(
-        ConsolidatorJobParam(
+        ScheduledFormConsolidatorParams(
           "some-project-id-1",
           "some-classification-type-1",
           "some-business-area-1",
           ConsolidationFormat.jsonl,
           UntilTime.now))
       jobParams should contain(
-        ConsolidatorJobParam(
+        ScheduledFormConsolidatorParams(
           "some-project-id-2",
           "some-classification-type-2",
           "some-business-area-2",
           ConsolidationFormat.csv,
-          UntilTime.now))
+          UntilTime.previous_day))
 
       jobScheduler.shutdown(true)
     }
@@ -93,7 +95,7 @@ class ConsolidatorJobSchedulerSpec
 
 class TestJobActor(senderRef: ActorRef) extends Actor {
   override def receive: Receive = {
-    case MessageWithFireTime(p: ConsolidatorJobParam, _: Date) =>
+    case MessageWithFireTime(p: ScheduledFormConsolidatorParams, _: Date) =>
       senderRef ! p
   }
 }

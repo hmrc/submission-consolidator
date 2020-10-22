@@ -29,7 +29,7 @@ import scala.concurrent.Await.ready
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class ConsolidatorSpec extends ITSpec with Eventually {
+class ScheduledConsolidatorSpec extends ITSpec with Eventually {
 
   val logger: Logger = LoggerFactory.getLogger(getClass)
 
@@ -97,7 +97,7 @@ class ConsolidatorSpec extends ITSpec with Eventually {
 
         wiremockStubs()
         wsClient
-          .url(baseUrl)
+          .url(baseUrl + "/form")
           .withHttpHeaders("Content-Type" -> "application/json")
           .post(APIFormStubs.validForm)
           .futureValue

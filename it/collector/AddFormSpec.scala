@@ -54,7 +54,7 @@ class AddFormSpec extends ITSpec {
     "form body is valid" should {
       "save the form in the mongodb submission-consolidator collection" in {
         val future = wsClient
-          .url(baseUrl)
+          .url(baseUrl + "/form")
           .withHttpHeaders("Content-Type" -> "application/json")
           .post(APIFormStubs.validForm)
         whenReady(future) { response =>
@@ -66,7 +66,7 @@ class AddFormSpec extends ITSpec {
     "form body is invalid" should {
       "return BadRequest with error details" in {
         val future = wsClient
-          .url(baseUrl)
+          .url(baseUrl + "/form")
           .withHttpHeaders("Content-Type" -> "application/json")
           .post(APIFormStubs.formEmptySubmissionRef)
         whenReady(future) { response =>

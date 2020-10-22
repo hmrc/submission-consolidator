@@ -33,9 +33,8 @@ import com.typesafe.akka.extension.quartz.MessageWithFireTime
 import common.MetricsClient
 import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
-import consolidator.scheduler.ConsolidatorJobParam
 import consolidator.services.ConsolidatorService.ConsolidationResult
-import consolidator.services.{ ConsolidatorService, DeleteDirService, SubmissionService }
+import consolidator.services.{ ConsolidatorService, DeleteDirService, FormConsolidatorParams, ScheduledFormConsolidatorParams, SubmissionService }
 import org.slf4j.{ Logger, LoggerFactory }
 import uk.gov.hmrc.lock.{ LockKeeperAutoRenew, LockRepository }
 
@@ -60,23 +59,23 @@ class FormConsolidatorActor(
   private val runningProjects: mutable.Set[String] = mutable.Set[String]()
 
   override def receive: Receive = {
-    case MessageWithFireTime(jobParam: ConsolidatorJobParam, time: Date) =>
-      if (!runningProjects.contains(jobParam.projectId)) {
-        runningProjects += jobParam.projectId
-        logger.info(s"Received request for job $jobParam")
+    case MessageWithFireTime(params: FormConsolidatorParams, time: Date) =>
+      if (!runningProjects.contains(params.projectId)) {
+        runningProjects += params.projectId
+        logger.info(s"Received request for job $params")
         val senderRef = sender()
-        val reportOutputDir = createReportDir(jobParam.projectId, time)
+        val reportOutputDir = createReportDir(params.projectId, time)
         val program: IO[Unit] = (for {
-          consolidationResult <- consolidatorService.doConsolidation(reportOutputDir, jobParam)
+          consolidationResult <- consolidatorService.doConsolidation(reportOutputDir, params)
           envelopeIds <- consolidationResult
                           .map(
                             c =>
                               fileUploaderService
-                                .submit(c.reportFiles, jobParam)
+                                .submit(c.reportFiles, params)
                                 .map(Option(_)))
                           .getOrElse(IO.pure(None))
           _ <- addConsolidatorJobData(
-                jobParam.projectId,
+                params,
                 ofEpochMilli(time.getTime),
                 consolidationResult,
                 None,
@@ -85,29 +84,24 @@ class FormConsolidatorActor(
           _ <- deleteReportTmpDir(reportOutputDir)
         } yield ()).recoverWith {
           case e =>
-            logger.error(s"Failed to consolidate/submit forms for project ${jobParam.projectId}", e)
+            logger.error(s"Failed to consolidate/submit forms for project ${params.projectId}", e)
             for {
               _ <- deleteReportTmpDir(reportOutputDir)
-              _ <- addConsolidatorJobData(
-                    jobParam.projectId,
-                    ofEpochMilli(time.getTime),
-                    None,
-                    Some(e.getMessage),
-                    None)
+              _ <- addConsolidatorJobData(params, ofEpochMilli(time.getTime), None, Some(e.getMessage), None)
                     .flatMap(_ => IO.raiseError(e))
             } yield ()
         }
 
         val lock = new LockKeeperAutoRenew {
           override val repo: LockRepository = lockRepository
-          override val id: String = jobParam.projectId
+          override val id: String = params.projectId
           override val duration: org.joda.time.Duration = org.joda.time.Duration.standardMinutes(5)
         }
 
         lock
           .withLock(program.unsafeToFuture())
           .onComplete { result =>
-            runningProjects -= jobParam.projectId
+            runningProjects -= params.projectId
             result match {
               case Success(Some(_)) =>
                 senderRef ! OK
@@ -120,34 +114,41 @@ class FormConsolidatorActor(
   }
 
   private def addConsolidatorJobData(
-    projectId: String,
+    params: FormConsolidatorParams,
     startTime: Instant,
     consolidationResult: Option[ConsolidationResult],
     error: Option[String],
     envelopeIds: Option[NonEmptyList[String]]
   ): IO[Unit] = {
-    val now = Instant.now()
-    metricsClient.recordDuration(
-      name("consolidator", projectId, "run"),
-      Duration(now.toEpochMilli - startTime.toEpochMilli, TimeUnit.MILLISECONDS)
-    )
-    error.foreach { e =>
-      metricsClient.markMeter(name("consolidator", projectId, "failed"))
-    }
     consolidationResult.foreach { cResult =>
-      metricsClient.markMeter(name("consolidator", projectId, "success"))
-      metricsClient.markMeter(name("consolidator", projectId, "formCount"), cResult.count)
-      logger.info(s"Submitted ${cResult.count} forms to file-upload (DMS) for project $projectId")
+      logger.info(s"Submitted ${cResult.count} forms to file-upload (DMS) for project ${params.projectId}")
     }
-    val consolidatorJobData = ConsolidatorJobData(
-      projectId,
-      startTime,
-      now,
-      consolidationResult.map(_.lastObjectId),
-      error,
-      envelopeIds.map(_.mkString_(","))
-    )
-    liftIO(consolidatorJobDataRepository.add(consolidatorJobData))
+    params match {
+      case params: ScheduledFormConsolidatorParams =>
+        val now = Instant.now()
+        metricsClient.recordDuration(
+          name("consolidator", params.projectId, "run"),
+          Duration(now.toEpochMilli - startTime.toEpochMilli, TimeUnit.MILLISECONDS)
+        )
+        error.foreach { e =>
+          metricsClient.markMeter(name("consolidator", params.projectId, "failed"))
+        }
+        consolidationResult.foreach { cResult =>
+          metricsClient.markMeter(name("consolidator", params.projectId, "success"))
+          metricsClient.markMeter(name("consolidator", params.projectId, "formCount"), cResult.count)
+        }
+        val consolidatorJobData = ConsolidatorJobData(
+          params.projectId,
+          startTime,
+          now,
+          consolidationResult.map(_.lastObjectId),
+          error,
+          envelopeIds.map(_.mkString_(","))
+        )
+        liftIO(consolidatorJobDataRepository.add(consolidatorJobData))
+      case _ =>
+        IO.pure(())
+    }
   }
 
   private def deleteReportTmpDir(path: Path) =

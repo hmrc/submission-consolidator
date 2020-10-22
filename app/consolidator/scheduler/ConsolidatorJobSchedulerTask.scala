@@ -16,7 +16,7 @@
 
 package consolidator.scheduler
 
-import akka.actor.ActorSystem
+import akka.actor.{ ActorSystem, Props }
 import common.MetricsClient
 import consolidator.FormConsolidatorActor
 import consolidator.repositories.ConsolidatorJobDataRepository
@@ -38,23 +38,21 @@ class ConsolidatorJobSchedulerTask @Inject()(
   mongoComponent: ReactiveMongoComponent,
   metricsClient: MetricsClient,
   applicationLifecycle: ApplicationLifecycle
-) {
+)(implicit system: ActorSystem) {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
   logger.info("Scheduling consolidator jobs")
 
-  implicit val system = ActorSystem("JobSchedulerSystem")
-  val scheduler = jobScheduler.scheduleJobs(
-    FormConsolidatorActor
-      .props(
-        consolidatorService,
-        fileUploaderService,
-        consolidatorJobDataRepository,
-        LockMongoRepository(mongoComponent.mongoConnector.db),
-        metricsClient,
-        deleteDirService
-      )
-  )
+  val formConsolidatorActorProps: Props = FormConsolidatorActor
+    .props(
+      consolidatorService,
+      fileUploaderService,
+      consolidatorJobDataRepository,
+      LockMongoRepository(mongoComponent.mongoConnector.db),
+      metricsClient,
+      deleteDirService
+    )
+  val scheduler = jobScheduler.scheduleJobs(formConsolidatorActorProps)
   applicationLifecycle.addStopHook { () =>
     Future.successful(scheduler.shutdown(true))
   }

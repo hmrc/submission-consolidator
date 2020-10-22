@@ -30,10 +30,10 @@ import com.typesafe.akka.extension.quartz.MessageWithFireTime
 import common.MetricsClient
 import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
-import consolidator.scheduler.{ ConsolidatorJobParam, UntilTime }
+import consolidator.scheduler.UntilTime
 import consolidator.services.ConsolidatorService.ConsolidationResult
 import consolidator.services.formatters.ConsolidationFormat
-import consolidator.services.{ ConsolidatorService, DeleteDirService, SubmissionService }
+import consolidator.services.{ ConsolidatorService, DeleteDirService, ScheduledFormConsolidatorParams, SubmissionService }
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.captor.ArgCaptor
 import org.mockito.scalatest.IdiomaticMockito
@@ -68,7 +68,7 @@ class FormConsolidatorActorSpec
     val reportDir = createReportDir(projectId, now)
     val reportFiles = reportDir.toFile.listFiles().toList
     val envelopeId = "some-envelope-id"
-    val consolidatorJobParam = ConsolidatorJobParam(
+    val schedulerFormConsolidatorParams = ScheduledFormConsolidatorParams(
       projectId,
       "some-classification",
       "some-business-area",
@@ -86,7 +86,7 @@ class FormConsolidatorActorSpec
           mockDeleteDirService)
     )
 
-    val messageWithFireTime = MessageWithFireTime(consolidatorJobParam, now)
+    val messageWithFireTime = MessageWithFireTime(schedulerFormConsolidatorParams, now)
 
     mockLockRepository.lock(*, *, *) shouldReturn Future.successful(true)
     mockLockRepository.renew(*, *, *) shouldReturn Future.successful(true)
@@ -122,7 +122,7 @@ class FormConsolidatorActorSpec
         expectMsg(OK)
 
         mockDeleteDirService.deleteDir(reportDir) wasCalled once
-        mockConsolidatorService.doConsolidation(reportDir, consolidatorJobParam) wasCalled once
+        mockConsolidatorService.doConsolidation(reportDir, schedulerFormConsolidatorParams) wasCalled once
         mockFileUploaderService.submit(*, *) wasNever called
         mockMetricsClient.recordDuration(s"consolidator.$projectId.run", *) wasCalled once
 
@@ -154,8 +154,8 @@ class FormConsolidatorActorSpec
         expectMsg(OK)
 
         mockDeleteDirService.deleteDir(reportDir) wasCalled once
-        mockConsolidatorService.doConsolidation(reportDir, consolidatorJobParam) wasCalled once
-        mockFileUploaderService.submit(reportFiles, consolidatorJobParam) wasCalled once
+        mockConsolidatorService.doConsolidation(reportDir, schedulerFormConsolidatorParams) wasCalled once
+        mockFileUploaderService.submit(reportFiles, schedulerFormConsolidatorParams) wasCalled once
         mockMetricsClient.recordDuration(s"consolidator.$projectId.run", *) wasCalled once
         mockMetricsClient.markMeter(s"consolidator.$projectId.success") wasCalled once // success
         mockMetricsClient.markMeter(s"consolidator.$projectId.formCount", 1) wasCalled once // success
@@ -174,7 +174,7 @@ class FormConsolidatorActorSpec
           expectMsgPF() {
             case t: Throwable =>
               t.getMessage shouldBe "consolidation error"
-              mockFileUploaderService.submit(reportFiles, consolidatorJobParam) wasNever called
+              mockFileUploaderService.submit(reportFiles, schedulerFormConsolidatorParams) wasNever called
               mockDeleteDirService.deleteDir(reportDir) wasCalled once
               mockMetricsClient.markMeter(s"consolidator.$projectId.failed") wasCalled once
               assertConsolidatorData(None, Some("consolidation error"), None)
@@ -197,8 +197,8 @@ class FormConsolidatorActorSpec
           expectMsgPF() {
             case t: Throwable =>
               t.getMessage shouldBe "file upload error"
-              mockConsolidatorService.doConsolidation(reportDir, consolidatorJobParam) wasCalled once
-              mockFileUploaderService.submit(reportFiles, consolidatorJobParam) wasCalled once
+              mockConsolidatorService.doConsolidation(reportDir, schedulerFormConsolidatorParams) wasCalled once
+              mockFileUploaderService.submit(reportFiles, schedulerFormConsolidatorParams) wasCalled once
               mockDeleteDirService.deleteDir(reportDir) wasCalled once
               assertConsolidatorData(None, Some("file upload error"), None)
           }
