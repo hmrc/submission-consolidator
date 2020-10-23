@@ -49,7 +49,7 @@ case class CSVFormatter(headers: List[String]) extends FormFormatter {
       .map(h => form.formData.find(_.id == h).map(f => StringEscapeUtils.escapeCsv(f.value)).getOrElse(""))
       .mkString(",")
 
-  override def ext: String = "csv"
+  override def ext: String = "xls"
 }
 
 case object JSONLineFormatter extends FormFormatter {
