@@ -51,7 +51,7 @@ object MetadataDocumentHelper {
               Attribute("submission_mark", "string", List("AUDIT_SERVICE")),
               Attribute("cas_key", "string", List("AUDIT_SERVICE")),
               Attribute("number_pages", "int", List("1")),
-              Attribute("customer_id", "string", List(DATE_FORMAT.format(zonedDateTime))),
+              Attribute("customer_id", "string", List(s"Report-${DATE_FORMAT.format(zonedDateTime)}")),
               Attribute("classification_type", "string", List("some-classification")),
               Attribute("business_area", "string", List("some-business-area")),
               Attribute("attachment_count", "int", List(expectedAttachments.toString))
