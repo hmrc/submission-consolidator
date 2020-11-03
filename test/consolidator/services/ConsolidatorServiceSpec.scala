@@ -273,7 +273,7 @@ class ConsolidatorServiceSpec
           files.size shouldBe 2
           files.sorted.zipWithIndex.zip(forms).foreach {
             case ((file, index), form) =>
-              file.getName shouldBe s"report-$index.xls"
+              file.getName shouldBe s"report-$index.csv"
               val fileSource = scala.io.Source.fromFile(file, "UTF-8")
               val lines = fileSource.getLines().toList
               lines shouldEqual List(formatter.headerLine.get, formatter.formLine(form))

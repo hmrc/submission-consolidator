@@ -62,7 +62,7 @@ trait MetadataDocumentBuilder {
               Attribute("submission_mark", "string", List("AUDIT_SERVICE")),
               Attribute("cas_key", "string", List("AUDIT_SERVICE")),
               Attribute("number_pages", "int", List("1")),
-              Attribute("customer_id", "string", List(DATE_FORMAT.format(zonedDateTime))),
+              Attribute("customer_id", "string", List(s"Report-${DATE_FORMAT.format(zonedDateTime)}")),
               Attribute("classification_type", "string", List(params.classificationType)),
               Attribute("business_area", "string", List(params.businessArea)),
               Attribute("attachment_count", "int", List(attachmentCount.toString))
