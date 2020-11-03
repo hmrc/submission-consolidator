@@ -48,7 +48,7 @@ class CSVFormatterSpec extends AnyWordSpec with Matchers with DataGenerators wit
 
   "ext" should {
     "return xls" in {
-      CSVFormatter(List.empty).ext shouldBe "xls"
+      CSVFormatter(List.empty).ext shouldBe "csv"
     }
   }
 }
