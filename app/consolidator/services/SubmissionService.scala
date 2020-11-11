@@ -92,7 +92,7 @@ class SubmissionService @Inject()(
             FileIds.xmlDocument,
             s"$fileNamePrefix-metadata.xml",
             ByteString(
-              params.format.metadataDocumentBuilder.metaDataDocument(params, submissionRef, reportFiles.length).toXml
+              MetadataDocumentBuilder.metaDataDocument(params, submissionRef, reportFiles.length).toXml
             ),
             ContentType.`application/xml`
           )

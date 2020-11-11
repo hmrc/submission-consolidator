@@ -20,7 +20,7 @@ import java.time.{ Instant, ZoneId }
 
 import consolidator.scheduler.UntilTime
 import consolidator.scheduler.UntilTime.UntilTime
-import consolidator.services.formatters.ConsolidationFormat.ConsolidationFormat
+import ConsolidationFormat.ConsolidationFormat
 
 trait FormConsolidatorParams {
   def projectId: String

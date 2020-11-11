@@ -32,8 +32,7 @@ import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
 import consolidator.scheduler.UntilTime
 import consolidator.services.ConsolidatorService.ConsolidationResult
-import consolidator.services.formatters.ConsolidationFormat
-import consolidator.services.{ ConsolidatorService, DeleteDirService, ScheduledFormConsolidatorParams, SubmissionService }
+import consolidator.services.{ ConsolidationFormat, ConsolidatorService, DeleteDirService, ScheduledFormConsolidatorParams, SubmissionService }
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.captor.ArgCaptor
 import org.mockito.scalatest.IdiomaticMockito

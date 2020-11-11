@@ -19,9 +19,8 @@ package consolidator.scheduler
 import java.time.Instant
 
 import consolidator.scheduler.UntilTime._
-import consolidator.services.{ ManualFormConsolidatorParams, ScheduledFormConsolidatorParams }
-import consolidator.services.formatters.ConsolidationFormat
-import consolidator.services.formatters.ConsolidationFormat.ConsolidationFormat
+import consolidator.services.{ ConsolidationFormat, ManualFormConsolidatorParams, ScheduledFormConsolidatorParams }
+import ConsolidationFormat.ConsolidationFormat
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{ Format, Json, __ }
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package consolidator.services.formatters
+package consolidator.services
 
 import java.time.format.DateTimeFormatter
 import java.time.{ Instant, ZoneId }
@@ -22,7 +22,6 @@ import java.time.{ Instant, ZoneId }
 import common.Time
 import common.UniqueReferenceGenerator.UniqueRef
 import consolidator.services
-import consolidator.services.{ Attribute, Document, Documents, FormConsolidatorParams, Header, MetadataDocument }
 
 trait MetadataDocumentBuilder {
 
@@ -31,7 +30,8 @@ trait MetadataDocumentBuilder {
   private val DDMMYYYYHHMMSS = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
 
   def metaDataDocument(params: FormConsolidatorParams, submissionRef: UniqueRef, attachmentCount: Int)(
-    implicit time: Time[Instant]): MetadataDocument
+    implicit time: Time[Instant]): MetadataDocument =
+    buildMetaDataDocument(params, submissionRef, attachmentCount, "pdf", "application/pdf")
 
   protected def buildMetaDataDocument(
     params: FormConsolidatorParams,
@@ -73,20 +73,4 @@ trait MetadataDocumentBuilder {
   }
 }
 
-object CSVMetadataDocumentBuilder extends MetadataDocumentBuilder {
-  override def metaDataDocument(
-    params: FormConsolidatorParams,
-    submissionRef: UniqueRef,
-    attachmentCount: Int
-  )(implicit time: Time[Instant]) =
-    buildMetaDataDocument(params, submissionRef, attachmentCount, "pdf", "application/pdf")
-}
-
-object JSONLineMetadaDocumentBuilder extends MetadataDocumentBuilder {
-  override def metaDataDocument(
-    params: FormConsolidatorParams,
-    submissionRef: UniqueRef,
-    attachmentCount: Int
-  )(implicit time: Time[Instant]) =
-    buildMetaDataDocument(params, submissionRef, attachmentCount, "pdf", "application/pdf")
-}
+object MetadataDocumentBuilder extends MetadataDocumentBuilder

@@ -57,8 +57,8 @@ class ManualConsolidationControllerSpec
 
   "consolidateAndSubmit" should {
     "consolidate forms and submit them" in {
-      val actorRef = system.actorOf(Props(new MockFileConsolidatorActor()), "testConsolidatorJobId")
-      println(actorRef)
+      // register MockFileConsolidatorActor instance as testConsolidatorJobId
+      system.actorOf(Props(new MockFileConsolidatorActor()), "testConsolidatorJobId")
       val consolidationController = new ManualConsolidationController(Helpers.stubControllerComponents(), config)
 
       val request = FakeRequest("POST", "/consolidate/testConsolidatorJobId/2020-01-01/2020-01-02")
