@@ -46,7 +46,7 @@ class ConsolidatorServiceSpec
     extends AnyWordSpec with Matchers with BeforeAndAfterAll with IdiomaticMockito with ArgumentMatchersSugar
     with DataGenerators with ScalaFutures {
 
-  override implicit val patienceConfig = PatienceConfig(Span(10, Seconds), Span(1, Millis))
+  override implicit val patienceConfig = PatienceConfig(Span(15, Seconds), Span(1, Millis))
   implicit val actorSystem: ActorSystem = ActorSystem("ConsolidatorServiceSpec")
 
   trait TestFixture {

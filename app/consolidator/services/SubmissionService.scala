@@ -68,7 +68,16 @@ class SubmissionService @Inject()(
       s"Uploading reports to file-upload service [reportFiles=$reportFiles, params=$params]"
     )
 
-    fromListUnsafe(reportFileList.grouped(maxReportAttachments).toList.map { reportFiles =>
+    val groupedReportFiles = reportFileList.foldLeft(List(List[File]())) {
+      case (acc, reportFile) =>
+        if (acc.head.map(_.length()).sum + reportFile.length() > maxReportAttachmentsSize) {
+          List(reportFile) :: acc
+        } else {
+          (reportFile :: acc.head) :: acc.tail
+        }
+    }
+
+    fromListUnsafe(groupedReportFiles.map(_.reverse).map { reportFiles =>
       logger.info(
         s"Creating envelope and uploading files ${reportFiles.map(_.getName)} for project ${params.projectId}")
       val createEnvelopeRequest = CreateEnvelopeRequest(
@@ -77,7 +86,11 @@ class SubmissionService @Inject()(
           reportFiles.size + 2, // +2 for metadata xml and iform pdf
           (maxSizeBytes / BYTES_IN_1_MB) + "MB",
           (maxPerFileBytes / BYTES_IN_1_MB) + "MB",
-          List("text/plain", "text/csv", "application/pdf"),
+          List(
+            "text/plain",
+            "text/csv",
+            "application/pdf",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
           false
         )
       )

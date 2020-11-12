@@ -16,7 +16,7 @@
 
 package consolidator
 
-import java.io.{ File, FileInputStream }
+import java.io.{ BufferedWriter, File, FileInputStream, FileWriter }
 import java.nio.file.{ Files, Path, Paths }
 
 import collector.repositories.Form
@@ -51,4 +51,17 @@ object TestHelper {
     source.close()
     lines
   }
+
+  def createFileInDir(dir: Path, fileName: String, size: Int): File = {
+    val file = Files.createFile(Paths.get(dir + "/" + fileName)).toFile
+    val bw = new BufferedWriter(new FileWriter(file))
+    bw.write("a" * size)
+    bw.close()
+    file
+  }
+
+  def createTmpDir(prefix: String): Path =
+    Files.createDirectories(
+      Paths.get(System.getProperty("java.io.tmpdir") + s"/$prefix-${System.currentTimeMillis()}")
+    )
 }

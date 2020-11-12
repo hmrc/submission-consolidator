@@ -16,8 +16,6 @@
 
 package consolidator.services
 
-import java.io.File
-import java.nio.file.{ Files, Paths }
 import java.time.format.DateTimeFormatter
 import java.time.{ Instant, ZoneId }
 
@@ -25,6 +23,7 @@ import akka.util.ByteString
 import cats.data.NonEmptyList
 import common.UniqueReferenceGenerator.UniqueRef
 import common.{ ContentType, Time, UniqueReferenceGenerator }
+import consolidator.TestHelper.{ createFileInDir, createTmpDir }
 import consolidator.proxies._
 import consolidator.scheduler.UntilTime
 import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
@@ -43,17 +42,13 @@ class SubmissionServiceSpec
   private val DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd")
 
   trait TestFixture {
-    lazy val numberOfReportFiles: Int = maxReportAttachments
-    private val reportFilesDir: File = {
-      val path = Files.createDirectories(
-        Paths.get(System.getProperty("java.io.tmpdir") + s"/SubmissionServiceSpec-${System.currentTimeMillis()}")
-      )
-      (0 until numberOfReportFiles).foreach { i =>
-        Files.createFile(Paths.get(path + "/" + s"report-$i.txt")).toFile
-      }
-      path.toFile
+    lazy val numberOfReportFiles: Int = 1
+    lazy val maxReportAttachmentsSizeOverride: Long = 10
+    val reportFiles = {
+      val dir = createTmpDir("SubmissionServiceSpec")
+      (0 until numberOfReportFiles).foreach(i => createFileInDir(dir, s"report-$i.txt", 10))
+      dir.toFile.listFiles().toList
     }
-    val reportFiles = reportFilesDir.listFiles().toList
     val projectId = "some-project-id"
     val schedulerFormConsolidatorParams = ScheduledFormConsolidatorParams(
       projectId,
@@ -79,12 +74,16 @@ class SubmissionServiceSpec
     mockFileUploadProxy.routeEnvelope(*) shouldReturn Future.successful(Right(()))
 
     val submissionService =
-      new SubmissionService(mockFileUploadProxy, mockFileUploadFrontendProxy, mockUniqueReferenceGenerator)
+      new SubmissionService(mockFileUploadProxy, mockFileUploadFrontendProxy, mockUniqueReferenceGenerator) {
+        override lazy val maxReportAttachmentsSize = maxReportAttachmentsSizeOverride
+      }
   }
 
   "submit" should {
 
-    "create a single envelope, when number of reports in less than or equals maxReportAttachments" in new TestFixture {
+    "create a single envelope, when size of report files is less than or equals maxReportAttachmentsSize" in new TestFixture {
+      override lazy val maxReportAttachmentsSizeOverride: Long = 20
+      override lazy val numberOfReportFiles: Int = 2
       //when
       val envelopeIds: NonEmptyList[String] =
         submissionService.submit(reportFiles, schedulerFormConsolidatorParams).unsafeRunSync()
@@ -94,7 +93,17 @@ class SubmissionServiceSpec
       mockFileUploadProxy.createEnvelope(
         CreateEnvelopeRequest(
           consolidator.proxies.Metadata("gform"),
-          Constraints(numberOfReportFiles + 2, "25MB", "10MB", List("text/plain", "text/csv", "application/pdf"), false)
+          Constraints(
+            numberOfReportFiles + 2,
+            "25MB",
+            "10MB",
+            List(
+              "text/plain",
+              "text/csv",
+              "application/pdf",
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            false
+          )
         )
       ) wasCalled once
       mockUniqueReferenceGenerator.generate(12) wasCalled once
@@ -106,7 +115,7 @@ class SubmissionServiceSpec
         someEnvelopedId,
         FileIds.xmlDocument,
         s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-metadata.xml",
-        ByteString(buildMetadataDocument(now.atZone(ZoneId.systemDefault()), "pdf", "application/pdf", 6).toXml),
+        ByteString(buildMetadataDocument(now.atZone(ZoneId.systemDefault()), "pdf", "application/pdf", 2).toXml),
         ContentType.`application/xml`
       ) wasCalled once
       mockFileUploadFrontendProxy.upload(
@@ -121,8 +130,8 @@ class SubmissionServiceSpec
       ) wasCalled once
     }
 
-    "create multiple envelopes when number of report files exceeds maxReportAttachments" in new TestFixture {
-      override lazy val numberOfReportFiles: Int = maxReportAttachments * 2
+    "create multiple envelopes when size of report file attachments exceeds maxReportAttachments" in new TestFixture {
+      override lazy val numberOfReportFiles: Int = 2
 
       //when
       val envelopeIds: NonEmptyList[String] =
@@ -134,10 +143,14 @@ class SubmissionServiceSpec
         CreateEnvelopeRequest(
           consolidator.proxies.Metadata("gform"),
           Constraints(
-            maxReportAttachments + 2,
+            3,
             "25MB",
             "10MB",
-            List("text/plain", "text/csv", "application/pdf"),
+            List(
+              "text/plain",
+              "text/csv",
+              "application/pdf",
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
             false)
         )
       ) wasCalled twice
@@ -149,11 +162,7 @@ class SubmissionServiceSpec
         someEnvelopedId,
         FileIds.xmlDocument,
         s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-metadata.xml",
-        ByteString(buildMetadataDocument(
-          now.atZone(ZoneId.systemDefault()),
-          "pdf",
-          "application/pdf",
-          maxReportAttachments).toXml),
+        ByteString(buildMetadataDocument(now.atZone(ZoneId.systemDefault()), "pdf", "application/pdf", 1).toXml),
         ContentType.`application/xml`
       ) wasCalled twice
       mockFileUploadFrontendProxy.upload(
