@@ -22,50 +22,31 @@ import common.Time
 import common.UniqueReferenceGenerator.UniqueRef
 import consolidator.scheduler.UntilTime
 import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
-import consolidator.services.ScheduledFormConsolidatorParams
+import consolidator.services.{ ConsolidationFormat, MetadataDocumentBuilder, ScheduledFormConsolidatorParams }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.wordspec.AnyWordSpec
 
 class MetadataDocumentBuilderSpec extends AnyWordSpec with Matchers with TableDrivenPropertyChecks {
 
-  "CSVMetadataDocumentBuilder.metaDataDocument" should {
-    "return metadata document for all formats" in {
-
+  "MetadataDocumentBuilder.metaDataDocument" should {
+    "return metadata document" in {
       val uniqueRef = UniqueRef("some-unique-id")
       val projectId = "some-project-id"
       val now: Instant = Instant.now()
       implicit val timeInstant: Time[Instant] = () => now
       val zonedDateTime = now.atZone(ZoneId.systemDefault())
 
-      val testData = Table(
-        (
-          "metadataDocumentBuilder",
-          "consolidationFormat",
-          "expectedFormat",
-          "expectedMimetype"
-        ),
-        (CSVMetadataDocumentBuilder, ConsolidationFormat.csv, "pdf", "application/pdf"),
-        (
-          JSONLineMetadaDocumentBuilder,
+      val schedulerFormConsolidatorParams =
+        ScheduledFormConsolidatorParams(
+          projectId,
+          "some-classification",
+          "some-business-area",
           ConsolidationFormat.jsonl,
-          "pdf",
-          "application/pdf"
+          UntilTime.now
         )
-      )
-
-      forAll(testData) { (metadataDocumentBuilder, consolidationFormat, expectedFormat, expectedMimetype) =>
-        val schedulerFormConsolidatorParams =
-          ScheduledFormConsolidatorParams(
-            projectId,
-            "some-classification",
-            "some-business-area",
-            consolidationFormat,
-            UntilTime.now)
-        val metadataDocument = metadataDocumentBuilder.metaDataDocument(schedulerFormConsolidatorParams, uniqueRef, 1)
-        metadataDocument shouldBe buildMetadataDocument(zonedDateTime, expectedFormat, expectedMimetype, 1)
-      }
+      val metadataDocument = MetadataDocumentBuilder.metaDataDocument(schedulerFormConsolidatorParams, uniqueRef, 1)
+      metadataDocument shouldBe buildMetadataDocument(zonedDateTime, "pdf", "application/pdf", 1)
     }
   }
-
 }

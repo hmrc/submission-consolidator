@@ -14,26 +14,24 @@
  * limitations under the License.
  */
 
-package consolidator.services.formatters
+package consolidator.services
 
 import common.ContentType
 import play.api.libs.json.Json
 
 object ConsolidationFormat extends Enumeration {
   type ConsolidationFormat = Value
-  val csv, jsonl = Value
+  val csv, jsonl, xlsx = Value
 
   implicit val formats = Json.formatEnum(ConsolidationFormat)
 
   implicit class ConsolidationFormatOps(consolidationFormat: ConsolidationFormat) {
-    def metadataDocumentBuilder: MetadataDocumentBuilder = consolidationFormat match {
-      case ConsolidationFormat.csv   => CSVMetadataDocumentBuilder
-      case ConsolidationFormat.jsonl => JSONLineMetadaDocumentBuilder
-    }
 
-    def contentType: ContentType = consolidationFormat match {
-      case ConsolidationFormat.csv   => ContentType.`text/csv`
-      case ConsolidationFormat.jsonl => ContentType.`text/plain`
-    }
+    def contentType: ContentType =
+      consolidationFormat match {
+        case ConsolidationFormat.csv   => ContentType.`text/csv`
+        case ConsolidationFormat.jsonl => ContentType.`text/plain`
+        case ConsolidationFormat.xlsx  => ContentType.`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+      }
   }
 }

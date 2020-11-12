@@ -14,20 +14,33 @@
  * limitations under the License.
  */
 
-package consolidator.services.formatters
+package consolidator.services.sink
 
+import java.nio.file.Path
 import java.time.Instant
 
-import collector.repositories.{ DataGenerators, Form, FormField }
+import akka.util.ByteString
 import collector.repositories.Form.DATE_TIME_FORMATTER
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import collector.repositories.{ Form, FormField }
 import play.api.libs.json.{ JsString, Writes, __ }
 import play.api.libs.functional.syntax._
 
-class JSONLineFormatterSpec extends AnyWordSpec with Matchers with DataGenerators with ScalaCheckDrivenPropertyChecks {
+class FormJsonLineFilePartWriter(override val outputDir: Path, override val filePrefix: String, maxBytesPerFile: Long)
+    extends AbstractFilePartWriter[Form] {
 
+  override val ext: String = "xls"
+
+  override def write(form: Form): Int = {
+    val line: String = FormJsonLineFilePartWriter.toJson(form)
+    val byteString = ByteString(line + "\n")
+    val currentFileSize: Long = currentFile.map(_.size()).getOrElse(0)
+    if (currentFileSize + byteString.size > maxBytesPerFile)
+      openChannel()
+    currentFile.map(_.write(byteString.toByteBuffer)).getOrElse(0)
+  }
+}
+
+object FormJsonLineFilePartWriter {
   private val instantJsonLineWrites: Writes[Instant] = (instant: Instant) =>
     JsString(DATE_TIME_FORMATTER.format(instant))
   private val formJsonLineWrites: Writes[Form] = (
@@ -39,18 +52,5 @@ class JSONLineFormatterSpec extends AnyWordSpec with Matchers with DataGenerator
       (__ \ "formData").write[Seq[FormField]]
   )(f => (f.submissionRef, f.projectId, f.templateId, f.customerId, f.submissionTimestamp, f.formData))
 
-  "formLine" should {
-    "return the form as formatted line in jsonline format" in {
-      forAll(genForm) { form =>
-        val result = JSONLineFormatter.formLine(form)
-        result shouldBe formJsonLineWrites.writes(form).toString
-      }
-    }
-  }
-
-  "ext" should {
-    "return xls" in {
-      JSONLineFormatter.ext shouldBe "xls"
-    }
-  }
+  def toJson(form: Form): String = formJsonLineWrites.writes(form).toString()
 }

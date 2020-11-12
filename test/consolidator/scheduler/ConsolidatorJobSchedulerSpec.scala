@@ -22,8 +22,7 @@ import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
 import akka.testkit.{ ImplicitSender, TestKit, TestProbe }
 import com.typesafe.akka.extension.quartz.MessageWithFireTime
 import com.typesafe.config.ConfigFactory
-import consolidator.services.ScheduledFormConsolidatorParams
-import consolidator.services.formatters.ConsolidationFormat
+import consolidator.services.{ ConsolidationFormat, ScheduledFormConsolidatorParams }
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers

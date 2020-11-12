@@ -11,7 +11,8 @@ object AppDependencies {
     "org.typelevel"     %% "cats-effect"               % "2.2.0-RC3",
     "uk.gov.hmrc"       %% "mongo-lock"                % "6.23.0-play-27",
     "org.apache.commons" % "commons-text"              % "1.9",
-    "org.xhtmlrenderer"  % "flying-saucer-pdf"         % "9.1.20"
+    "org.xhtmlrenderer"  % "flying-saucer-pdf"         % "9.1.20",
+    "org.apache.poi"     % "poi-ooxml"                 % "4.1.2"
   )
 
   val test = Seq(

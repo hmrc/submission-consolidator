@@ -14,15 +14,21 @@
  * limitations under the License.
  */
 
-package common
+package consolidator.services.sink
 
-case class ContentType(value: String) extends AnyVal
+import java.io.File
 
-object ContentType {
-  val `text/plain` = ContentType("text/plain")
-  val `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` = ContentType(
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-  val `text/csv` = ContentType("text/csv")
-  val `application/xml` = ContentType("application/xml")
-  val `application/pdf` = ContentType("application/pdf")
+trait FilePartWriter[T] {
+
+  def openChannel(): Int
+
+  def write(value: T): Int
+
+  def closeChannel(): Unit
+
+  def complete(): Array[File]
+}
+
+object FilePartWriter {
+  def apply[T](implicit f: FilePartWriter[T]): FilePartWriter[T] = f
 }

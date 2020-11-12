@@ -22,16 +22,15 @@ import java.time.{ Instant, ZoneId }
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
-import collector.repositories.{ DataGenerators, Form, FormRepository }
+import collector.repositories.{ DataGenerators, Form, FormField, FormRepository }
 import common.Time
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository, GenericConsolidatorJobDataError }
 import consolidator.scheduler.UntilTime
-import consolidator.services.formatters.ConsolidationFormat.ConsolidationFormat
-import consolidator.services.formatters.{ CSVFormatter, ConsolidationFormat, FormFormatter, FormFormatterFactory, JSONLineFormatter }
+import consolidator.TestHelper.excelFileRows
+import ConsolidationFormat.ConsolidationFormat
+import consolidator.services.sink.{ FormCSVFilePartWriter, FormJsonLineFilePartWriter }
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
-import org.scalacheck.Gen
-import org.scalacheck.rng.Seed
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
@@ -64,9 +63,8 @@ class ConsolidatorServiceSpec
       new ConsolidatorService(
         mockFormRepository,
         mockConsolidatorJobDataRepository,
-        new FormFormatterFactory(mockFormRepository),
         Configuration(
-          "consolidator-job-config.batchSize" -> _batchSize,
+          "consolidator-job-config.batchSize" -> _batchSize
         )
       ) {
         override lazy val reportPerFileSizeInBytes: Long = _reportPerFileSizeInBytes
@@ -74,7 +72,6 @@ class ConsolidatorServiceSpec
 
     lazy val projectId = "some-project-id"
     lazy val format: ConsolidationFormat = ConsolidationFormat.jsonl
-    lazy val formatter: FormFormatter = JSONLineFormatter
     val classificationType = "some-classification"
     val businessArea = "some-business-area"
     val formConsolidatorParams: ScheduledFormConsolidatorParams =
@@ -82,41 +79,81 @@ class ConsolidatorServiceSpec
     lazy val noOfForms = 1
     val now: Instant = Instant.now()
     implicit val timeInstant: Time[Instant] = () => now
-    lazy val forms = (1 to noOfForms)
+    lazy val forms: List[Form] = (1 to noOfForms)
       .map(
-        seed =>
-          genForm
-            .pureApply(Gen.Parameters.default, Seed(seed.toLong))
-            .copy(projectId = projectId))
+        i =>
+          Form(
+            s"some-sub-ref$i",
+            "some-project",
+            "some-template",
+            s"some-customer$i",
+            Instant.now(),
+            (1 to 10).map(j => FormField(s"id$j", s"value$i$j")).toList
+        ))
       .toList
 
     mockConsolidatorJobDataRepository.findRecentLastObjectId(*)(*) shouldReturn Future.successful(Right(None))
     mockFormRepository.formsSource(*, *, *, *) shouldReturn Source(forms).mapMaterializedValue(_ =>
       Future.successful(()))
+  }
 
-    def maxReportFileSize(forms: List[Form]) =
+  trait TestFixtureCSVFormat extends TestFixture {
+
+    override lazy val format: ConsolidationFormat = ConsolidationFormat.csv
+
+    lazy val headers: List[String] = forms.flatMap(_.formData.map(_.id).sorted).distinct.sorted
+
+    mockFormRepository.distinctFormDataIds(*, *)(*) shouldReturn Future.successful(Right(headers))
+
+    lazy val maxReportFileSize: Long =
       forms
         .map { form =>
-          formatter.headerLine.map(_.length + 1).getOrElse(0) + formatter.formLine(form).length + 1
+          FormCSVFilePartWriter.toCSV(headers).length + 1 + FormCSVFilePartWriter.toCSV(form, headers).length + 1
+        }
+        .max
+        .toLong
+
+  }
+
+  trait TestFixtureXLSXFormat extends TestFixture {
+
+    override lazy val format: ConsolidationFormat = ConsolidationFormat.xlsx
+
+    lazy val headers: List[String] = forms.flatMap(_.formData.map(_.id).sorted).distinct.sorted
+
+    mockFormRepository.distinctFormDataIds(*, *)(*) shouldReturn Future.successful(Right(headers))
+
+    lazy val maxReportFileSize: Long =
+      forms
+        .map { form =>
+          val headersLength = headers
+            .mkString("")
+            .getBytes("UTF-8")
+            .length
+          val formsLength =
+            headers.flatMap(h => form.formData.find(_.id == h).map(_.value)).mkString("").getBytes("UTF-8").length
+          headersLength + formsLength
+        }
+        .max
+        .toLong
+
+  }
+
+  trait TestFixtureJSONLineFormat extends TestFixture {
+
+    lazy val maxReportFileSize: Long =
+      forms
+        .map { form =>
+          FormJsonLineFilePartWriter.toJson(form).length + 1
         }
         .max
         .toLong
   }
 
-  trait TestFixtureCSVFormat extends TestFixture {
-    def formDataHeaders(form: Form): List[String] =
-      form.formData.map(_.id).sorted
-
-    val headers: List[String] = forms.flatMap(formDataHeaders).sorted
-    override lazy val format: ConsolidationFormat = ConsolidationFormat.csv
-    override lazy val formatter: FormFormatter = CSVFormatter(headers)
-    mockFormRepository.distinctFormDataIds(*, *)(*) shouldReturn Future.successful(Right(headers))
-  }
-
   "doConsolidation - scheduler form params" when {
     "consolidation is successful" should {
 
-      "not generate consolidation files if forms is empty" in new TestFixture {
+      "not generate consolidation files if forms is empty" in new TestFixtureJSONLineFormat {
         override lazy val noOfForms: Int = 0
 
         //when
@@ -131,11 +168,12 @@ class ConsolidatorServiceSpec
             projectId,
             _batchSize,
             None,
-            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant) wasCalled once
+            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant
+          ) wasCalled once
         }
       }
 
-      "consolidate all form submissions into a single consolidation file" in new TestFixture {
+      "consolidate all form submissions into a single consolidation file" in new TestFixtureJSONLineFormat {
         //when
 
         val future = consolidatorService.doConsolidation(reportDir, formConsolidatorParams).unsafeToFuture()
@@ -148,7 +186,7 @@ class ConsolidatorServiceSpec
           val files = consolidationResult.get.reportFiles
           files.map(_.getName) shouldBe Array("report-0.xls")
           val fileSource = scala.io.Source.fromFile(files.head, "UTF-8")
-          fileSource.getLines().toList shouldEqual List(formatter.formLine(forms.head))
+          fileSource.getLines().toList shouldEqual List(FormJsonLineFilePartWriter.toJson(forms.head))
           fileSource.close
 
           mockConsolidatorJobDataRepository.findRecentLastObjectId(projectId)(*) wasCalled once
@@ -156,15 +194,15 @@ class ConsolidatorServiceSpec
             projectId,
             _batchSize,
             None,
-            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant) wasCalled once
+            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant
+          ) wasCalled once
         }
       }
 
-      "consolidate form submissions into multiple files" in new TestFixture {
+      "consolidate form submissions into multiple files" in new TestFixtureJSONLineFormat {
         //given
         override lazy val noOfForms: Int = 2
-        override lazy val _reportPerFileSizeInBytes: Long = maxReportFileSize(forms)
-
+        override lazy val _reportPerFileSizeInBytes: Long = maxReportFileSize
         //when
         val future = consolidatorService.doConsolidation(reportDir, formConsolidatorParams).unsafeToFuture()
 
@@ -180,13 +218,13 @@ class ConsolidatorServiceSpec
               val fileSource = scala.io.Source.fromFile(file, "UTF-8")
               val lines = fileSource.getLines().toList
               lines.size shouldBe 1
-              lines.head shouldEqual formatter.formLine(form)
+              lines.head shouldEqual FormJsonLineFilePartWriter.toJson(form)
               fileSource.close
           }
         }
       }
 
-      "consolidate form submissions, starting with ObjectId from previous run" in new TestFixture {
+      "consolidate form submissions, starting with ObjectId from previous run" in new TestFixtureJSONLineFormat {
 
         val consolidatorJobData = ConsolidatorJobData(
           projectId,
@@ -197,7 +235,8 @@ class ConsolidatorServiceSpec
           Some("previous-envelope-id")
         )
         mockConsolidatorJobDataRepository.findRecentLastObjectId(*)(*) shouldReturn Future.successful(
-          Right(Some(consolidatorJobData)))
+          Right(Some(consolidatorJobData))
+        )
 
         val future = consolidatorService.doConsolidation(reportDir, formConsolidatorParams).unsafeToFuture()
 
@@ -209,7 +248,7 @@ class ConsolidatorServiceSpec
           val files = consolidationResult.get.reportFiles
           files.map(_.getName) shouldBe Array("report-0.xls")
           val fileSource = scala.io.Source.fromFile(files.head, "UTF-8")
-          fileSource.getLines().toList shouldEqual List(formatter.formLine(forms.head))
+          fileSource.getLines().toList shouldEqual List(FormJsonLineFilePartWriter.toJson(forms.head))
           fileSource.close
 
           mockConsolidatorJobDataRepository.findRecentLastObjectId(projectId)(*) wasCalled once
@@ -217,11 +256,12 @@ class ConsolidatorServiceSpec
             projectId,
             _batchSize,
             consolidatorJobData.lastObjectId,
-            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant) wasCalled once
+            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant
+          ) wasCalled once
         }
       }
 
-      "consolidate form submissions, with user form consolidator params" in new TestFixture {
+      "consolidate form submissions, with user form consolidator params" in new TestFixtureJSONLineFormat {
         val startInstant = now.minus(2, ChronoUnit.DAYS)
         val endInstant = now.minus(1, ChronoUnit.DAYS)
         val userFormConsolidatorParams =
@@ -236,7 +276,7 @@ class ConsolidatorServiceSpec
           val files = consolidationResult.get.reportFiles
           files.map(_.getName) shouldBe Array("report-0.xls")
           val fileSource = scala.io.Source.fromFile(files.head, "UTF-8")
-          fileSource.getLines().toList shouldEqual List(formatter.formLine(forms.head))
+          fileSource.getLines().toList shouldEqual List(FormJsonLineFilePartWriter.toJson(forms.head))
           fileSource.close
 
           mockConsolidatorJobDataRepository.findRecentLastObjectId(projectId)(*) wasNever called
@@ -245,14 +285,15 @@ class ConsolidatorServiceSpec
             projectId,
             _batchSize,
             Some(BSONObjectID.fromTime(startInstant.toEpochMilli)),
-            endInstant) wasCalled once
+            endInstant
+          ) wasCalled once
         }
       }
 
       "consolidate form submissions into multiple files (csv format)" in new TestFixtureCSVFormat {
         //given
         override lazy val noOfForms: Int = 2
-        override lazy val _reportPerFileSizeInBytes: Long = maxReportFileSize(forms)
+        override lazy val _reportPerFileSizeInBytes: Long = maxReportFileSize
 
         //when
         val future = consolidatorService.doConsolidation(reportDir, formConsolidatorParams).unsafeToFuture()
@@ -262,13 +303,6 @@ class ConsolidatorServiceSpec
           consolidationResult.get.lastObjectId shouldBe forms.last.id
           consolidationResult.get.count shouldBe noOfForms
 
-          mockConsolidatorJobDataRepository.findRecentLastObjectId(projectId)(*) wasCalled once
-          mockFormRepository.formsSource(
-            projectId,
-            _batchSize,
-            None,
-            now.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant) wasCalled once
-
           val files = consolidationResult.get.reportFiles
           files.size shouldBe 2
           files.sorted.zipWithIndex.zip(forms).foreach {
@@ -276,8 +310,33 @@ class ConsolidatorServiceSpec
               file.getName shouldBe s"report-$index.csv"
               val fileSource = scala.io.Source.fromFile(file, "UTF-8")
               val lines = fileSource.getLines().toList
-              lines shouldEqual List(formatter.headerLine.get, formatter.formLine(form))
+              lines.head shouldBe FormCSVFilePartWriter.toCSV(headers)
+              lines(1) shouldBe FormCSVFilePartWriter.toCSV(form, headers)
               fileSource.close
+          }
+        }
+      }
+
+      "consolidate form submissions in multiple files (xlsx format)" in new TestFixtureXLSXFormat {
+        //given
+        override lazy val noOfForms: Int = 2
+        override lazy val _reportPerFileSizeInBytes: Long = maxReportFileSize
+        //when
+        val future = consolidatorService.doConsolidation(reportDir, formConsolidatorParams).unsafeToFuture()
+
+        whenReady(future) { consolidationResult =>
+          consolidationResult.isDefined shouldBe true
+          consolidationResult.get.lastObjectId shouldBe forms.last.id
+          consolidationResult.get.count shouldBe noOfForms
+
+          val files = consolidationResult.get.reportFiles
+          files.size shouldBe 2
+          files.sorted.zipWithIndex.zip(forms).foreach {
+            case ((file, index), form) =>
+              file.getName shouldBe s"report-$index.xlsx"
+              val lines = excelFileRows(file)
+              lines.head shouldBe headers
+              lines(1) shouldBe headers.flatMap(h => form.formData.filter(_.id == h).map(_.value))
           }
         }
       }

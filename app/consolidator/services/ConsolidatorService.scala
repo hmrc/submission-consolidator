@@ -23,13 +23,13 @@ import java.time.Instant
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
 import cats.effect.{ ContextShift, IO }
-import collector.repositories.FormRepository
+import collector.repositories.{ Form, FormRepository }
 import common.Time
 import consolidator.IOUtils
 import consolidator.repositories.ConsolidatorJobDataRepository
 import consolidator.services.ConsolidatorService.ConsolidationResult
-import consolidator.services.FilePartOutputStage.Record
-import consolidator.services.formatters.{ FormFormatter, FormFormatterFactory }
+import ConsolidationFormat.ConsolidationFormat
+import consolidator.services.sink.{ FilePartOutputStage, FormCSVFilePartWriter, FormExcelFilePartWriter, FormJsonLineFilePartWriter }
 import javax.inject.{ Inject, Singleton }
 import play.api.Configuration
 import reactivemongo.bson.BSONObjectID
@@ -40,7 +40,6 @@ import scala.concurrent.ExecutionContext
 class ConsolidatorService @Inject()(
   formRepository: FormRepository,
   consolidatorJobDataRepository: ConsolidatorJobDataRepository,
-  formFormatterFactory: FormFormatterFactory,
   config: Configuration
 )(implicit ec: ExecutionContext, system: ActorSystem)
     extends IOUtils with FileUploadSettings {
@@ -64,41 +63,38 @@ class ConsolidatorService @Inject()(
     outputPath: Path
   ): IO[Option[ConsolidationResult]] =
     for {
-      formatter <- formFormatterFactory(params.format, params.projectId, afterObjectId)
+      formDataIds <- formDataIds(params.projectId, afterObjectId, params.format)
       filePartOutputStageResult <- writeFormsToFiles(
                                     params.projectId,
                                     afterObjectId,
                                     untilInstant,
+                                    formDataIds,
                                     outputPath,
-                                    formatter)
+                                    params.format)
     } yield
       filePartOutputStageResult
-        .map(f => ConsolidationResult(f.lastObjectId, f.count, f.reportFiles.toList))
+        .map(f => ConsolidationResult(f.lastValue.id, f.count, f.reportFiles.toList))
 
   private def writeFormsToFiles(
     projectId: String,
     afterObjectId: Option[BSONObjectID],
     untilInstant: Instant,
-    outputPath: Path,
-    formatter: FormFormatter
-  ) =
+    formDataIds: List[String],
+    outputDir: Path,
+    format: ConsolidationFormat) =
     liftIO(
       formRepository
         .formsSource(projectId, batchSize, afterObjectId, untilInstant)
-        .map { form =>
-          Record(formatter.formLine(form), form.id)
-        }
         .runWith(
           Sink.fromGraph(
-            new FilePartOutputStage(
-              outputPath,
-              "report",
-              formatter.ext,
-              reportPerFileSizeInBytes,
-              projectId,
-              batchSize,
-              formatter.headerLine
-            )
+            new FilePartOutputStage[Form]()(format match {
+              case ConsolidationFormat.jsonl =>
+                new FormJsonLineFilePartWriter(outputDir, "report", reportPerFileSizeInBytes)
+              case ConsolidationFormat.csv =>
+                new FormCSVFilePartWriter(outputDir, "report", reportPerFileSizeInBytes, formDataIds)
+              case ConsolidationFormat.xlsx =>
+                new FormExcelFilePartWriter(outputDir, "report", reportPerFileSizeInBytes, formDataIds)
+            })
           )
         )
         .map { filePartOutputStageResult =>
@@ -120,6 +116,16 @@ class ConsolidatorService @Inject()(
         IO.pure(
           Option(BSONObjectID.fromTime(u.startInstant.toEpochMilli, true))
         )
+    }
+
+  private def formDataIds(
+    projectId: String,
+    afterObjectId: Option[BSONObjectID],
+    format: ConsolidationFormat): IO[List[String]] =
+    format match {
+      case ConsolidationFormat.csv | ConsolidationFormat.`xlsx` =>
+        liftIO(formRepository.distinctFormDataIds(projectId, afterObjectId))
+      case ConsolidationFormat.jsonl => IO.pure(List.empty)
     }
 }
 

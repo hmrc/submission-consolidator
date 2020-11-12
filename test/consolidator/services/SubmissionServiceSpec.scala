@@ -29,7 +29,6 @@ import consolidator.proxies._
 import consolidator.scheduler.UntilTime
 import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
 import consolidator.services.SubmissionService.FileIds
-import consolidator.services.formatters.ConsolidationFormat
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.matchers.should.Matchers
