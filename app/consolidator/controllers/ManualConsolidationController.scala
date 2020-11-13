@@ -16,6 +16,7 @@
 
 package consolidator.controllers
 
+import java.awt.GraphicsEnvironment
 import java.time.{ LocalDate, ZoneId }
 import java.util.Date
 import java.util.concurrent.TimeUnit
@@ -60,6 +61,7 @@ class ManualConsolidationController @Inject()(controllerComponents: ControllerCo
   def consolidateAndSubmit(consolidatorJobId: String, startDate: String, endDate: String) =
     Action.async { _ =>
       val time = System.currentTimeMillis()
+      logger.info("Headless " + GraphicsEnvironment.isHeadless)
       logger.info(
         s"Manual consolidation triggered [consolidatorJobId=$consolidatorJobId, startDate=$startDate, endDate=$endDate]"
       )
