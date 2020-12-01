@@ -20,7 +20,7 @@ import java.io.FileOutputStream
 import java.nio.file.{ Path, Paths }
 
 import collector.repositories.Form
-import org.apache.poi.xssf.streaming.SXSSFWorkbook
+import org.apache.poi.xssf.usermodel.XSSFWorkbook
 
 import scala.util.Try
 
@@ -33,13 +33,13 @@ class FormExcelFilePartWriter(
 
   override val ext: String = "xlsx"
 
-  private var currentWorkbook: Option[SXSSFWorkbook] = None
+  private var currentWorkbook: Option[XSSFWorkbook] = None
   private var currentSheetByteCount = 0
   private var rowNum = 0
 
   override def openChannel(): Int = {
     closeChannel()
-    currentWorkbook = Some(new SXSSFWorkbook(1))
+    currentWorkbook = Some(new XSSFWorkbook())
     val headersByteSize: Int = writeHeaders()
     currentSheetByteCount += headersByteSize
     headersByteSize

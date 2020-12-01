@@ -48,7 +48,7 @@ class ManualConsolidationController @Inject()(controllerComponents: ControllerCo
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[ManualConsolidationController])
 
-  implicit val timeout: Timeout = Timeout(5, TimeUnit.MINUTES)
+  implicit val timeout: Timeout = Timeout(30, TimeUnit.MINUTES)
 
   implicit val ec: ExecutionContext = system.dispatcher
 
