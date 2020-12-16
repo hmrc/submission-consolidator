@@ -51,7 +51,7 @@ class FormExcelFilePartWriter(
   }
 
   override def write(form: Form): Int = {
-    val formValues = headers.flatMap(h => form.formData.find(_.id == h).map(_.value))
+    val formValues = headers.map(h => form.formData.find(_.id == h).map(_.value).getOrElse(""))
     val formValuesByteCount = formValues.mkString("").getBytes("UTF-8").length
     if (currentSheetByteCount + formValuesByteCount > maxBytesPerFile)
       openChannel()
