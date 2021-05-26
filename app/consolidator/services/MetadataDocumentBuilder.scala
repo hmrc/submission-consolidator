@@ -18,10 +18,11 @@ package consolidator.services
 
 import java.time.format.DateTimeFormatter
 import java.time.{ Instant, ZoneId }
-
 import common.Time
 import common.UniqueReferenceGenerator.UniqueRef
+import consolidator.scheduler.FileUpload
 import consolidator.services
+import shapeless.syntax.typeable._
 
 trait MetadataDocumentBuilder {
 
@@ -40,6 +41,9 @@ trait MetadataDocumentBuilder {
     format: String,
     mime: String
   )(implicit time: Time[Instant]) = {
+    val fileUploadDestination = params.destination.cast[FileUpload]
+    assert(fileUploadDestination.isDefined, "FormConsolidatorParams destination should be FileUpload type")
+
     val zonedDateTime = time.now().atZone(ZoneId.systemDefault())
     MetadataDocument(
       Documents(
@@ -63,8 +67,8 @@ trait MetadataDocumentBuilder {
               Attribute("cas_key", "string", List("AUDIT_SERVICE")),
               Attribute("number_pages", "int", List("1")),
               Attribute("customer_id", "string", List(s"Report-${DATE_FORMAT.format(zonedDateTime)}")),
-              Attribute("classification_type", "string", List(params.classificationType)),
-              Attribute("business_area", "string", List(params.businessArea)),
+              Attribute("classification_type", "string", List(fileUploadDestination.get.classificationType)),
+              Attribute("business_area", "string", List(fileUploadDestination.get.businessArea)),
               Attribute("attachment_count", "int", List(attachmentCount.toString))
             )
           )

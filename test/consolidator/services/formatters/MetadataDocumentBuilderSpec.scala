@@ -17,10 +17,9 @@
 package consolidator.services.formatters
 
 import java.time.{ Instant, ZoneId }
-
 import common.Time
 import common.UniqueReferenceGenerator.UniqueRef
-import consolidator.scheduler.UntilTime
+import consolidator.scheduler.{ FileUpload, UntilTime }
 import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
 import consolidator.services.{ ConsolidationFormat, MetadataDocumentBuilder, ScheduledFormConsolidatorParams }
 import org.scalatest.matchers.should.Matchers
@@ -40,9 +39,8 @@ class MetadataDocumentBuilderSpec extends AnyWordSpec with Matchers with TableDr
       val schedulerFormConsolidatorParams =
         ScheduledFormConsolidatorParams(
           projectId,
-          "some-classification",
-          "some-business-area",
           ConsolidationFormat.jsonl,
+          FileUpload("some-classification", "some-business-area"),
           UntilTime.now
         )
       val metadataDocument = MetadataDocumentBuilder.metaDataDocument(schedulerFormConsolidatorParams, uniqueRef, 1)

@@ -4,15 +4,17 @@ import sbt._
 object AppDependencies {
 
   val compile = Seq(
-    "uk.gov.hmrc"       %% "bootstrap-backend-play-27" % "2.23.0",
-    "uk.gov.hmrc"       %% "simple-reactivemongo"      % "7.30.0-play-27",
-    "org.reactivemongo" %% "reactivemongo-akkastream"  % "0.18.8",
-    "com.enragedginger" %% "akka-quartz-scheduler"     % "1.8.1-akka-2.5.x",
-    "org.typelevel"     %% "cats-effect"               % "2.2.0-RC3",
-    "uk.gov.hmrc"       %% "mongo-lock"                % "6.23.0-play-27",
-    "org.apache.commons" % "commons-text"              % "1.9",
-    "org.xhtmlrenderer"  % "flying-saucer-pdf"         % "9.1.20",
-    "org.apache.poi"     % "poi-ooxml"                 % "4.1.2"
+    "uk.gov.hmrc"           %% "bootstrap-backend-play-27" % "2.23.0",
+    "uk.gov.hmrc"           %% "simple-reactivemongo"      % "7.30.0-play-27",
+    "org.reactivemongo"     %% "reactivemongo-akkastream"  % "0.18.8",
+    "com.enragedginger"     %% "akka-quartz-scheduler"     % "1.8.1-akka-2.5.x",
+    "org.typelevel"         %% "cats-effect"               % "2.2.0-RC3",
+    "uk.gov.hmrc"           %% "mongo-lock"                % "6.23.0-play-27",
+    "org.apache.commons"     % "commons-text"              % "1.9",
+    "org.xhtmlrenderer"      % "flying-saucer-pdf"         % "9.1.20",
+    "org.apache.poi"         % "poi-ooxml"                 % "4.1.2",
+    "org.julienrf"          %% "play-json-derived-codecs"  % "4.0.1",
+    "com.chuusai"           %% "shapeless"                 % "2.3.3"
   )
 
   val test = Seq(

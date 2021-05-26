@@ -17,13 +17,13 @@
 package consolidator.services
 
 import common.ContentType
-import play.api.libs.json.Json
+import play.api.libs.json.{ Format, Json }
 
 object ConsolidationFormat extends Enumeration {
   type ConsolidationFormat = Value
   val csv, jsonl, xlsx = Value
 
-  implicit val formats = Json.formatEnum(ConsolidationFormat)
+  implicit val formats: Format[ConsolidationFormat] = Json.formatEnum(ConsolidationFormat)
 
   implicit class ConsolidationFormatOps(consolidationFormat: ConsolidationFormat) {
 
