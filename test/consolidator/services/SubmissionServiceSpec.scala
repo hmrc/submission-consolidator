@@ -18,14 +18,13 @@ package consolidator.services
 
 import java.time.format.DateTimeFormatter
 import java.time.{ Instant, ZoneId }
-
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import common.UniqueReferenceGenerator.UniqueRef
 import common.{ ContentType, Time, UniqueReferenceGenerator }
 import consolidator.TestHelper.{ createFileInDir, createTmpDir }
 import consolidator.proxies._
-import consolidator.scheduler.UntilTime
+import consolidator.scheduler.{ FileUpload, UntilTime }
 import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
 import consolidator.services.SubmissionService.FileIds
 import org.mockito.ArgumentMatchersSugar
@@ -52,10 +51,10 @@ class SubmissionServiceSpec
     val projectId = "some-project-id"
     val schedulerFormConsolidatorParams = ScheduledFormConsolidatorParams(
       projectId,
-      "some-classification",
-      "some-business-area",
       ConsolidationFormat.jsonl,
-      UntilTime.now)
+      FileUpload("some-classification", "some-business-area"),
+      UntilTime.now
+    )
     val mockFileUploadProxy = mock[FileUploadProxy](withSettings.lenient())
     val mockFileUploadFrontendProxy = mock[FileUploadFrontEndProxy](withSettings.lenient())
     val mockUniqueReferenceGenerator = mock[UniqueReferenceGenerator](withSettings.lenient())
@@ -101,7 +100,8 @@ class SubmissionServiceSpec
               "text/plain",
               "text/csv",
               "application/pdf",
-              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            ),
             false
           )
         )
@@ -150,8 +150,10 @@ class SubmissionServiceSpec
               "text/plain",
               "text/csv",
               "application/pdf",
-              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
-            false)
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            ),
+            false
+          )
         )
       ) wasCalled twice
       reportFiles.foreach { f =>

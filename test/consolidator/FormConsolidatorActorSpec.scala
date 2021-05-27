@@ -20,7 +20,6 @@ import java.nio.file.Files.createDirectories
 import java.nio.file.{ Path, Paths }
 import java.text.SimpleDateFormat
 import java.util.Date
-
 import akka.actor.ActorSystem
 import akka.testkit.{ ImplicitSender, TestKit }
 import cats.data.NonEmptyList
@@ -30,7 +29,7 @@ import com.typesafe.akka.extension.quartz.MessageWithFireTime
 import common.MetricsClient
 import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
-import consolidator.scheduler.UntilTime
+import consolidator.scheduler.{ FileUpload, UntilTime }
 import consolidator.services.ConsolidatorService.ConsolidationResult
 import consolidator.services.{ ConsolidationFormat, ConsolidatorService, DeleteDirService, ScheduledFormConsolidatorParams, SubmissionService }
 import org.mockito.ArgumentMatchersSugar
@@ -69,10 +68,10 @@ class FormConsolidatorActorSpec
     val envelopeId = "some-envelope-id"
     val schedulerFormConsolidatorParams = ScheduledFormConsolidatorParams(
       projectId,
-      "some-classification",
-      "some-business-area",
       ConsolidationFormat.jsonl,
-      UntilTime.now)
+      FileUpload("some-classification", "some-business-area"),
+      UntilTime.now
+    )
 
     val actor = system.actorOf(
       FormConsolidatorActor
@@ -82,7 +81,8 @@ class FormConsolidatorActorSpec
           mockConsolidatorJobDataRepository,
           mockLockRepository,
           mockMetricsClient,
-          mockDeleteDirService)
+          mockDeleteDirService
+        )
     )
 
     val messageWithFireTime = MessageWithFireTime(schedulerFormConsolidatorParams, now)
@@ -94,7 +94,8 @@ class FormConsolidatorActorSpec
     def assertConsolidatorData(
       lastObjectId: Option[BSONObjectID],
       error: Option[String],
-      envelopeId: Option[String]) = {
+      envelopeId: Option[String]
+    ) = {
       val consolidatorJobDataCaptor = ArgCaptor[ConsolidatorJobData]
       mockConsolidatorJobDataRepository.add(consolidatorJobDataCaptor)(*) wasCalled once
       consolidatorJobDataCaptor.value.projectId shouldBe projectId

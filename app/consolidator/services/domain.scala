@@ -16,53 +16,52 @@
 
 package consolidator.services
 
+import consolidator.scheduler.UntilTime.UntilTime
+import consolidator.scheduler.{ Destination, UntilTime }
+import consolidator.services.ConsolidationFormat.ConsolidationFormat
+
 import java.time.{ Instant, ZoneId }
 
-import consolidator.scheduler.UntilTime
-import consolidator.scheduler.UntilTime.UntilTime
-import ConsolidationFormat.ConsolidationFormat
-
 trait FormConsolidatorParams {
+
   def projectId: String
-
-  def classificationType: String
-
-  def businessArea: String
 
   def format: ConsolidationFormat
 
   def getUntilInstant(currentInstant: Instant): Instant
+
+  def destination: Destination
 }
 
 case class ScheduledFormConsolidatorParams(
   projectId: String,
-  classificationType: String,
-  businessArea: String,
   format: ConsolidationFormat,
+  destination: Destination,
   untilTime: UntilTime
 ) extends FormConsolidatorParams {
 
-  override def getUntilInstant(currentInstant: Instant) = untilTime match {
-    case UntilTime.now => currentInstant.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant
-    case UntilTime.`previous_day` =>
-      currentInstant
-        .atZone(ZoneId.systemDefault())
-        .minusDays(1)
-        .withHour(23)
-        .withMinute(59)
-        .withSecond(59)
-        .withNano(0)
-        .toInstant
-  }
+  override def getUntilInstant(currentInstant: Instant) =
+    untilTime match {
+      case UntilTime.now => currentInstant.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant
+      case UntilTime.`previous_day` =>
+        currentInstant
+          .atZone(ZoneId.systemDefault())
+          .minusDays(1)
+          .withHour(23)
+          .withMinute(59)
+          .withSecond(59)
+          .withNano(0)
+          .toInstant
+    }
 }
 
 case class ManualFormConsolidatorParams(
   projectId: String,
-  classificationType: String,
-  businessArea: String,
   format: ConsolidationFormat,
+  destination: Destination,
   startInstant: Instant,
   endInstant: Instant
 ) extends FormConsolidatorParams {
+
   override def getUntilInstant(currentInstant: Instant): Instant = endInstant
 }

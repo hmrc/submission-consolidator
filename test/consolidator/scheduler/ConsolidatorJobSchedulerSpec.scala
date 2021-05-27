@@ -75,16 +75,14 @@ class ConsolidatorJobSchedulerSpec
       jobParams should contain(
         ScheduledFormConsolidatorParams(
           "some-project-id-1",
-          "some-classification-type-1",
-          "some-business-area-1",
           ConsolidationFormat.jsonl,
+          FileUpload("some-classification-type-1", "some-business-area-1"),
           UntilTime.now))
       jobParams should contain(
         ScheduledFormConsolidatorParams(
           "some-project-id-2",
-          "some-classification-type-2",
-          "some-business-area-2",
           ConsolidationFormat.csv,
+          FileUpload("some-classification-type-2", "some-business-area-2"),
           UntilTime.previous_day))
 
       jobScheduler.shutdown(true)
