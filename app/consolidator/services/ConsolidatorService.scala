@@ -63,38 +63,24 @@ class ConsolidatorService @Inject()(
     outputPath: Path
   ): IO[Option[ConsolidationResult]] =
     for {
-      formDataIds <- formDataIds(params.projectId, afterObjectId, params.format)
-      filePartOutputStageResult <- writeFormsToFiles(
-                                    params.projectId,
-                                    afterObjectId,
-                                    untilInstant,
-                                    formDataIds,
-                                    outputPath,
-                                    params.format)
+      formDataIds               <- formDataIds(params.projectId, afterObjectId, params.format)
+      filePartOutputStageResult <- writeFormsToFiles(params, afterObjectId, untilInstant, formDataIds, outputPath)
     } yield
       filePartOutputStageResult
         .map(f => ConsolidationResult(f.lastValue.id, f.count, f.reportFiles.toList))
 
   private def writeFormsToFiles(
-    projectId: String,
+    params: FormConsolidatorParams,
     afterObjectId: Option[BSONObjectID],
     untilInstant: Instant,
     formDataIds: List[String],
-    outputDir: Path,
-    format: ConsolidationFormat) =
+    outputDir: Path) =
     liftIO(
       formRepository
-        .formsSource(projectId, batchSize, afterObjectId, untilInstant)
+        .formsSource(params.projectId, batchSize, afterObjectId, untilInstant)
         .runWith(
           Sink.fromGraph(
-            new FilePartOutputStage[Form]()(format match {
-              case ConsolidationFormat.jsonl =>
-                new FormJsonLineFilePartWriter(outputDir, "report", reportPerFileSizeInBytes)
-              case ConsolidationFormat.csv =>
-                new FormCSVFilePartWriter(outputDir, "report", reportPerFileSizeInBytes, formDataIds)
-              case ConsolidationFormat.xlsx =>
-                new FormExcelFilePartWriter(outputDir, "report", reportPerFileSizeInBytes, formDataIds)
-            })
+            new FilePartOutputStage[Form]()(createFilePartWriter(formDataIds, outputDir, params))
           )
         )
         .map { filePartOutputStageResult =>
@@ -104,6 +90,16 @@ class ConsolidatorService @Inject()(
           case e => Left(e)
         }
     )
+
+  private def createFilePartWriter(formDataIds: List[String], outputDir: Path, params: FormConsolidatorParams) =
+    params.format match {
+      case ConsolidationFormat.jsonl =>
+        new FormJsonLineFilePartWriter(outputDir, "report", reportPerFileSizeInBytes)
+      case ConsolidationFormat.csv =>
+        new FormCSVFilePartWriter(outputDir, "report", reportPerFileSizeInBytes, formDataIds)
+      case ConsolidationFormat.xlsx =>
+        new FormExcelFilePartWriter(outputDir, "report", reportPerFileSizeInBytes, formDataIds)
+    }
 
   private def getAfterObjectId(params: FormConsolidatorParams) =
     params match {

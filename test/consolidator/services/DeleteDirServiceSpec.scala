@@ -56,7 +56,7 @@ class DeleteDirServiceSpec extends AnyWordSpec with Matchers with BeforeAndAfter
 
       whenReady(future) { result =>
         result.isLeft shouldBe true
-        result.left.get.getMessage shouldBe s"$path is not a directory"
+        result.left.get.getMessage shouldBe s"Parameter 'directory' is not a directory: '$path'"
       }
     }
   }
