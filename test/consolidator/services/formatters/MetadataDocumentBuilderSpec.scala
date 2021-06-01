@@ -43,7 +43,11 @@ class MetadataDocumentBuilderSpec extends AnyWordSpec with Matchers with TableDr
           FileUpload("some-classification", "some-business-area"),
           UntilTime.now
         )
-      val metadataDocument = MetadataDocumentBuilder.metaDataDocument(schedulerFormConsolidatorParams, uniqueRef, 1)
+      val metadataDocument = MetadataDocumentBuilder.metaDataDocument(
+        schedulerFormConsolidatorParams.destination.asInstanceOf[FileUpload],
+        uniqueRef,
+        1
+      )
       metadataDocument shouldBe buildMetadataDocument(zonedDateTime, "pdf", "application/pdf", 1)
     }
   }

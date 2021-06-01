@@ -16,13 +16,15 @@
 
 package consolidator.services
 
+import cats.data.NonEmptyList
 import common.JsonFormat
-import julienrf.json.derived
 import play.api.libs.json.Format
+import julienrf.json.derived
 
 sealed trait SubmissionResult
 
-case object S3SubmissionResult extends SubmissionResult
+case class FileUploadSubmissionResult(envelopeIds: NonEmptyList[String]) extends SubmissionResult
+case class S3SubmissionResult(files: NonEmptyList[String]) extends SubmissionResult
 
 object SubmissionResult extends JsonFormat {
   implicit val format: Format[SubmissionResult] = derived.oformat()

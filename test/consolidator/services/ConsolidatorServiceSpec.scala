@@ -27,6 +27,7 @@ import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepos
 import consolidator.scheduler.{ FileUpload, UntilTime }
 import consolidator.TestHelper.excelFileRows
 import ConsolidationFormat.ConsolidationFormat
+import cats.data.NonEmptyList
 import consolidator.services.sink.{ FormCSVFilePartWriter, FormJsonLineFilePartWriter }
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
@@ -66,7 +67,7 @@ class ConsolidatorServiceSpec
           "consolidator-job-config.batchSize" -> _batchSize
         )
       ) {
-        override lazy val reportPerFileSizeInBytes: Long = _reportPerFileSizeInBytes
+        override val fileUploadReportPerFileSizeBytes: Long = _reportPerFileSizeInBytes
       }
 
     lazy val projectId = "some-project-id"
@@ -183,7 +184,7 @@ class ConsolidatorServiceSpec
           consolidationResult.get.count shouldBe noOfForms
 
           val files = consolidationResult.get.reportFiles
-          files.map(_.getName) shouldBe Array("report-0.xls")
+          files.map(_.getName) shouldBe List("report-0.txt")
           val fileSource = scala.io.Source.fromFile(files.head, "UTF-8")
           fileSource.getLines().toList shouldEqual List(FormJsonLineFilePartWriter.toJson(forms.head))
           fileSource.close
@@ -213,7 +214,7 @@ class ConsolidatorServiceSpec
           files.size shouldBe 2
           files.sorted.zipWithIndex.zip(forms).foreach {
             case ((file, index), form) =>
-              file.getName shouldBe s"report-$index.xls"
+              file.getName shouldBe s"report-$index.txt"
               val fileSource = scala.io.Source.fromFile(file, "UTF-8")
               val lines = fileSource.getLines().toList
               lines.size shouldBe 1
@@ -231,7 +232,8 @@ class ConsolidatorServiceSpec
           now,
           Some(BSONObjectID.generate()),
           None,
-          Some("previous-envelope-id")
+          Some("previous-envelope-id"),
+          Some(FileUploadSubmissionResult(NonEmptyList.of("previous-envelope-id")))
         )
         mockConsolidatorJobDataRepository.findRecentLastObjectId(*)(*) shouldReturn Future.successful(
           Right(Some(consolidatorJobData))
@@ -245,7 +247,7 @@ class ConsolidatorServiceSpec
           consolidationResult.get.count shouldBe noOfForms
 
           val files = consolidationResult.get.reportFiles
-          files.map(_.getName) shouldBe Array("report-0.xls")
+          files.map(_.getName) shouldBe List("report-0.txt")
           val fileSource = scala.io.Source.fromFile(files.head, "UTF-8")
           fileSource.getLines().toList shouldEqual List(FormJsonLineFilePartWriter.toJson(forms.head))
           fileSource.close
@@ -278,7 +280,7 @@ class ConsolidatorServiceSpec
           consolidationResult.get.count shouldBe noOfForms
 
           val files = consolidationResult.get.reportFiles
-          files.map(_.getName) shouldBe Array("report-0.xls")
+          files.map(_.getName) shouldBe List("report-0.txt")
           val fileSource = scala.io.Source.fromFile(files.head, "UTF-8")
           fileSource.getLines().toList shouldEqual List(FormJsonLineFilePartWriter.toJson(forms.head))
           fileSource.close

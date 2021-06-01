@@ -20,7 +20,8 @@ import akka.actor.{ ActorSystem, Props }
 import common.MetricsClient
 import consolidator.FormConsolidatorActor
 import consolidator.repositories.ConsolidatorJobDataRepository
-import consolidator.services.{ ConsolidatorService, DeleteDirService, SubmissionService }
+import consolidator.services.{ ConsolidatorService, DeleteDirService, FileUploadSubmissionService, S3SubmissionService }
+
 import javax.inject.Inject
 import org.slf4j.{ Logger, LoggerFactory }
 import play.api.inject.ApplicationLifecycle
@@ -32,7 +33,8 @@ import scala.concurrent.Future
 class ConsolidatorJobSchedulerTask @Inject()(
   jobScheduler: ConsolidatorJobScheduler,
   consolidatorService: ConsolidatorService,
-  fileUploaderService: SubmissionService,
+  fileUploadSubmissionService: FileUploadSubmissionService,
+  s3SubmissionService: S3SubmissionService,
   deleteDirService: DeleteDirService,
   consolidatorJobDataRepository: ConsolidatorJobDataRepository,
   mongoComponent: ReactiveMongoComponent,
@@ -46,7 +48,8 @@ class ConsolidatorJobSchedulerTask @Inject()(
   val formConsolidatorActorProps: Props = FormConsolidatorActor
     .props(
       consolidatorService,
-      fileUploaderService,
+      fileUploadSubmissionService,
+      s3SubmissionService,
       consolidatorJobDataRepository,
       LockMongoRepository(mongoComponent.mongoConnector.db),
       metricsClient,

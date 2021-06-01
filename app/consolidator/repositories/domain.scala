@@ -19,6 +19,7 @@ package consolidator.repositories
 import java.time.Instant
 
 import collector.common.ApplicationError
+import consolidator.services.SubmissionResult
 import play.api.libs.json.{ Format, JsValue, Json, Reads, Writes, __ }
 import reactivemongo.bson.BSONObjectID
 
@@ -29,6 +30,7 @@ case class ConsolidatorJobData(
   lastObjectId: Option[BSONObjectID],
   error: Option[String],
   envelopeId: Option[String],
+  submissionResult: Option[SubmissionResult],
   id: BSONObjectID = BSONObjectID.generate()
 )
 object ConsolidatorJobData {

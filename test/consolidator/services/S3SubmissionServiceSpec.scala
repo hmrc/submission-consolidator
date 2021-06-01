@@ -16,6 +16,7 @@
 
 package consolidator.services
 
+import cats.data.NonEmptyList
 import cats.effect.IO
 import com.amazonaws.auth.{ AWSStaticCredentialsProvider, AnonymousAWSCredentials }
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
@@ -83,7 +84,9 @@ class S3SubmissionServiceSpec extends AnyFlatSpec with Matchers with BeforeAndAf
       S3(new URI(s3Endpoint), bucket)
     )
     val result: SubmissionResult = io.unsafeRunSync()
-    result shouldBe S3SubmissionResult
+    result shouldBe S3SubmissionResult(
+      NonEmptyList
+        .of(s"report-0-${DATE_TIME_FORMAT.format(zonedNow)}.txt", s"report-1-${DATE_TIME_FORMAT.format(zonedNow)}.txt"))
     assertReportFiles(zonedNow, bucket, numberOfReportFiles)
   }
 

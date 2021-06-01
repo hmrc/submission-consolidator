@@ -16,12 +16,7 @@
 
 package consolidator.services
 
-import java.io.File
-import java.time.format.DateTimeFormatter
-import java.time.{ Instant, ZoneId }
-
 import akka.util.ByteString
-import cats.data.NonEmptyList
 import cats.data.NonEmptyList.fromListUnsafe
 import cats.effect.{ ContextShift, IO }
 import cats.syntax.parallel._
@@ -29,14 +24,18 @@ import common.UniqueReferenceGenerator.UniqueRef
 import common.{ ContentType, Time, UniqueReferenceGenerator }
 import consolidator.IOUtils
 import consolidator.proxies._
-import consolidator.services.SubmissionService.FileIds
-import javax.inject.{ Inject, Singleton }
+import consolidator.scheduler.FileUpload
+import consolidator.services.ConsolidationFormat.ConsolidationFormat
 import org.slf4j.{ Logger, LoggerFactory }
 
+import java.io.File
+import java.time.format.DateTimeFormatter
+import java.time.{ Instant, ZoneId }
+import javax.inject.{ Inject, Singleton }
 import scala.concurrent.ExecutionContext
 
 @Singleton
-class SubmissionService @Inject()(
+class FileUploadSubmissionService @Inject()(
   fileUploadProxy: FileUploadProxy,
   fileUploadFrontEndProxy: FileUploadFrontEndProxy,
   uniqueReferenceGenerator: UniqueReferenceGenerator
@@ -50,9 +49,13 @@ class SubmissionService @Inject()(
   private val SUBMISSION_REF_LENGTH = 12
   private val REPORT_FILE_PATTERN = "report-(\\d+)\\.(.+)".r
 
-  def submit(reportFiles: List[File], params: FormConsolidatorParams)(
+  def submit(
+    reportFiles: List[File],
+    projectId: String,
+    format: ConsolidationFormat,
+    fileUploadDestination: FileUpload)(
     implicit
-    time: Time[Instant]): IO[NonEmptyList[String]] = {
+    time: Time[Instant]): IO[SubmissionResult] = {
     implicit val now: Instant = time.now()
     val zonedDateTime = now.atZone(ZoneId.systemDefault())
 
@@ -65,21 +68,21 @@ class SubmissionService @Inject()(
       })
     assert(reportFileList.nonEmpty, s"Report files should be non-empty")
     logger.info(
-      s"Uploading reports to file-upload service [reportFiles=$reportFiles, params=$params]"
+      s"Uploading reports to file-upload service [reportFiles=$reportFiles, projectId=$projectId]"
     )
 
     val groupedReportFiles = reportFileList.foldLeft(List(List[File]())) {
       case (acc, reportFile) =>
-        if (acc.head.map(_.length()).sum + reportFile.length() > maxReportAttachmentsSize) {
+        if (acc.head.map(_.length()).sum + reportFile.length() > maxReportAttachmentsSize)
           List(reportFile) :: acc
-        } else {
+        else
           (reportFile :: acc.head) :: acc.tail
-        }
     }
 
     fromListUnsafe(groupedReportFiles.map(_.reverse).map { reportFiles =>
       logger.info(
-        s"Creating envelope and uploading files ${reportFiles.map(_.getName)} for project ${params.projectId}")
+        s"Creating envelope and uploading files ${reportFiles.map(_.getName)} for project $projectId"
+      )
       val createEnvelopeRequest = CreateEnvelopeRequest(
         consolidator.proxies.Metadata("gform"),
         Constraints(
@@ -90,7 +93,8 @@ class SubmissionService @Inject()(
             "text/plain",
             "text/csv",
             "application/pdf",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          ),
           false
         )
       )
@@ -102,10 +106,10 @@ class SubmissionService @Inject()(
         liftIO(
           fileUploadFrontEndProxy.upload(
             envelopeId,
-            FileIds.xmlDocument,
+            FileUploadSubmissionService.FileIds.xmlDocument,
             s"$fileNamePrefix-metadata.xml",
             ByteString(
-              MetadataDocumentBuilder.metaDataDocument(params, submissionRef, reportFiles.length).toXml
+              MetadataDocumentBuilder.metaDataDocument(fileUploadDestination, submissionRef, reportFiles.length).toXml
             ),
             ContentType.`application/xml`
           )
@@ -119,7 +123,8 @@ class SubmissionService @Inject()(
                 envelopeId,
                 FileId(file.getName.substring(0, file.getName.lastIndexOf("."))),
                 file,
-                params.format.contentType)
+                format.contentType
+              )
           )
         }).parSequence
 
@@ -127,9 +132,9 @@ class SubmissionService @Inject()(
         liftIO(
           fileUploadFrontEndProxy.upload(
             envelopeId,
-            FileIds.pdf,
+            FileUploadSubmissionService.FileIds.pdf,
             s"$fileNamePrefix-iform.pdf",
-            PDFGenerator.generateIFormPdf(params.projectId),
+            PDFGenerator.generateIFormPdf(projectId),
             ContentType.`application/pdf`
           )
         )
@@ -147,6 +152,7 @@ class SubmissionService @Inject()(
         _ <- routeEnvelope(envelopeId)
       } yield envelopeId
     }).parSequence
+      .map(FileUploadSubmissionResult)
   }
 
   private def generateSubmissionRef =
@@ -156,8 +162,7 @@ class SubmissionService @Inject()(
 
 }
 
-object SubmissionService {
-
+object FileUploadSubmissionService {
   object FileIds {
     val xmlDocument = FileId("xmlDocument")
     val pdf = FileId("pdf")

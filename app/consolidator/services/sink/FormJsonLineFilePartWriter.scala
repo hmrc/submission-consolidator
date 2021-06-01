@@ -25,16 +25,19 @@ import collector.repositories.{ Form, FormField }
 import play.api.libs.json.{ JsString, Writes, __ }
 import play.api.libs.functional.syntax._
 
-class FormJsonLineFilePartWriter(override val outputDir: Path, override val filePrefix: String, maxBytesPerFile: Long)
+class FormJsonLineFilePartWriter(
+  override val outputDir: Path,
+  override val filePrefix: String,
+  maybeMaxBytesPerFile: Option[Long])
     extends AbstractFilePartWriter[Form] {
 
-  override val ext: String = "xls"
+  override val ext: String = "txt"
 
   override def write(form: Form): Int = {
     val line: String = FormJsonLineFilePartWriter.toJson(form)
     val byteString = ByteString(line + "\n")
     val currentFileSize: Long = currentFile.map(_.size()).getOrElse(0)
-    if (currentFileSize + byteString.size > maxBytesPerFile)
+    if (maybeMaxBytesPerFile.exists(maxBytesPerFile => currentFileSize + byteString.size > maxBytesPerFile))
       openChannel()
     currentFile.map(_.write(byteString.toByteBuffer)).getOrElse(0)
   }

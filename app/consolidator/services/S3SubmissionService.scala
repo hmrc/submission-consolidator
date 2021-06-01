@@ -16,6 +16,7 @@
 
 package consolidator.services
 
+import cats.data.NonEmptyList
 import cats.effect.{ ContextShift, IO }
 import common.Time
 import consolidator.IOUtils
@@ -25,7 +26,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest
 
 import java.io.File
 import java.time.format.DateTimeFormatter
-import java.time.{ Instant, ZoneId }
+import java.time.{ Instant, ZoneId, ZonedDateTime }
 import javax.inject.{ Inject, Singleton }
 import scala.compat.java8.FutureConverters.toScala
 import scala.concurrent.{ ExecutionContext, Future }
@@ -36,9 +37,7 @@ class S3SubmissionService @Inject()(implicit ec: ExecutionContext) extends IOUti
   implicit val cs: ContextShift[IO] = IO.contextShift(ec)
   private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
 
-  def submit(reportFiles: List[File], s3Destination: S3)(
-    implicit
-    time: Time[Instant]): IO[SubmissionResult] = {
+  def submit(reportFiles: List[File], s3Destination: S3)(implicit time: Time[Instant]): IO[SubmissionResult] = {
 
     implicit val now: Instant = time.now()
     val zonedDateTime = now.atZone(ZoneId.systemDefault())
@@ -53,22 +52,25 @@ class S3SubmissionService @Inject()(implicit ec: ExecutionContext) extends IOUti
                 PutObjectRequest
                   .builder()
                   .bucket(s3Destination.bucket)
-                  .key({
-                    val extIndex = file.getName.lastIndexOf(".")
-                    file.getName.substring(0, extIndex) + "-" + DATE_TIME_FORMAT.format(zonedDateTime) + file.getName
-                      .substring(extIndex)
-                  })
+                  .key(reportFileName(zonedDateTime, file))
                   .build(),
                 file.toPath
               )
             ).recoverWith {
               case e =>
                 Future.failed(
-                  S3UploadException(s"Failed to upload file ${file.getName} to s3 bucket ${s3Destination.bucket}", e))
+                  S3UploadException(s"Failed to upload file ${file.getName} to s3 bucket ${s3Destination.bucket}", e)
+                )
             }
           }
-          .map(_ => S3SubmissionResult)
+          .map(_ => S3SubmissionResult(NonEmptyList.fromListUnsafe(reportFiles.map(reportFileName(zonedDateTime, _)))))
       )
     )
+  }
+
+  private def reportFileName(zonedDateTime: ZonedDateTime, file: File) = {
+    val extIndex = file.getName.lastIndexOf(".")
+    file.getName.substring(0, extIndex) + "-" + DATE_TIME_FORMAT.format(zonedDateTime) + file.getName
+      .substring(extIndex)
   }
 }

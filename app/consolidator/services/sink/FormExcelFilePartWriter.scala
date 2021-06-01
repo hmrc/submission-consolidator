@@ -27,7 +27,7 @@ import scala.util.Try
 class FormExcelFilePartWriter(
   override val outputDir: Path,
   override val filePrefix: String,
-  maxBytesPerFile: Long,
+  maybeMaxBytesPerFile: Option[Long],
   headers: List[String]
 ) extends AbstractFilePartWriter[Form] {
 
@@ -53,7 +53,7 @@ class FormExcelFilePartWriter(
   override def write(form: Form): Int = {
     val formValues = headers.map(h => form.formData.find(_.id == h).map(_.value).getOrElse(""))
     val formValuesByteCount = formValues.mkString("").getBytes("UTF-8").length
-    if (currentSheetByteCount + formValuesByteCount > maxBytesPerFile)
+    if (maybeMaxBytesPerFile.exists(maxBytesPerFile => currentSheetByteCount + formValuesByteCount > maxBytesPerFile))
       openChannel()
     writeRow(formValues)
     currentSheetByteCount += formValuesByteCount
