@@ -23,8 +23,6 @@ trait FileUploadSettings {
 
   lazy val maxSizeBytes: Long = 25 * BYTES_IN_1_MB
   lazy val maxPerFileBytes: Long = 10 * BYTES_IN_1_MB
-
-  lazy val reportPerFileSizeInBytes: Long = 4 * BYTES_IN_1_MB
   lazy val maxReportAttachmentsSize
     : Long = maxSizeBytes - (200 * BYTES_IN_1_KB) // leaving 200KB for metadata.xml and iform.pdf
 }

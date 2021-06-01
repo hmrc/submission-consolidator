@@ -26,7 +26,7 @@ import consolidator.TestHelper.{ createFileInDir, createTmpDir }
 import consolidator.proxies._
 import consolidator.scheduler.{ FileUpload, UntilTime }
 import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
-import consolidator.services.SubmissionService.FileIds
+import consolidator.services.FileUploadSubmissionService.FileIds
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.matchers.should.Matchers
@@ -35,7 +35,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class SubmissionServiceSpec
+class FileUploadSubmissionServiceSpec
     extends AnyWordSpec with IdiomaticMockito with ArgumentMatchersSugar with Matchers with FileUploadSettings {
 
   private val DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd")
@@ -72,8 +72,8 @@ class SubmissionServiceSpec
     mockFileUploadFrontendProxy.upload(*, *, *, *, *[ContentType]) shouldReturn Future.successful(Right(()))
     mockFileUploadProxy.routeEnvelope(*) shouldReturn Future.successful(Right(()))
 
-    val submissionService =
-      new SubmissionService(mockFileUploadProxy, mockFileUploadFrontendProxy, mockUniqueReferenceGenerator) {
+    val fileUploadSubmissionService =
+      new FileUploadSubmissionService(mockFileUploadProxy, mockFileUploadFrontendProxy, mockUniqueReferenceGenerator) {
         override lazy val maxReportAttachmentsSize = maxReportAttachmentsSizeOverride
       }
   }
@@ -84,11 +84,18 @@ class SubmissionServiceSpec
       override lazy val maxReportAttachmentsSizeOverride: Long = 20
       override lazy val numberOfReportFiles: Int = 2
       //when
-      val envelopeIds: NonEmptyList[String] =
-        submissionService.submit(reportFiles, schedulerFormConsolidatorParams).unsafeRunSync()
+      val submissionResult: SubmissionResult =
+        fileUploadSubmissionService
+          .submit(
+            reportFiles,
+            schedulerFormConsolidatorParams.projectId,
+            schedulerFormConsolidatorParams.format,
+            schedulerFormConsolidatorParams.destination.asInstanceOf[FileUpload]
+          )
+          .unsafeRunSync()
 
       //then
-      envelopeIds shouldEqual NonEmptyList.of(someEnvelopedId)
+      submissionResult.asInstanceOf[FileUploadSubmissionResult].envelopeIds shouldEqual NonEmptyList.of(someEnvelopedId)
       mockFileUploadProxy.createEnvelope(
         CreateEnvelopeRequest(
           consolidator.proxies.Metadata("gform"),
@@ -134,11 +141,21 @@ class SubmissionServiceSpec
       override lazy val numberOfReportFiles: Int = 2
 
       //when
-      val envelopeIds: NonEmptyList[String] =
-        submissionService.submit(reportFiles, schedulerFormConsolidatorParams).unsafeRunSync()
+      val submissionResult: SubmissionResult =
+        fileUploadSubmissionService
+          .submit(
+            reportFiles,
+            schedulerFormConsolidatorParams.projectId,
+            schedulerFormConsolidatorParams.format,
+            schedulerFormConsolidatorParams.destination.asInstanceOf[FileUpload]
+          )
+          .unsafeRunSync()
 
       //then
-      envelopeIds shouldEqual NonEmptyList.of(someEnvelopedId, someEnvelopedId)
+      submissionResult.asInstanceOf[FileUploadSubmissionResult].envelopeIds shouldEqual NonEmptyList.of(
+        someEnvelopedId,
+        someEnvelopedId
+      )
       mockFileUploadProxy.createEnvelope(
         CreateEnvelopeRequest(
           consolidator.proxies.Metadata("gform"),
@@ -183,10 +200,17 @@ class SubmissionServiceSpec
       override lazy val createEnvelopeResponse = Future.successful(Left(GenericFileUploadError("some error")))
 
       //when
-      submissionService.submit(reportFiles, schedulerFormConsolidatorParams).unsafeRunAsync {
-        case Left(error) => error shouldBe GenericFileUploadError("some error")
-        case Right(_)    => fail("Should have failed")
-      }
+      fileUploadSubmissionService
+        .submit(
+          reportFiles,
+          schedulerFormConsolidatorParams.projectId,
+          schedulerFormConsolidatorParams.format,
+          schedulerFormConsolidatorParams.destination.asInstanceOf[FileUpload]
+        )
+        .unsafeRunAsync {
+          case Left(error) => error shouldBe GenericFileUploadError("some error")
+          case Right(_)    => fail("Should have failed")
+        }
     }
   }
 }

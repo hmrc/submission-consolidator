@@ -16,16 +16,7 @@
 
 package consolidator
 
-import java.nio.file.Files.createDirectories
-import java.nio.file.{ Path, Paths }
-import java.text.SimpleDateFormat
-import java.time.Instant
-import java.time.Instant.ofEpochMilli
-import java.util.Date
-import java.util.concurrent.TimeUnit
-
 import akka.actor.{ Actor, Props }
-import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.implicits._
 import com.codahale.metrics.MetricRegistry.name
@@ -33,11 +24,19 @@ import com.typesafe.akka.extension.quartz.MessageWithFireTime
 import common.MetricsClient
 import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
+import consolidator.scheduler.{ FileUpload, S3 }
 import consolidator.services.ConsolidatorService.ConsolidationResult
-import consolidator.services.{ ConsolidatorService, DeleteDirService, FormConsolidatorParams, ScheduledFormConsolidatorParams, SubmissionService }
+import consolidator.services._
 import org.slf4j.{ Logger, LoggerFactory }
 import uk.gov.hmrc.lock.{ LockKeeperAutoRenew, LockRepository }
 
+import java.nio.file.Files.createDirectories
+import java.nio.file.{ Path, Paths }
+import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.Instant.ofEpochMilli
+import java.util.Date
+import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
@@ -45,7 +44,8 @@ import scala.util.{ Failure, Success }
 
 class FormConsolidatorActor(
   consolidatorService: ConsolidatorService,
-  fileUploaderService: SubmissionService,
+  fileUploaderSubmissionService: FileUploadSubmissionService,
+  s3SubmissionService: S3SubmissionService,
   consolidatorJobDataRepository: ConsolidatorJobDataRepository,
   lockRepository: LockRepository,
   metricsClient: MetricsClient,
@@ -67,19 +67,26 @@ class FormConsolidatorActor(
         val reportOutputDir = createReportDir(params.projectId, time)
         val program: IO[Unit] = (for {
           consolidationResult <- consolidatorService.doConsolidation(reportOutputDir, params)
-          envelopeIds <- consolidationResult
-                          .map(
-                            c =>
-                              fileUploaderService
-                                .submit(c.reportFiles, params)
-                                .map(Option(_)))
-                          .getOrElse(IO.pure(None))
+          submissionResult <- consolidationResult
+                               .map { c =>
+                                 params.destination match {
+                                   case s3: S3 =>
+                                     s3SubmissionService
+                                       .submit(c.reportFiles, s3)
+                                       .map(Option(_))
+                                   case fileUpload: FileUpload =>
+                                     fileUploaderSubmissionService
+                                       .submit(c.reportFiles, params.projectId, params.format, fileUpload)
+                                       .map(Option(_))
+                                 }
+                               }
+                               .getOrElse(IO.pure(None))
           _ <- addConsolidatorJobData(
                 params,
                 ofEpochMilli(time.getTime),
                 consolidationResult,
                 None,
-                envelopeIds
+                submissionResult
               )
           _ <- deleteReportTmpDir(reportOutputDir)
         } yield ()).recoverWith {
@@ -117,10 +124,11 @@ class FormConsolidatorActor(
     startTime: Instant,
     consolidationResult: Option[ConsolidationResult],
     error: Option[String],
-    envelopeIds: Option[NonEmptyList[String]]
+    maybeSubmissionResult: Option[SubmissionResult]
   ): IO[Unit] = {
     consolidationResult.foreach { cResult =>
-      logger.info(s"Submitted ${cResult.count} forms to file-upload (DMS) for project ${params.projectId}")
+      logger.info(
+        s"Submitted ${cResult.count} forms to destination ${params.destination} for project ${params.projectId}")
     }
     params match {
       case params: ScheduledFormConsolidatorParams =>
@@ -142,7 +150,11 @@ class FormConsolidatorActor(
           now,
           consolidationResult.map(_.lastObjectId),
           error,
-          envelopeIds.map(_.mkString_(","))
+          maybeSubmissionResult.map {
+            case FileUploadSubmissionResult(envelopeIds) => envelopeIds.toList.mkString(",")
+            case S3SubmissionResult(_)                   => ""
+          },
+          maybeSubmissionResult
         )
         liftIO(consolidatorJobDataRepository.add(consolidatorJobData))
       case _ =>
@@ -170,7 +182,8 @@ object FormConsolidatorActor {
 
   def props(
     consolidatorService: ConsolidatorService,
-    fileUploaderService: SubmissionService,
+    fileUploaderSubmissionService: FileUploadSubmissionService,
+    s3SubmissionService: S3SubmissionService,
     consolidatorJobDataRepository: ConsolidatorJobDataRepository,
     lockRepository: LockRepository,
     metricsClient: MetricsClient,
@@ -179,7 +192,8 @@ object FormConsolidatorActor {
     Props(
       new FormConsolidatorActor(
         consolidatorService,
-        fileUploaderService,
+        fileUploaderSubmissionService,
+        s3SubmissionService,
         consolidatorJobDataRepository,
         lockRepository,
         metricsClient,

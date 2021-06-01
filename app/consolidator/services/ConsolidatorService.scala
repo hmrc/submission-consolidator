@@ -29,6 +29,7 @@ import consolidator.IOUtils
 import consolidator.repositories.ConsolidatorJobDataRepository
 import consolidator.services.ConsolidatorService.ConsolidationResult
 import ConsolidationFormat.ConsolidationFormat
+import consolidator.scheduler.{ FileUpload, S3 }
 import consolidator.services.sink.{ FilePartOutputStage, FormCSVFilePartWriter, FormExcelFilePartWriter, FormJsonLineFilePartWriter }
 import javax.inject.{ Inject, Singleton }
 import play.api.Configuration
@@ -43,6 +44,8 @@ class ConsolidatorService @Inject()(
   config: Configuration
 )(implicit ec: ExecutionContext, system: ActorSystem)
     extends IOUtils with FileUploadSettings {
+
+  val fileUploadReportPerFileSizeBytes = 4 * BYTES_IN_1_MB
 
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ec)
   private val batchSize = config.underlying.getInt("consolidator-job-config.batchSize")
@@ -91,15 +94,20 @@ class ConsolidatorService @Inject()(
         }
     )
 
-  private def createFilePartWriter(formDataIds: List[String], outputDir: Path, params: FormConsolidatorParams) =
+  private def createFilePartWriter(formDataIds: List[String], outputDir: Path, params: FormConsolidatorParams) = {
+    val mayBeMaxFileSize = params.destination match {
+      case _: S3         => None
+      case _: FileUpload => Some(fileUploadReportPerFileSizeBytes)
+    }
     params.format match {
       case ConsolidationFormat.jsonl =>
-        new FormJsonLineFilePartWriter(outputDir, "report", reportPerFileSizeInBytes)
+        new FormJsonLineFilePartWriter(outputDir, "report", mayBeMaxFileSize)
       case ConsolidationFormat.csv =>
-        new FormCSVFilePartWriter(outputDir, "report", reportPerFileSizeInBytes, formDataIds)
+        new FormCSVFilePartWriter(outputDir, "report", mayBeMaxFileSize, formDataIds)
       case ConsolidationFormat.xlsx =>
-        new FormExcelFilePartWriter(outputDir, "report", reportPerFileSizeInBytes, formDataIds)
+        new FormExcelFilePartWriter(outputDir, "report", mayBeMaxFileSize, formDataIds)
     }
+  }
 
   private def getAfterObjectId(params: FormConsolidatorParams) =
     params match {

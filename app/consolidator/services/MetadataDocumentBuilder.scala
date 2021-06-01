@@ -22,7 +22,6 @@ import common.Time
 import common.UniqueReferenceGenerator.UniqueRef
 import consolidator.scheduler.FileUpload
 import consolidator.services
-import shapeless.syntax.typeable._
 
 trait MetadataDocumentBuilder {
 
@@ -30,19 +29,18 @@ trait MetadataDocumentBuilder {
   private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
   private val DDMMYYYYHHMMSS = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
 
-  def metaDataDocument(params: FormConsolidatorParams, submissionRef: UniqueRef, attachmentCount: Int)(
-    implicit time: Time[Instant]): MetadataDocument =
-    buildMetaDataDocument(params, submissionRef, attachmentCount, "pdf", "application/pdf")
+  def metaDataDocument(fileUploadDestination: FileUpload, submissionRef: UniqueRef, attachmentCount: Int)(
+    implicit
+    time: Time[Instant]): MetadataDocument =
+    buildMetaDataDocument(fileUploadDestination, submissionRef, attachmentCount, "pdf", "application/pdf")
 
   protected def buildMetaDataDocument(
-    params: FormConsolidatorParams,
+    fileUploadDestination: FileUpload,
     submissionRef: UniqueRef,
     attachmentCount: Int,
     format: String,
     mime: String
   )(implicit time: Time[Instant]) = {
-    val fileUploadDestination = params.destination.cast[FileUpload]
-    assert(fileUploadDestination.isDefined, "FormConsolidatorParams destination should be FileUpload type")
 
     val zonedDateTime = time.now().atZone(ZoneId.systemDefault())
     MetadataDocument(
@@ -67,13 +65,14 @@ trait MetadataDocumentBuilder {
               Attribute("cas_key", "string", List("AUDIT_SERVICE")),
               Attribute("number_pages", "int", List("1")),
               Attribute("customer_id", "string", List(s"Report-${DATE_FORMAT.format(zonedDateTime)}")),
-              Attribute("classification_type", "string", List(fileUploadDestination.get.classificationType)),
-              Attribute("business_area", "string", List(fileUploadDestination.get.businessArea)),
+              Attribute("classification_type", "string", List(fileUploadDestination.classificationType)),
+              Attribute("business_area", "string", List(fileUploadDestination.businessArea)),
               Attribute("attachment_count", "int", List(attachmentCount.toString))
             )
           )
         )
-      ))
+      )
+    )
   }
 }
 

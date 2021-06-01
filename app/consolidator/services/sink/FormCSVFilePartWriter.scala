@@ -25,7 +25,7 @@ import org.apache.commons.text.StringEscapeUtils
 class FormCSVFilePartWriter(
   override val outputDir: Path,
   override val filePrefix: String,
-  maxBytesPerFile: Long,
+  maybeMaxBytesPerFile: Option[Long],
   headers: List[String])
     extends AbstractFilePartWriter[Form] {
 
@@ -39,7 +39,7 @@ class FormCSVFilePartWriter(
   override def write(form: Form): Int = {
     val byteString = ByteString(FormCSVFilePartWriter.toCSV(form, headers) + "\n")
     val currentFileSize: Long = currentFile.map(_.size()).getOrElse(0)
-    if (currentFileSize + byteString.size > maxBytesPerFile)
+    if (maybeMaxBytesPerFile.exists(maxBytesPerFile => currentFileSize + byteString.size > maxBytesPerFile))
       openChannel()
     currentFile.map(_.write(byteString.toByteBuffer)).getOrElse(0)
   }
