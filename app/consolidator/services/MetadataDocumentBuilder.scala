@@ -69,7 +69,8 @@ trait MetadataDocumentBuilder {
               Attribute("customer_id", "string", List(s"Report-${DATE_FORMAT.format(zonedDateTime)}")),
               Attribute("classification_type", "string", List(fileUploadDestination.get.classificationType)),
               Attribute("business_area", "string", List(fileUploadDestination.get.businessArea)),
-              Attribute("attachment_count", "int", List(attachmentCount.toString))
+              Attribute("attachment_count", "int", List(attachmentCount.toString)),
+              Attribute("source", "string", List("dfs"))
             )
           )
         )
