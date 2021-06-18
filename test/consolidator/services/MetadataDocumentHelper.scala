@@ -54,7 +54,8 @@ object MetadataDocumentHelper {
               Attribute("customer_id", "string", List(s"Report-${DATE_FORMAT.format(zonedDateTime)}")),
               Attribute("classification_type", "string", List("some-classification")),
               Attribute("business_area", "string", List("some-business-area")),
-              Attribute("attachment_count", "int", List(expectedAttachments.toString))
+              Attribute("attachment_count", "int", List(expectedAttachments.toString)),
+              Attribute("source", "string", List("dfs"))
             ))
         )
       )
