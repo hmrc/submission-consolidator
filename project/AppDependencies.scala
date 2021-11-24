@@ -11,10 +11,12 @@ object AppDependencies {
     "org.typelevel"         %% "cats-effect"               % "2.2.0-RC3",
     "uk.gov.hmrc"           %% "mongo-lock"                % "6.23.0-play-27",
     "org.apache.commons"     % "commons-text"              % "1.9",
+    "commons-io"             % "commons-io"                % "2.9.0",
     "org.xhtmlrenderer"      % "flying-saucer-pdf"         % "9.1.20",
     "org.apache.poi"         % "poi-ooxml"                 % "4.1.2",
     "org.julienrf"          %% "play-json-derived-codecs"  % "4.0.1",
-    "com.chuusai"           %% "shapeless"                 % "2.3.3"
+    "com.chuusai"           %% "shapeless"                 % "2.3.3",
+    "software.amazon.awssdk" % "s3"                        % "2.16.66"
   )
 
   val test = Seq(
@@ -28,6 +30,7 @@ object AppDependencies {
     "org.mockito"            %% "mockito-scala-scalatest"   % "1.14.8"  % Test,
     "com.typesafe.akka"      %% "akka-testkit"              % "2.5.31"  % Test,
     "com.softwaremill.diffx" %% "diffx-scalatest"           % "0.3.29"  % Test,
+    "io.findify"             %% "s3mock"                    % "0.2.6"   % Test,
     "com.vladsch.flexmark"    % "flexmark-all"              % "0.35.10" % "test, it",
     "org.scalatestplus.play" %% "scalatestplus-play"        % "4.0.3"   % "test, it",
     "com.github.tomakehurst"  % "wiremock-jre8"             % "2.27.1"  % "test, it"

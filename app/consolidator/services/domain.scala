@@ -21,6 +21,7 @@ import consolidator.scheduler.{ Destination, UntilTime }
 import consolidator.services.ConsolidationFormat.ConsolidationFormat
 
 import java.time.{ Instant, ZoneId }
+import scala.util.control.NoStackTrace
 
 trait FormConsolidatorParams {
 
@@ -65,3 +66,5 @@ case class ManualFormConsolidatorParams(
 
   override def getUntilInstant(currentInstant: Instant): Instant = endInstant
 }
+
+case class S3UploadException(message: String, cause: Throwable) extends Exception(message) with NoStackTrace
