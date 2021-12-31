@@ -33,8 +33,9 @@ import com.typesafe.akka.extension.quartz.MessageWithFireTime
 import common.MetricsClient
 import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
+import consolidator.scheduler.ArchiveJobConfigParam
 import consolidator.services.ConsolidatorService.ConsolidationResult
-import consolidator.services.{ ConsolidatorService, DeleteDirService, FormConsolidatorParams, ScheduledFormConsolidatorParams, SubmissionService }
+import consolidator.services.{ ConsolidatorService, DeleteDirService, FormConsolidatorParams, FormService, ScheduledFormConsolidatorParams, SubmissionService }
 import org.slf4j.{ Logger, LoggerFactory }
 import uk.gov.hmrc.lock.{ LockKeeperAutoRenew, LockRepository }
 
@@ -49,7 +50,8 @@ class FormConsolidatorActor(
   consolidatorJobDataRepository: ConsolidatorJobDataRepository,
   lockRepository: LockRepository,
   metricsClient: MetricsClient,
-  deleteDirService: DeleteDirService
+  deleteDirService: DeleteDirService,
+  formService: FormService
 ) extends Actor with IOUtils {
 
   private val logger: Logger = LoggerFactory.getLogger(getClass)
@@ -110,6 +112,11 @@ class FormConsolidatorActor(
             }
           }
       }
+    case MessageWithFireTime(params: ArchiveJobConfigParam, time: Date) =>
+      logger.info(s"Received request for job $params at $time")
+      for {
+        _ <- formService.removeByPeriod(params.period)
+      } yield ()
   }
 
   private def addConsolidatorJobData(
@@ -174,7 +181,8 @@ object FormConsolidatorActor {
     consolidatorJobDataRepository: ConsolidatorJobDataRepository,
     lockRepository: LockRepository,
     metricsClient: MetricsClient,
-    deleteDirService: DeleteDirService
+    deleteDirService: DeleteDirService,
+    formService: FormService
   ): Props =
     Props(
       new FormConsolidatorActor(
@@ -183,7 +191,8 @@ object FormConsolidatorActor {
         consolidatorJobDataRepository,
         lockRepository,
         metricsClient,
-        deleteDirService
+        deleteDirService,
+        formService
       )
     )
 }

@@ -66,12 +66,19 @@ class ConsolidatorJobSchedulerSpec
                                                   |        cron = "*/2 * * ? * *"
                                                   |    }
                                                   |]
+                                                  |archive-job = {
+                                                  |   id = "ArchiveJob"
+                                                  |   params = {
+                                                  |       period = 6
+                                                  |       }
+                                                  |   cron = "*/2 * * ? * *"
+                                                  |}
                                                   |""".stripMargin))
       val testProbe = TestProbe()
       val jobScheduler = new ConsolidatorJobScheduler(config).scheduleJobs(Props(new TestJobActor(testProbe.ref)))
 
-      val jobParams = testProbe.receiveN(2, 3.seconds).toList
-      jobParams.size shouldBe 2
+      val jobParams = testProbe.receiveN(3, 3.seconds).toList
+      jobParams.size shouldBe 3
       jobParams should contain(
         ScheduledFormConsolidatorParams(
           "some-project-id-1",
@@ -84,6 +91,9 @@ class ConsolidatorJobSchedulerSpec
           ConsolidationFormat.csv,
           FileUpload("some-classification-type-2", "some-business-area-2"),
           UntilTime.previous_day))
+      jobParams should contain(
+        ArchiveJobConfigParam(6)
+      )
 
       jobScheduler.shutdown(true)
     }
@@ -93,6 +103,8 @@ class ConsolidatorJobSchedulerSpec
 class TestJobActor(senderRef: ActorRef) extends Actor {
   override def receive: Receive = {
     case MessageWithFireTime(p: ScheduledFormConsolidatorParams, _: Date) =>
+      senderRef ! p
+    case MessageWithFireTime(p: ArchiveJobConfigParam, _: Date) =>
       senderRef ! p
   }
 }

@@ -16,8 +16,7 @@
 
 package collector.repositories
 
-import java.time.Instant
-
+import java.time.{ Instant, LocalDate, ZoneOffset }
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
 import com.softwaremill.diffx.scalatest.DiffMatcher
@@ -64,13 +63,17 @@ class FormRepositorySpec
     val projectId = "some-project-id"
     val currentTimeInMillis = System.currentTimeMillis()
     val untilTime = Instant.ofEpochMilli(currentTimeInMillis + 1000) // 1 second after current time
+    val sixMonthsBefore = LocalDate.now().minusMonths(6).atStartOfDay.toInstant(ZoneOffset.UTC).minusMillis(1)
     val afterObjectId = BSONObjectID.fromTime(currentTimeInMillis - 1000, false) // 1 second before current time
     lazy val forms = (1 to 3)
       .map(
         seed =>
           genForm
             .pureApply(Gen.Parameters.default, Seed(seed.toLong))
-            .copy(projectId = projectId, id = BSONObjectID.fromTime(currentTimeInMillis, false)))
+            .copy(
+              projectId = projectId,
+              id = BSONObjectID.fromTime(currentTimeInMillis, false),
+              submissionTimestamp = sixMonthsBefore))
       .toList
     forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
   }
@@ -176,6 +179,23 @@ class FormRepositorySpec
         result.left.get shouldBe a[MongoGenericError]
         result.left.get.getMessage contains "MongoError['No primary node is available!"
         init()
+      }
+    }
+  }
+
+  "removeByPeriod" should {
+
+    "remove all forms before 6 months" in new FormsTestFixture {
+      val untilInstant = LocalDate.now().minusMonths(6).atStartOfDay.atZone(ZoneOffset.UTC).toInstant
+
+      formRepository.remove(untilInstant)
+
+      val source = formRepository.formsSource(projectId, forms.size, None, untilTime)
+
+      val future = source.runWith(Sink.seq[Form])
+
+      whenReady(future) { result =>
+        result shouldEqual List.empty
       }
     }
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package consolidator
 
 import java.time.LocalDate
@@ -65,6 +66,15 @@ class ManualConsolidatorSpec extends ITSpec with Eventually {
                             |        cron = "0 0 0 1 1 ? 2099"
                             |    }
                             | ]
+                            |
+                            |archive-job = {
+                            |   id = "ArchiveJob"
+                            |   params = {
+                            |       period = 6
+                            |       }
+                            |   # never run
+                            |   cron = "0 0 0 1 1 ? 2099"
+                            |}
                             |
                             | microservice {
                             |

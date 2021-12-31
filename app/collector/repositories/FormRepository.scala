@@ -30,7 +30,7 @@ import reactivemongo.akkastream.cursorProducer
 import reactivemongo.api.commands.LastError
 import reactivemongo.api.indexes.{ Index, IndexType }
 import reactivemongo.api.{ Cursor, QueryOpts }
-import reactivemongo.bson.BSONObjectID
+import reactivemongo.bson.{ BSONDateTime, BSONObjectID }
 import reactivemongo.core.actors.Exceptions.PrimaryUnavailableException
 import reactivemongo.play.json.ImplicitBSONHandlers
 import uk.gov.hmrc.mongo.ReactiveRepository
@@ -145,6 +145,11 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent)(implicit 
       .cursor[Form]()
       .documentSource()
       .mapMaterializedValue(_ => Future.successful(()))
+  }
+
+  def remove(untilInstant: Instant)(implicit ec: ExecutionContext): Future[Unit] = {
+    val selectQuery = obj("submissionTimestamp" -> obj("$lt" -> BSONDateTime(untilInstant.toEpochMilli)))
+    collection.delete.one(selectQuery, None).map(_ => ())
   }
 
   object MongoError {

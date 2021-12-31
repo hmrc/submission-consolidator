@@ -46,6 +46,21 @@ class ConsolidatorJobScheduler @Inject()(config: Configuration) {
         jobConfig.cron)
     }
 
+    if (config.underlying.hasPath("archive-job")) {
+      val archiveJobConfigs = parse(
+        config.underlying.getConfig("archive-job").root().render(ConfigRenderOptions.concise())
+      ).as[ArchiveJobConfig]
+
+      val receivingActorRef = system.actorOf(receivingActorProps, archiveJobConfigs.id)
+      scheduler.createJobSchedule(
+        archiveJobConfigs.id,
+        receivingActorRef,
+        MessageRequireFireTime(archiveJobConfigs.params),
+        None,
+        archiveJobConfigs.cron
+      )
+    }
+
     scheduler
   }
 }

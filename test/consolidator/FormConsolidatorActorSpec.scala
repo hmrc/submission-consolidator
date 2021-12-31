@@ -31,7 +31,7 @@ import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
 import consolidator.scheduler.{ FileUpload, UntilTime }
 import consolidator.services.ConsolidatorService.ConsolidationResult
-import consolidator.services.{ ConsolidationFormat, ConsolidatorService, DeleteDirService, ScheduledFormConsolidatorParams, SubmissionService }
+import consolidator.services.{ ConsolidationFormat, ConsolidatorService, DeleteDirService, FormService, ScheduledFormConsolidatorParams, SubmissionService }
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.captor.ArgCaptor
 import org.mockito.scalatest.IdiomaticMockito
@@ -59,6 +59,7 @@ class FormConsolidatorActorSpec
     val mockLockRepository = mock[LockRepository](withSettings.lenient())
     val mockMetricsClient = mock[MetricsClient](withSettings.lenient())
     val mockDeleteDirService = mock[DeleteDirService](withSettings.lenient())
+    val mockFormService = mock[FormService](withSettings.lenient())
 
     val now = new Date()
     val projectId = "some-project-id"
@@ -81,7 +82,8 @@ class FormConsolidatorActorSpec
           mockConsolidatorJobDataRepository,
           mockLockRepository,
           mockMetricsClient,
-          mockDeleteDirService
+          mockDeleteDirService,
+          mockFormService
         )
     )
 

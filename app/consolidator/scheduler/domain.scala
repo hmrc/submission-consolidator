@@ -84,3 +84,13 @@ case class S3(s3Endpoint: URI, bucket: String) extends Destination
 object Destination {
   implicit val format: Format[Destination] = derived.oformat()
 }
+
+case class ArchiveJobConfigParam(period: Long)
+object ArchiveJobConfigParam {
+  implicit val formats = Json.format[ArchiveJobConfigParam]
+}
+
+case class ArchiveJobConfig(id: String, cron: String, params: ArchiveJobConfigParam)
+object ArchiveJobConfig {
+  implicit val formats = Json.format[ArchiveJobConfig]
+}
