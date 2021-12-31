@@ -57,8 +57,6 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent, config: C
   private lazy val maybeTtl: Option[Long] = config.getOptional[Long]("mongodb.timeToLiveInSeconds")
 
   (for {
-    _ <- IndexManager.checkIndexTtl(collection, "submissionRefUniqueIdx", None)
-    _ <- IndexManager.checkIndexTtl(collection, "projectIdIdx", None)
     _ <- IndexManager.checkIndexTtl(collection, "submissionTimestampIdx", maybeTtl)
     _ <- ensureIndex("submissionRef", "submissionRefUniqueIdx", true, None)
     _ <- ensureIndex("projectId", "projectIdIdx", false, None)
