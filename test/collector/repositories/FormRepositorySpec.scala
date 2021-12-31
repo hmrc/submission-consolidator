@@ -17,10 +17,10 @@
 package collector.repositories
 
 import java.time.Instant
-
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
 import com.softwaremill.diffx.scalatest.DiffMatcher
+import com.typesafe.config.ConfigFactory
 import org.scalacheck.Gen
 import org.scalacheck.rng.Seed
 import org.scalatest.concurrent.ScalaFutures
@@ -29,6 +29,7 @@ import org.scalatest.time.{ Millis, Seconds, Span }
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import play.api.Configuration
 import play.modules.reactivemongo.ReactiveMongoComponent
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.mongo.MongoConnector
@@ -187,6 +188,13 @@ class FormRepositorySpec
       override def mongoConnector: MongoConnector =
         connector
     }
-    new FormRepository(reactiveMongoComponent)
+
+    val config =
+      Configuration(ConfigFactory.parseString("""
+                                                | mongodb {
+                                                |     timeToLiveInSeconds = 100
+                                                |     }
+                                                |""".stripMargin))
+    new FormRepository(reactiveMongoComponent, config)
   }
 }
