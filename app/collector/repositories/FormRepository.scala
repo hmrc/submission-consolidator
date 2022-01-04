@@ -17,12 +17,13 @@
 package collector.repositories
 
 import java.time.Instant
-
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
 import cats.syntax.either._
+
 import javax.inject.{ Inject, Singleton }
 import org.slf4j.{ Logger, LoggerFactory }
+import play.api.Configuration
 import play.api.libs.json.Json.{ obj, toJson }
 import play.api.libs.json.{ JsObject, JsString, Json }
 import play.modules.reactivemongo.ReactiveMongoComponent
@@ -30,7 +31,7 @@ import reactivemongo.akkastream.cursorProducer
 import reactivemongo.api.commands.LastError
 import reactivemongo.api.indexes.{ Index, IndexType }
 import reactivemongo.api.{ Cursor, QueryOpts }
-import reactivemongo.bson.BSONObjectID
+import reactivemongo.bson.{ BSONDocument, BSONObjectID }
 import reactivemongo.core.actors.Exceptions.PrimaryUnavailableException
 import reactivemongo.play.json.ImplicitBSONHandlers
 import uk.gov.hmrc.mongo.ReactiveRepository
@@ -39,7 +40,9 @@ import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent)(implicit system: ActorSystem)
+class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent, config: Configuration)(
+  implicit system: ActorSystem,
+  ec: ExecutionContext)
     extends ReactiveRepository[Form, BSONObjectID](
       collectionName = "forms",
       mongo = mongoComponent.mongoConnector.db,
@@ -50,24 +53,45 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent)(implicit 
 
   override val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  override def indexes: Seq[Index] =
-    Seq(
+  private val expireAfterSeconds = "expireAfterSeconds"
+  private lazy val maybeTtl: Option[Long] = config.getOptional[Long]("mongodb.timeToLiveInSeconds")
+
+  (for {
+    _ <- IndexManager.checkIndexTtl(collection, "submissionTimestampIdx", maybeTtl)
+    _ <- ensureIndex("submissionRef", "submissionRefUniqueIdx", true, None)
+    _ <- ensureIndex("projectId", "projectIdIdx", false, None)
+    _ <- ensureIndex("submissionTimestamp", "submissionTimestampIdx", false, maybeTtl)
+  } yield {
+    ()
+  }) recoverWith {
+    case t: Throwable => Future.successful(logger.error(s"Error ensuring indexes on collection ${collection.name}", t))
+  }
+
+  def ensureIndex(field: String, indexName: String, isUnique: Boolean, ttl: Option[Long]): Future[Boolean] = {
+
+    val defaultIndex: Index = Index(Seq((field, IndexType.Ascending)), Some(indexName), unique = isUnique)
+
+    val index: Index = ttl.fold(defaultIndex) { ttl =>
       Index(
-        Seq("submissionRef" -> IndexType.Ascending),
-        name = Some("submissionRefUniqueIdx"),
-        unique = true
-      ),
-      Index(
-        Seq(
-          "projectId" -> IndexType.Ascending
-        ),
-        name = Some("projectIdIdx")
-      ),
-      Index(
-        Seq("submissionTimestamp" -> IndexType.Ascending),
-        name = Some("submissionTimestampIdx")
+        Seq((field, IndexType.Ascending)),
+        Some(indexName),
+        isUnique,
+        background = true,
+        options = BSONDocument(expireAfterSeconds -> ttl)
       )
-    )
+    }
+
+    collection.indexesManager.ensure(index) map { result =>
+      {
+        logger.warn(s"Created index $indexName on collection ${collection.name} with TTL value $ttl -> result: $result")
+        result
+      }
+    } recover {
+      case e =>
+        logger.error("Failed to set TTL index", e)
+        false
+    }
+  }
 
   def addForm(
     form: Form
