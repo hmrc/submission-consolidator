@@ -92,7 +92,7 @@ class ConsolidatorJobSchedulerSpec
 
 class TestJobActor(senderRef: ActorRef) extends Actor {
   override def receive: Receive = {
-    case MessageWithFireTime(p: ScheduledFormConsolidatorParams, _: Date) =>
+    case MessageWithFireTime(p: ScheduledFormConsolidatorParams, _: Date, _, _) =>
       senderRef ! p
   }
 }

@@ -21,7 +21,6 @@ import org.slf4j.{ Logger, LoggerFactory }
 import play.api.libs.json.{ JsError, JsResult, JsValue }
 import play.api.mvc.{ ControllerComponents, Request }
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.play.http.logging.{ Mdc, MdcLoggingExecutionContext }
 import collector.repositories.FormRepository
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -45,15 +44,14 @@ class FormController @Inject()(
           Future.successful(handleError(RequestValidationError(errors)))
         },
         valid => {
-          implicit val mdcEC = new MdcLoggingExecutionContext(ec, Mdc.mdcData)
           formRepository
-            .addForm(valid.toForm)
+            .addForm(valid.toForm)(ec)
             .map(
               _.fold(
                 handleError,
                 _ => Ok
               )
-            )
+            )(ec)
         }
       )
     }

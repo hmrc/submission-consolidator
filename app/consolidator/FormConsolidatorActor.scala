@@ -59,7 +59,7 @@ class FormConsolidatorActor(
   private val runningProjects: mutable.Set[String] = mutable.Set[String]()
 
   override def receive: Receive = {
-    case MessageWithFireTime(params: FormConsolidatorParams, time: Date) =>
+    case MessageWithFireTime(params: FormConsolidatorParams, time: Date, _, _) =>
       if (!runningProjects.contains(params.projectId)) {
         runningProjects += params.projectId
         logger.info(s"Received request for job $params")
