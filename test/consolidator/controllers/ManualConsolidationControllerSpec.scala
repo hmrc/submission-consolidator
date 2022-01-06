@@ -73,7 +73,7 @@ class ManualConsolidationControllerSpec
 
   class MockFileConsolidatorActor extends Actor {
     override def receive: Receive = {
-      case MessageWithFireTime(_, _) =>
+      case MessageWithFireTime(_, _, _, _) =>
         sender() ! OK
     }
   }

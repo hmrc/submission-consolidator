@@ -17,12 +17,13 @@
 package common
 
 import java.io.File
-
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{ FileIO, Source }
 import akka.util.ByteString
 import com.typesafe.config.Config
+import play.api.Configuration
+
 import javax.inject.{ Inject, Singleton }
 import play.api.libs.ws.WSClient
 import play.api.mvc.MultipartFormData.FilePart
@@ -33,16 +34,19 @@ import uk.gov.hmrc.play.http.ws.{ WSHttpResponse, WSPost }
 
 import scala.concurrent.{ ExecutionContext, Future }
 @Singleton
-class WSHttpClient @Inject()(override val wsClient: WSClient, override val actorSystem: ActorSystem)
+class WSHttpClient @Inject()(
+  val config: Configuration,
+  override val wsClient: WSClient,
+  override val actorSystem: ActorSystem)
     extends HttpPost with WSPost {
-  override def applicableHeaders(url: String)(implicit hc: HeaderCarrier): Seq[(String, String)] = hc.headers
-  override protected def configuration: Option[Config] = None
+
+  override lazy val configuration: Config = config.underlying
   override val hooks: Seq[HttpHook] = Seq.empty
   implicit val headerCarrier: HeaderCarrier = HeaderCarrier()
 
   def POSTFile(url: String, file: File, contentType: ContentType)(implicit ec: ExecutionContext): Future[HttpResponse] =
     preservingMdc {
-      buildRequest(url)
+      buildRequest(url, Seq.empty)
         .post(
           Source(FilePart(file.getName, file.getName, Some(contentType.value), FileIO.fromPath(file.toPath)) :: Nil))
         .map(WSHttpResponse(_))
@@ -54,6 +58,6 @@ class WSHttpClient @Inject()(override val wsClient: WSClient, override val actor
       val source: Source[FilePart[Source[ByteString, NotUsed]], NotUsed] = Source(
         FilePart(fileName, fileName, Some(contentType.value), Source.single(body)) :: Nil
       )
-      buildRequest(url).post(source).map(WSHttpResponse(_))
+      buildRequest(url, Seq.empty).post(source).map(WSHttpResponse(_))
     }
 }

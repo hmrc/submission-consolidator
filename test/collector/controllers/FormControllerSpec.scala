@@ -16,8 +16,8 @@
 
 package collector.controllers
 
-import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.actor.{ ActorSystem, ClassicActorSystemProvider }
+import akka.stream.{ Materializer, SystemMaterializer }
 import org.mockito.captor.ArgCaptor
 import org.mockito.{ ArgumentMatchersSugar, IdiomaticMockito }
 import org.scalatest.concurrent.ScalaFutures
@@ -40,7 +40,8 @@ class FormControllerSpec
     with TableDrivenPropertyChecks {
 
   implicit val sys = ActorSystem("FormControllerSpec")
-  implicit val mat = ActorMaterializer()
+  implicit def matFromSystem(implicit provider: ClassicActorSystemProvider): Materializer =
+    SystemMaterializer(provider.classicSystem).materializer
 
   trait TestFixture {
     val mockFormRepository = mock[FormRepository]
