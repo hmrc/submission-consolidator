@@ -29,7 +29,7 @@ import uk.gov.hmrc.lock.LockMongoRepository
 
 import scala.concurrent.Future
 
-class ConsolidatorJobSchedulerTask @Inject()(
+class ConsolidatorJobSchedulerTask @Inject() (
   jobScheduler: ConsolidatorJobScheduler,
   consolidatorService: ConsolidatorService,
   fileUploaderService: SubmissionService,

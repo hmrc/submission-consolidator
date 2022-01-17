@@ -45,9 +45,8 @@ trait LockKeeperAutoRenew {
           if (period > 0) {
             renewalScheduler.scheduleAtFixedRate(
               () => {
-                repo.renew(id, owner, duration).recover {
-                  case e =>
-                    logger.warn("Failed to renew lock via renewal renewalTimer", e)
+                repo.renew(id, owner, duration).recover { case e =>
+                  logger.warn("Failed to renew lock via renewal renewalTimer", e)
                 }
                 ()
               },
@@ -58,8 +57,8 @@ trait LockKeeperAutoRenew {
           }
 
           body.transformWith { bodyResult =>
-            Try(renewalScheduler.shutdown()).recover {
-              case e => logger.error("Failed to shutdown renewalScheduler", e)
+            Try(renewalScheduler.shutdown()).recover { case e =>
+              logger.error("Failed to shutdown renewalScheduler", e)
             }
             repo
               .releaseLock(id, owner)

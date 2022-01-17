@@ -27,11 +27,9 @@ import scala.util.Success
 import scala.util.control.NonFatal
 
 class FilePartOutputStage[T: FilePartWriter]()
-    extends GraphStageWithMaterializedValue[
-      SinkShape[T],
-      Future[
-        Option[FilePartOutputStageResult[T]]
-      ]] {
+    extends GraphStageWithMaterializedValue[SinkShape[T], Future[
+      Option[FilePartOutputStageResult[T]]
+    ]] {
 
   val in: Inlet[T] = Inlet("FilePartOutputStageSink")
   override val shape: SinkShape[T] = SinkShape(in)

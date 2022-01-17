@@ -26,7 +26,7 @@ import collector.repositories.FormRepository
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class FormController @Inject()(
+class FormController @Inject() (
   controllerComponents: ControllerComponents,
   formRepository: FormRepository,
   ec: ExecutionContext
@@ -43,7 +43,7 @@ class FormController @Inject()(
           logger.error(s"Request body validation failed [errors=${JsError.toJson(errors)}}")
           Future.successful(handleError(RequestValidationError(errors)))
         },
-        valid => {
+        valid =>
           formRepository
             .addForm(valid.toForm)(ec)
             .map(
@@ -52,7 +52,6 @@ class FormController @Inject()(
                 _ => Ok
               )
             )(ec)
-        }
       )
     }
 }

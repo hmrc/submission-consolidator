@@ -40,15 +40,14 @@ trait DataGenerators {
     customerId          <- Gen.alphaNumStr.suchThat(!_.isEmpty)
     submissionTimestamp <- genInstant
     formData            <- Gen.listOf(genFormField)
-  } yield
-    Form(
-      submissionRef,
-      projectId,
-      templateId,
-      customerId,
-      submissionTimestamp,
-      formData
-    )
+  } yield Form(
+    submissionRef,
+    projectId,
+    templateId,
+    customerId,
+    submissionTimestamp,
+    formData
+  )
 
   val genConsolidatorJobData = for {
     projectId      <- Gen.alphaNumStr.suchThat(!_.isEmpty)

@@ -26,16 +26,17 @@ import org.slf4j.{ Logger, LoggerFactory }
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class FileUploadFrontEndProxy @Inject()(fileUploadConfig: FileUploadConfig, wsHttpClient: WSHttpClient)(
-  implicit
-  ex: ExecutionContext) {
+class FileUploadFrontEndProxy @Inject() (fileUploadConfig: FileUploadConfig, wsHttpClient: WSHttpClient)(implicit
+  ex: ExecutionContext
+) {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
   def upload(
     envelopeId: String,
     fileId: FileId,
     file: File,
-    contentType: ContentType): Future[Either[FileUploadError, Unit]] = {
+    contentType: ContentType
+  ): Future[Either[FileUploadError, Unit]] = {
     logger.info(s"Uploading file [envelopeId=$envelopeId, fileId=$fileId, file=$file]")
     wsHttpClient
       .POSTFile(
@@ -54,8 +55,8 @@ class FileUploadFrontEndProxy @Inject()(fileUploadConfig: FileUploadConfig, wsHt
             )
         }
       }
-      .recover {
-        case e => Left(GenericFileUploadError(s"File upload failed [error=$e]"))
+      .recover { case e =>
+        Left(GenericFileUploadError(s"File upload failed [error=$e]"))
       }
   }
 
@@ -64,7 +65,8 @@ class FileUploadFrontEndProxy @Inject()(fileUploadConfig: FileUploadConfig, wsHt
     fileId: FileId,
     fileName: String,
     body: ByteString,
-    contentType: ContentType): Future[Either[FileUploadError, Unit]] = {
+    contentType: ContentType
+  ): Future[Either[FileUploadError, Unit]] = {
     logger.info(s"Uploading file [envelopeId=$envelopeId, fileId=$fileId, fileName=$fileName]")
     wsHttpClient
       .POSTFile(
@@ -84,8 +86,8 @@ class FileUploadFrontEndProxy @Inject()(fileUploadConfig: FileUploadConfig, wsHt
             )
         }
       }
-      .recover {
-        case e => Left(GenericFileUploadError(s"File upload failed [error=$e]"))
+      .recover { case e =>
+        Left(GenericFileUploadError(s"File upload failed [error=$e]"))
       }
   }
 }

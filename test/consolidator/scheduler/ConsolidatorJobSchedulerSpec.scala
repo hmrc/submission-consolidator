@@ -77,13 +77,17 @@ class ConsolidatorJobSchedulerSpec
           "some-project-id-1",
           ConsolidationFormat.jsonl,
           FileUpload("some-classification-type-1", "some-business-area-1"),
-          UntilTime.now))
+          UntilTime.now
+        )
+      )
       jobParams should contain(
         ScheduledFormConsolidatorParams(
           "some-project-id-2",
           ConsolidationFormat.csv,
           FileUpload("some-classification-type-2", "some-business-area-2"),
-          UntilTime.previous_day))
+          UntilTime.previous_day
+        )
+      )
 
       jobScheduler.shutdown(true)
     }
@@ -91,8 +95,7 @@ class ConsolidatorJobSchedulerSpec
 }
 
 class TestJobActor(senderRef: ActorRef) extends Actor {
-  override def receive: Receive = {
-    case MessageWithFireTime(p: ScheduledFormConsolidatorParams, _: Date, _, _) =>
-      senderRef ! p
+  override def receive: Receive = { case MessageWithFireTime(p: ScheduledFormConsolidatorParams, _: Date, _, _) =>
+    senderRef ! p
   }
 }

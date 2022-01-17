@@ -29,7 +29,7 @@ import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class ConsolidatorJobDataRepository @Inject()(mongoComponent: ReactiveMongoComponent)
+class ConsolidatorJobDataRepository @Inject() (mongoComponent: ReactiveMongoComponent)
     extends ReactiveRepository[ConsolidatorJobData, BSONObjectID](
       collectionName = "consolidator_job_datas",
       mongo = mongoComponent.mongoConnector.db,
@@ -61,12 +61,11 @@ class ConsolidatorJobDataRepository @Inject()(mongoComponent: ReactiveMongoCompo
   )(implicit ec: ExecutionContext): Future[Either[ConsolidatorJobDataError, Unit]] =
     insert(consolidatorJobData)
       .map(_ => Right(()))
-      .recover {
-        case e => Left(GenericConsolidatorJobDataError(e.getMessage))
+      .recover { case e =>
+        Left(GenericConsolidatorJobDataError(e.getMessage))
       }
 
-  /**
-    *  Gets the most recent ConsolidatorJobData for the given project id, based on endTimestamp.
+  /**  Gets the most recent ConsolidatorJobData for the given project id, based on endTimestamp.
     *
     * @param projectId The project id to get recent ConsolidatorJobData for
     * @param ec The execution context
@@ -105,13 +104,13 @@ class ConsolidatorJobDataRepository @Inject()(mongoComponent: ReactiveMongoCompo
 
     collection
       .aggregateWith[ConsolidatorJobData]()(_ =>
-        matchQueryStage -> List(groupStage, projectStage, unwindStage, replaceRootStage))
+        matchQueryStage -> List(groupStage, projectStage, unwindStage, replaceRootStage)
+      )
       .headOption
       .map(Right(_))
-      .recover {
-        case e =>
-          logger.error(s"findMostRecentLastObjectId failed [projectId=$projectId]", e)
-          Left(GenericConsolidatorJobDataError(e.getMessage))
+      .recover { case e =>
+        logger.error(s"findMostRecentLastObjectId failed [projectId=$projectId]", e)
+        Left(GenericConsolidatorJobDataError(e.getMessage))
       }
   }
 }

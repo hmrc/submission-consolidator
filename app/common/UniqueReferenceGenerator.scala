@@ -27,16 +27,16 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.control.NoStackTrace
 
 @Singleton
-class UniqueReferenceGenerator @Inject()(uniqueIdRepository: UniqueIdRepository)(implicit ec: ExecutionContext) {
+class UniqueReferenceGenerator @Inject() (uniqueIdRepository: UniqueIdRepository)(implicit ec: ExecutionContext) {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
   def generate(length: Int): Future[Either[UniqueReferenceGenError, UniqueRef]] =
     uniqueIdRepository
-      .insertWithRetries(() => {
+      .insertWithRetries { () =>
         val uniqueRef = RandomStringUtils.randomAlphanumeric(length)
         logger.debug("Validating unique reference " + uniqueRef)
         UniqueId(uniqueRef.toUpperCase)
-      })
+      }
       .map {
         case Some(uid) => Right(UniqueRef(uid.value))
         case None      => Left(UniqueReferenceGenError("Failed to generate unique id"))

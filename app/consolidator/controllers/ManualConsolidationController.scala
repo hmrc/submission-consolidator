@@ -41,10 +41,9 @@ import scala.collection.JavaConverters._
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class ManualConsolidationController @Inject()(controllerComponents: ControllerComponents, config: Configuration)(
-  implicit
-  system: ActorSystem)
-    extends BackendController(controllerComponents) with ErrorHandler {
+class ManualConsolidationController @Inject() (controllerComponents: ControllerComponents, config: Configuration)(
+  implicit system: ActorSystem
+) extends BackendController(controllerComponents) with ErrorHandler {
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[ManualConsolidationController])
 
@@ -68,45 +67,46 @@ class ManualConsolidationController @Inject()(controllerComponents: ControllerCo
       (for {
         consolidatorActor <- system.actorSelection(s"/user/$consolidatorJobId/").resolveOne()
         result <- consolidatorJobConfigs
-                   .find(_.id == consolidatorJobId)
-                   .map { consolidatorJobConfig =>
-                     val params = consolidatorJobConfig.params.toManualFormConsolidatorParams(
-                       startInstant(startDate),
-                       endInstant(endDate)
-                     )
-                     logger.info(s"Sending message with job params $params [consolidatorJobId=$consolidatorJobId]")
-                     (consolidatorActor ? MessageWithFireTime(params, new Date())).map { consolidatorResponse =>
-                       logger.info(s"Consolidator job completed [consolidatorJobId=$consolidatorJobId] in ${(System
-                         .currentTimeMillis() - time) / 1000} seconds")
-                       consolidatorResponse match {
-                         case FormConsolidatorActor.OK => NoContent
-                         case FormConsolidatorActor.LockUnavailable =>
-                           handleError(
-                             ManualConsolidationError(
-                               CONSOLIDATOR_JOB_ALREADY_IN_PROGRESS,
-                               s"Consolidator job already in progress [consolidatorJobId=$consolidatorJobId]"))
-                         case other =>
-                           val message =
-                             s"Failed to consolidate forms [consolidatorJobId=$consolidatorJobId, error=$other]"
-                           logger.error(message)
-                           handleError(ManualConsolidationError(MANUAL_CONSOLIDATION_FAILED, message))
-                       }
-                     }
-                   }
-                   .getOrElse {
-                     val message = s"Invalid consolidator job, no actor found [consolidatorJobId=$consolidatorJobId]"
-                     logger.error(message)
-                     Future.successful(
-                       handleError(ManualConsolidationError(INVALID_CONSOLIDATOR_JOB_ID, message))
-                     )
-                   }
-      } yield result).recover {
-        case exception =>
-          val message = s"Failed to consolidate forms [consolidatorJobId=$consolidatorJobId, error=$exception]"
-          logger.error(message, exception)
-          handleError(
-            ManualConsolidationError(MANUAL_CONSOLIDATION_FAILED, message)
-          )
+                    .find(_.id == consolidatorJobId)
+                    .map { consolidatorJobConfig =>
+                      val params = consolidatorJobConfig.params.toManualFormConsolidatorParams(
+                        startInstant(startDate),
+                        endInstant(endDate)
+                      )
+                      logger.info(s"Sending message with job params $params [consolidatorJobId=$consolidatorJobId]")
+                      (consolidatorActor ? MessageWithFireTime(params, new Date())).map { consolidatorResponse =>
+                        logger.info(s"Consolidator job completed [consolidatorJobId=$consolidatorJobId] in ${(System
+                          .currentTimeMillis() - time) / 1000} seconds")
+                        consolidatorResponse match {
+                          case FormConsolidatorActor.OK => NoContent
+                          case FormConsolidatorActor.LockUnavailable =>
+                            handleError(
+                              ManualConsolidationError(
+                                CONSOLIDATOR_JOB_ALREADY_IN_PROGRESS,
+                                s"Consolidator job already in progress [consolidatorJobId=$consolidatorJobId]"
+                              )
+                            )
+                          case other =>
+                            val message =
+                              s"Failed to consolidate forms [consolidatorJobId=$consolidatorJobId, error=$other]"
+                            logger.error(message)
+                            handleError(ManualConsolidationError(MANUAL_CONSOLIDATION_FAILED, message))
+                        }
+                      }
+                    }
+                    .getOrElse {
+                      val message = s"Invalid consolidator job, no actor found [consolidatorJobId=$consolidatorJobId]"
+                      logger.error(message)
+                      Future.successful(
+                        handleError(ManualConsolidationError(INVALID_CONSOLIDATOR_JOB_ID, message))
+                      )
+                    }
+      } yield result).recover { case exception =>
+        val message = s"Failed to consolidate forms [consolidatorJobId=$consolidatorJobId, error=$exception]"
+        logger.error(message, exception)
+        handleError(
+          ManualConsolidationError(MANUAL_CONSOLIDATION_FAILED, message)
+        )
       }
     }
 

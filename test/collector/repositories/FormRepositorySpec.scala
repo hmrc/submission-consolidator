@@ -67,11 +67,11 @@ class FormRepositorySpec
     val untilTime = Instant.ofEpochMilli(currentTimeInMillis + 1000) // 1 second after current time
     val afterObjectId = BSONObjectID.fromTime(currentTimeInMillis - 1000, false) // 1 second before current time
     lazy val forms = (1 to 3)
-      .map(
-        seed =>
-          genForm
-            .pureApply(Gen.Parameters.default, Seed(seed.toLong))
-            .copy(projectId = projectId, id = BSONObjectID.fromTime(currentTimeInMillis, false)))
+      .map(seed =>
+        genForm
+          .pureApply(Gen.Parameters.default, Seed(seed.toLong))
+          .copy(projectId = projectId, id = BSONObjectID.fromTime(currentTimeInMillis, false))
+      )
       .toList
     forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
   }

@@ -28,7 +28,7 @@ import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class UniqueIdRepository @Inject()(mongoComponent: ReactiveMongoComponent)(implicit ec: ExecutionContext)
+class UniqueIdRepository @Inject() (mongoComponent: ReactiveMongoComponent)(implicit ec: ExecutionContext)
     extends ReactiveRepository[UniqueId, BSONObjectID](
       collectionName = "unique_ids",
       mongo = mongoComponent.mongoConnector.db,
@@ -54,10 +54,9 @@ class UniqueIdRepository @Inject()(mongoComponent: ReactiveMongoComponent)(impli
             val uniqueId = idGenFunction()
             insert(uniqueId)
               .map(_ => Option(uniqueId))
-              .recoverWith {
-                case e =>
-                  logger.info("Failed to insert unique id", e)
-                  Future.successful(None)
+              .recoverWith { case e =>
+                logger.info("Failed to insert unique id", e)
+                Future.successful(None)
               }
           case other => Future.successful(other)
         }

@@ -171,13 +171,12 @@ class FormConsolidatorActorSpec
 
           actor ! messageWithFireTime
 
-          expectMsgPF() {
-            case t: Throwable =>
-              t.getMessage shouldBe "consolidation error"
-              mockFileUploaderService.submit(reportFiles, schedulerFormConsolidatorParams) wasNever called
-              mockDeleteDirService.deleteDir(reportDir) wasCalled once
-              mockMetricsClient.markMeter(s"consolidator.$projectId.failed") wasCalled once
-              assertConsolidatorData(None, Some("consolidation error"), None)
+          expectMsgPF() { case t: Throwable =>
+            t.getMessage shouldBe "consolidation error"
+            mockFileUploaderService.submit(reportFiles, schedulerFormConsolidatorParams) wasNever called
+            mockDeleteDirService.deleteDir(reportDir) wasCalled once
+            mockMetricsClient.markMeter(s"consolidator.$projectId.failed") wasCalled once
+            assertConsolidatorData(None, Some("consolidation error"), None)
           }
         }
       }
@@ -194,13 +193,12 @@ class FormConsolidatorActorSpec
 
           actor ! messageWithFireTime
 
-          expectMsgPF() {
-            case t: Throwable =>
-              t.getMessage shouldBe "file upload error"
-              mockConsolidatorService.doConsolidation(reportDir, schedulerFormConsolidatorParams) wasCalled once
-              mockFileUploaderService.submit(reportFiles, schedulerFormConsolidatorParams) wasCalled once
-              mockDeleteDirService.deleteDir(reportDir) wasCalled once
-              assertConsolidatorData(None, Some("file upload error"), None)
+          expectMsgPF() { case t: Throwable =>
+            t.getMessage shouldBe "file upload error"
+            mockConsolidatorService.doConsolidation(reportDir, schedulerFormConsolidatorParams) wasCalled once
+            mockFileUploaderService.submit(reportFiles, schedulerFormConsolidatorParams) wasCalled once
+            mockDeleteDirService.deleteDir(reportDir) wasCalled once
+            assertConsolidatorData(None, Some("file upload error"), None)
           }
         }
       }

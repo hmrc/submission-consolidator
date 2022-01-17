@@ -26,8 +26,8 @@ class FormCSVFilePartWriter(
   override val outputDir: Path,
   override val filePrefix: String,
   maxBytesPerFile: Long,
-  headers: List[String])
-    extends AbstractFilePartWriter[Form] {
+  headers: List[String]
+) extends AbstractFilePartWriter[Form] {
 
   override val ext: String = "csv"
 

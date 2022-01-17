@@ -77,10 +77,9 @@ class FilePartOutputStageSpec
         result.get.count shouldBe noOfRecords
         result.get.lastValue shouldBe records.last
         result.get.reportFiles shouldNot be(empty)
-        result.get.reportFiles.zipWithIndex.foreach {
-          case (file, index) =>
-            file.getName shouldBe s"test-$index.ext"
-            fileRows(file) should matchTo(recordRows(records))
+        result.get.reportFiles.zipWithIndex.foreach { case (file, index) =>
+          file.getName shouldBe s"test-$index.ext"
+          fileRows(file) should matchTo(recordRows(records))
         }
       }
     }
@@ -96,7 +95,7 @@ class FilePartOutputStageSpec
         exception shouldBe a[IOOperationIncompleteException]
         exception.getMessage shouldBe "IO operation was stopped unexpectedly because of java.lang.RuntimeException: failed to open channel"
 
-        mockFilePartWriter.closeChannel() wasCalled (once)
+        mockFilePartWriter.closeChannel() wasCalled once
       }
     }
   }

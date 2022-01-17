@@ -40,10 +40,10 @@ import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent, config: Configuration)(
-  implicit system: ActorSystem,
-  ec: ExecutionContext)
-    extends ReactiveRepository[Form, BSONObjectID](
+class FormRepository @Inject() (mongoComponent: ReactiveMongoComponent, config: Configuration)(implicit
+  system: ActorSystem,
+  ec: ExecutionContext
+) extends ReactiveRepository[Form, BSONObjectID](
       collectionName = "forms",
       mongo = mongoComponent.mongoConnector.db,
       domainFormat = Form.formats,
@@ -61,10 +61,8 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent, config: C
     _ <- ensureIndex("submissionRef", "submissionRefUniqueIdx", true, None)
     _ <- ensureIndex("projectId", "projectIdIdx", false, None)
     _ <- ensureIndex("submissionTimestamp", "submissionTimestampIdx", false, maybeTtl)
-  } yield {
-    ()
-  }) recoverWith {
-    case t: Throwable => Future.successful(logger.error(s"Error ensuring indexes on collection ${collection.name}", t))
+  } yield ()) recoverWith { case t: Throwable =>
+    Future.successful(logger.error(s"Error ensuring indexes on collection ${collection.name}", t))
   }
 
   def ensureIndex(field: String, indexName: String, isUnique: Boolean, ttl: Option[Long]): Future[Boolean] = {
@@ -82,14 +80,11 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent, config: C
     }
 
     collection.indexesManager.ensure(index) map { result =>
-      {
-        logger.warn(s"Created index $indexName on collection ${collection.name} with TTL value $ttl -> result: $result")
-        result
-      }
-    } recover {
-      case e =>
-        logger.error("Failed to set TTL index", e)
-        false
+      logger.warn(s"Created index $indexName on collection ${collection.name} with TTL value $ttl -> result: $result")
+      result
+    } recover { case e =>
+      logger.error("Failed to set TTL index", e)
+      false
     }
   }
 
@@ -115,15 +110,14 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent, config: C
           Left(MongoGenericError(other.getMessage))
       }
 
-  /**
-    * @param projectId
+  /** @param projectId
     * @param afterObjectId
     * @param ec
     * @return
     */
-  def distinctFormDataIds(projectId: String, afterObjectId: Option[BSONObjectID] = None)(
-    implicit
-    ec: ExecutionContext): Future[Either[FormError, List[String]]] =
+  def distinctFormDataIds(projectId: String, afterObjectId: Option[BSONObjectID] = None)(implicit
+    ec: ExecutionContext
+  ): Future[Either[FormError, List[String]]] =
     collection
       .aggregateWith[JsObject]() { framework =>
         import framework._
@@ -138,8 +132,8 @@ class FormRepository @Inject()(mongoComponent: ReactiveMongoComponent, config: C
       }
       .collect[List](-1, Cursor.FailOnError())
       .map(jsObjectList => jsObjectList.map(jsObject => (jsObject \ "_id").get.as[JsString].value).asRight[FormError])
-      .recover {
-        case e => MongoGenericError(e.getMessage).asLeft[List[String]]
+      .recover { case e =>
+        MongoGenericError(e.getMessage).asLeft[List[String]]
       }
 
   def formsSource(

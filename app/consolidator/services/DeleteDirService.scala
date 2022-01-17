@@ -26,7 +26,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success, Try }
 
 @Singleton
-class DeleteDirService @Inject()(implicit ec: ExecutionContext) {
+class DeleteDirService @Inject() (implicit ec: ExecutionContext) {
 
   private val logger = LoggerFactory.getLogger(classOf[DeleteDirService])
 

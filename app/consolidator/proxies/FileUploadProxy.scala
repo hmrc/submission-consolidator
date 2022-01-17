@@ -26,9 +26,9 @@ import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class FileUploadProxy @Inject()(fileUploadConfig: FileUploadConfig, wsHttpClient: WSHttpClient)(
-  implicit
-  ex: ExecutionContext) {
+class FileUploadProxy @Inject() (fileUploadConfig: FileUploadConfig, wsHttpClient: WSHttpClient)(implicit
+  ex: ExecutionContext
+) {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
   private lazy val headers = Seq("Csrf-Token" -> "nocheck")
   implicit val headerCarrier: HeaderCarrier = HeaderCarrier()
@@ -54,8 +54,8 @@ class FileUploadProxy @Inject()(fileUploadConfig: FileUploadConfig, wsHttpClient
             Left(GenericFileUploadError(s"Create envelope failed [status=$other, body=${httpResponse.body}]"))
         }
       }
-      .recover {
-        case e => Left(GenericFileUploadError(s"Create envelope failed [error=$e]"))
+      .recover { case e =>
+        Left(GenericFileUploadError(s"Create envelope failed [error=$e]"))
       }
   }
 
@@ -71,8 +71,8 @@ class FileUploadProxy @Inject()(fileUploadConfig: FileUploadConfig, wsHttpClient
             Left(GenericFileUploadError(s"Route envelope failed [status=$other, body=${httpResponse.body}]"))
         }
       }
-      .recover {
-        case e => Left(GenericFileUploadError(s"Route envelope failed [error=$e]"))
+      .recover { case e =>
+        Left(GenericFileUploadError(s"Route envelope failed [error=$e]"))
       }
   }
 

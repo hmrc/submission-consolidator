@@ -29,7 +29,8 @@ object MetadataDocumentHelper {
     zonedDateTime: ZonedDateTime,
     expectedFormat: String,
     expectedMimetype: String,
-    expectedAttachments: Int) = {
+    expectedAttachments: Int
+  ) = {
     val expected = MetadataDocument(
       Documents(
         Document(
@@ -56,7 +57,8 @@ object MetadataDocumentHelper {
               Attribute("business_area", "string", List("some-business-area")),
               Attribute("attachment_count", "int", List(expectedAttachments.toString)),
               Attribute("source", "string", List("dfs"))
-            ))
+            )
+          )
         )
       )
     )

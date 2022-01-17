@@ -91,11 +91,11 @@ class ConsolidatorJobDataRepositorySpec
 
       "return None, when all of records have errors" in {
         val projectId = "some-project-id"
-        val consolidatorJobDatasWithErrors = (1 to 10).map(
-          seed =>
-            genConsolidatorJobDataWithError
-              .pureApply(Gen.Parameters.default, Seed(seed.toLong))
-              .copy(projectId = projectId))
+        val consolidatorJobDatasWithErrors = (1 to 10).map(seed =>
+          genConsolidatorJobDataWithError
+            .pureApply(Gen.Parameters.default, Seed(seed.toLong))
+            .copy(projectId = projectId)
+        )
         assert(consolidatorJobDatasWithErrors.forall(_.error.isDefined))
         consolidatorJobDatasWithErrors.foreach(repository.add(_).futureValue)
 
@@ -109,7 +109,8 @@ class ConsolidatorJobDataRepositorySpec
       "return most recent job data having lastObjectId, for the given projectId" in {
         val projectId = "some-project-id"
         val consolidatorJobDatas = (1 to 10).map(seed =>
-          genConsolidatorJobData.pureApply(Gen.Parameters.default, Seed(seed.toLong)).copy(projectId = projectId))
+          genConsolidatorJobData.pureApply(Gen.Parameters.default, Seed(seed.toLong)).copy(projectId = projectId)
+        )
         assert(consolidatorJobDatas.forall(_.lastObjectId.isDefined))
         consolidatorJobDatas.foreach(repository.add(_).futureValue)
 
@@ -122,16 +123,16 @@ class ConsolidatorJobDataRepositorySpec
 
       "return most recent job data having lastObjectId, ignoring records with errors" in {
         val projectId = "some-project-id"
-        val consolidatorJobDatas = (1 to 5).map(
-          seed =>
-            genConsolidatorJobData
+        val consolidatorJobDatas = (1 to 5).map(seed =>
+          genConsolidatorJobData
+            .pureApply(Gen.Parameters.default, Seed(seed.toLong))
+            .copy(projectId = projectId)
+        ) ++ (1 to 5)
+          .map(seed =>
+            genConsolidatorJobDataWithError
               .pureApply(Gen.Parameters.default, Seed(seed.toLong))
-              .copy(projectId = projectId)) ++ (1 to 5)
-          .map(
-            seed =>
-              genConsolidatorJobDataWithError
-                .pureApply(Gen.Parameters.default, Seed(seed.toLong))
-                .copy(projectId = projectId))
+              .copy(projectId = projectId)
+          )
         assert(consolidatorJobDatas.exists(_.error.isDefined))
         consolidatorJobDatas.foreach(repository.add(_).futureValue)
 
