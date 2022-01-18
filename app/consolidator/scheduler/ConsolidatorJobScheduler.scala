@@ -26,7 +26,7 @@ import play.api.libs.json.Json.parse
 import scala.collection.JavaConverters._
 
 @Singleton
-class ConsolidatorJobScheduler @Inject()(config: Configuration) {
+class ConsolidatorJobScheduler @Inject() (config: Configuration) {
 
   def scheduleJobs(receivingActorProps: Props)(implicit system: ActorSystem): QuartzSchedulerExtension = {
     val consolidatorJobConfigs = config.underlying
@@ -43,7 +43,8 @@ class ConsolidatorJobScheduler @Inject()(config: Configuration) {
         receivingActorRef,
         MessageRequireFireTime(jobConfig.params.toScheduledFormConsolidatorParams),
         None,
-        jobConfig.cron)
+        jobConfig.cron
+      )
     }
 
     scheduler

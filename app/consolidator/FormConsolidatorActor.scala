@@ -58,58 +58,56 @@ class FormConsolidatorActor(
 
   private val runningProjects: mutable.Set[String] = mutable.Set[String]()
 
-  override def receive: Receive = {
-    case MessageWithFireTime(params: FormConsolidatorParams, time: Date, _, _) =>
-      if (!runningProjects.contains(params.projectId)) {
-        runningProjects += params.projectId
-        logger.info(s"Received request for job $params")
-        val senderRef = sender()
-        val reportOutputDir = createReportDir(params.projectId, time)
-        val program: IO[Unit] = (for {
-          consolidationResult <- consolidatorService.doConsolidation(reportOutputDir, params)
-          envelopeIds <- consolidationResult
-                          .map(
-                            c =>
-                              fileUploaderService
-                                .submit(c.reportFiles, params)
-                                .map(Option(_)))
-                          .getOrElse(IO.pure(None))
-          _ <- addConsolidatorJobData(
-                params,
-                ofEpochMilli(time.getTime),
-                consolidationResult,
-                None,
-                envelopeIds
-              )
+  override def receive: Receive = { case MessageWithFireTime(params: FormConsolidatorParams, time: Date, _, _) =>
+    if (!runningProjects.contains(params.projectId)) {
+      runningProjects += params.projectId
+      logger.info(s"Received request for job $params")
+      val senderRef = sender()
+      val reportOutputDir = createReportDir(params.projectId, time)
+      val program: IO[Unit] = (for {
+        consolidationResult <- consolidatorService.doConsolidation(reportOutputDir, params)
+        envelopeIds <- consolidationResult
+                         .map(c =>
+                           fileUploaderService
+                             .submit(c.reportFiles, params)
+                             .map(Option(_))
+                         )
+                         .getOrElse(IO.pure(None))
+        _ <- addConsolidatorJobData(
+               params,
+               ofEpochMilli(time.getTime),
+               consolidationResult,
+               None,
+               envelopeIds
+             )
+        _ <- deleteReportTmpDir(reportOutputDir)
+      } yield ()).recoverWith { case e =>
+        logger.error(s"Failed to consolidate/submit forms for project ${params.projectId}", e)
+        (for {
           _ <- deleteReportTmpDir(reportOutputDir)
-        } yield ()).recoverWith {
-          case e =>
-            logger.error(s"Failed to consolidate/submit forms for project ${params.projectId}", e)
-            (for {
-              _ <- deleteReportTmpDir(reportOutputDir)
-              _ <- addConsolidatorJobData(params, ofEpochMilli(time.getTime), None, Some(e.getMessage), None)
-            } yield ()).flatMap(_ => IO.raiseError(e))
-        }
-
-        val lock = new LockKeeperAutoRenew {
-          override val repo: LockRepository = lockRepository
-          override val id: String = params.projectId
-          override val duration: org.joda.time.Duration = org.joda.time.Duration.standardMinutes(5)
-        }
-
-        lock
-          .withLock(program.unsafeToFuture())
-          .onComplete { result =>
-            runningProjects -= params.projectId
-            result match {
-              case Success(Some(_)) =>
-                senderRef ! OK
-              case Success(None) =>
-                senderRef ! LockUnavailable
-              case Failure(e) => senderRef ! e
-            }
-          }
+          _ <- addConsolidatorJobData(params, ofEpochMilli(time.getTime), None, Some(e.getMessage), None)
+        } yield ()).flatMap(_ => IO.raiseError(e))
       }
+
+      val lock = new LockKeeperAutoRenew {
+        override val repo: LockRepository = lockRepository
+        override val id: String = params.projectId
+        override val duration: org.joda.time.Duration = org.joda.time.Duration.standardMinutes(5)
+      }
+
+      lock
+        .withLock(program.unsafeToFuture())
+        .onComplete { result =>
+          runningProjects -= params.projectId
+          result match {
+            case Success(Some(_)) =>
+              senderRef ! OK
+            case Success(None) =>
+              senderRef ! LockUnavailable
+            case Failure(e) => senderRef ! e
+          }
+        }
+    }
   }
 
   private def addConsolidatorJobData(

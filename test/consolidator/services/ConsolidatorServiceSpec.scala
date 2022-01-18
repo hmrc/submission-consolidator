@@ -79,21 +79,22 @@ class ConsolidatorServiceSpec
     val now: Instant = Instant.now()
     implicit val timeInstant: Time[Instant] = () => now
     lazy val forms: List[Form] = (1 to noOfForms)
-      .map(
-        i =>
-          Form(
-            s"some-sub-ref$i",
-            "some-project",
-            "some-template",
-            s"some-customer$i",
-            Instant.now(),
-            (1 to 10).map(j => FormField(s"id$j", s"value$i$j")).toList
-        ))
+      .map(i =>
+        Form(
+          s"some-sub-ref$i",
+          "some-project",
+          "some-template",
+          s"some-customer$i",
+          Instant.now(),
+          (1 to 10).map(j => FormField(s"id$j", s"value$i$j")).toList
+        )
+      )
       .toList
 
     mockConsolidatorJobDataRepository.findRecentLastObjectId(*)(*) shouldReturn Future.successful(Right(None))
     mockFormRepository.formsSource(*, *, *, *) shouldReturn Source(forms).mapMaterializedValue(_ =>
-      Future.successful(()))
+      Future.successful(())
+    )
   }
 
   trait TestFixtureCSVFormat extends TestFixture {
@@ -211,14 +212,13 @@ class ConsolidatorServiceSpec
           consolidationResult.get.count shouldBe noOfForms
           val files = consolidationResult.get.reportFiles
           files.size shouldBe 2
-          files.sorted.zipWithIndex.zip(forms).foreach {
-            case ((file, index), form) =>
-              file.getName shouldBe s"report-$index.xls"
-              val fileSource = scala.io.Source.fromFile(file, "UTF-8")
-              val lines = fileSource.getLines().toList
-              lines.size shouldBe 1
-              lines.head shouldEqual FormJsonLineFilePartWriter.toJson(form)
-              fileSource.close
+          files.sorted.zipWithIndex.zip(forms).foreach { case ((file, index), form) =>
+            file.getName shouldBe s"report-$index.xls"
+            val fileSource = scala.io.Source.fromFile(file, "UTF-8")
+            val lines = fileSource.getLines().toList
+            lines.size shouldBe 1
+            lines.head shouldEqual FormJsonLineFilePartWriter.toJson(form)
+            fileSource.close
           }
         }
       }
@@ -269,7 +269,8 @@ class ConsolidatorServiceSpec
             format,
             FileUpload(classificationType, businessArea),
             startInstant,
-            endInstant)
+            endInstant
+          )
         val future = consolidatorService.doConsolidation(reportDir, userFormConsolidatorParams).unsafeToFuture()
 
         whenReady(future) { consolidationResult =>
@@ -309,14 +310,13 @@ class ConsolidatorServiceSpec
 
           val files = consolidationResult.get.reportFiles
           files.size shouldBe 2
-          files.sorted.zipWithIndex.zip(forms).foreach {
-            case ((file, index), form) =>
-              file.getName shouldBe s"report-$index.csv"
-              val fileSource = scala.io.Source.fromFile(file, "UTF-8")
-              val lines = fileSource.getLines().toList
-              lines.head shouldBe FormCSVFilePartWriter.toCSV(headers)
-              lines(1) shouldBe FormCSVFilePartWriter.toCSV(form, headers)
-              fileSource.close
+          files.sorted.zipWithIndex.zip(forms).foreach { case ((file, index), form) =>
+            file.getName shouldBe s"report-$index.csv"
+            val fileSource = scala.io.Source.fromFile(file, "UTF-8")
+            val lines = fileSource.getLines().toList
+            lines.head shouldBe FormCSVFilePartWriter.toCSV(headers)
+            lines(1) shouldBe FormCSVFilePartWriter.toCSV(form, headers)
+            fileSource.close
           }
         }
       }
@@ -335,12 +335,11 @@ class ConsolidatorServiceSpec
 
           val files = consolidationResult.get.reportFiles
           files.size shouldBe 2
-          files.sorted.zipWithIndex.zip(forms).foreach {
-            case ((file, index), form) =>
-              file.getName shouldBe s"report-$index.xlsx"
-              val lines = excelFileRows(file)
-              lines.head shouldBe headers
-              lines(1) shouldBe headers.flatMap(h => form.formData.filter(_.id == h).map(_.value))
+          files.sorted.zipWithIndex.zip(forms).foreach { case ((file, index), form) =>
+            file.getName shouldBe s"report-$index.xlsx"
+            val lines = excelFileRows(file)
+            lines.head shouldBe headers
+            lines(1) shouldBe headers.flatMap(h => form.formData.filter(_.id == h).map(_.value))
           }
         }
       }

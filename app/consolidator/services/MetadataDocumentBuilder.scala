@@ -30,8 +30,9 @@ trait MetadataDocumentBuilder {
   private val DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
   private val DDMMYYYYHHMMSS = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
 
-  def metaDataDocument(params: FormConsolidatorParams, submissionRef: UniqueRef, attachmentCount: Int)(
-    implicit time: Time[Instant]): MetadataDocument =
+  def metaDataDocument(params: FormConsolidatorParams, submissionRef: UniqueRef, attachmentCount: Int)(implicit
+    time: Time[Instant]
+  ): MetadataDocument =
     buildMetaDataDocument(params, submissionRef, attachmentCount, "pdf", "application/pdf")
 
   protected def buildMetaDataDocument(
@@ -74,7 +75,8 @@ trait MetadataDocumentBuilder {
             )
           )
         )
-      ))
+      )
+    )
   }
 }
 

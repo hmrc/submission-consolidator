@@ -24,7 +24,7 @@ import javax.inject.{ Inject, Singleton }
 import scala.concurrent.duration.Duration
 
 @Singleton
-class MetricsClient @Inject()(metrics: Metrics) {
+class MetricsClient @Inject() (metrics: Metrics) {
 
   def recordDuration(name: String, duration: Duration): Unit =
     metrics.defaultRegistry

@@ -63,11 +63,13 @@ object APIForm {
       (JsPath \ "customerId").read[String](minLength[String](1)) and
       (JsPath \ "submissionTimestamp").read[String](
         filter[String](JsonValidationError("Must confirm to ISO-8601 date-time format YYYY-MM-DD'T'HH:mm:ssZ"))(value =>
-          Try(parseAsLocalDateTime(value)).isSuccess)
+          Try(parseAsLocalDateTime(value)).isSuccess
+        )
       ) and
       (JsPath \ "formData").readNullableWithDefault[List[APIFormField]](None)
   )((submissionRef, formId, templateId, customerId, submissionTimestamp, formData) =>
-    APIForm(submissionRef, formId, templateId, customerId, submissionTimestamp, formData.getOrElse(List.empty)))
+    APIForm(submissionRef, formId, templateId, customerId, submissionTimestamp, formData.getOrElse(List.empty))
+  )
 
   implicit class APIFormOps(apiForm: APIForm) {
     def toForm =
@@ -93,7 +95,7 @@ object APIError {
 
 case class RequestValidationError(
   errors: Seq[(JsPath, Seq[JsonValidationError])],
-  message: String = "Request body failed validation")
-    extends ApplicationError(message)
+  message: String = "Request body failed validation"
+) extends ApplicationError(message)
 
 case class ManualConsolidationError(code: String, message: String) extends ApplicationError(message)

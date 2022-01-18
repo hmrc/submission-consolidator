@@ -28,7 +28,8 @@ case class Constraints(
   maxSize: String,
   maxSizePerItem: String,
   contentTypes: List[String],
-  allowZeroLengthFiles: Boolean)
+  allowZeroLengthFiles: Boolean
+)
 object Constraints {
   implicit val formats = Json.format[Constraints]
 }

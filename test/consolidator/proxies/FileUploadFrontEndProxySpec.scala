@@ -86,8 +86,11 @@ class FileUploadFrontEndProxySpec
           fileUploadFrontEndProxy.upload("some-envelope-id", FileId("some-file-id"), file, ContentType.`text/plain`)
 
         whenReady(future) { result =>
-          result shouldBe Left(GenericFileUploadError(
-            "File upload failed [envelopeId=some-envelope-id, fileId=some-file-id, file=some-file, responseStatus=400, responseBody=some error]"))
+          result shouldBe Left(
+            GenericFileUploadError(
+              "File upload failed [envelopeId=some-envelope-id, fileId=some-file-id, file=some-file, responseStatus=400, responseBody=some error]"
+            )
+          )
         }
       }
     }
@@ -101,7 +104,8 @@ class FileUploadFrontEndProxySpec
 
         whenReady(future) { result =>
           result shouldBe Left(
-            GenericFileUploadError("File upload failed [error=java.net.ConnectException: connection failed]"))
+            GenericFileUploadError("File upload failed [error=java.net.ConnectException: connection failed]")
+          )
         }
       }
     }

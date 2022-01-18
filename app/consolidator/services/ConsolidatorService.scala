@@ -37,7 +37,7 @@ import reactivemongo.bson.BSONObjectID
 import scala.concurrent.ExecutionContext
 
 @Singleton
-class ConsolidatorService @Inject()(
+class ConsolidatorService @Inject() (
   formRepository: FormRepository,
   consolidatorJobDataRepository: ConsolidatorJobDataRepository,
   config: Configuration
@@ -47,9 +47,9 @@ class ConsolidatorService @Inject()(
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ec)
   private val batchSize = config.underlying.getInt("consolidator-job-config.batchSize")
 
-  def doConsolidation(outputPath: Path, params: FormConsolidatorParams)(
-    implicit
-    time: Time[Instant]): IO[Option[ConsolidationResult]] =
+  def doConsolidation(outputPath: Path, params: FormConsolidatorParams)(implicit
+    time: Time[Instant]
+  ): IO[Option[ConsolidationResult]] =
     for {
       afterObjectId <- getAfterObjectId(params)
       untilInstant = params.getUntilInstant(time.now())
@@ -64,16 +64,10 @@ class ConsolidatorService @Inject()(
   ): IO[Option[ConsolidationResult]] =
     for {
       formDataIds <- formDataIds(params.projectId, afterObjectId, params.format)
-      filePartOutputStageResult <- writeFormsToFiles(
-                                    params.projectId,
-                                    afterObjectId,
-                                    untilInstant,
-                                    formDataIds,
-                                    outputPath,
-                                    params.format)
-    } yield
-      filePartOutputStageResult
-        .map(f => ConsolidationResult(f.lastValue.id, f.count, f.reportFiles.toList))
+      filePartOutputStageResult <-
+        writeFormsToFiles(params.projectId, afterObjectId, untilInstant, formDataIds, outputPath, params.format)
+    } yield filePartOutputStageResult
+      .map(f => ConsolidationResult(f.lastValue.id, f.count, f.reportFiles.toList))
 
   private def writeFormsToFiles(
     projectId: String,
@@ -81,7 +75,8 @@ class ConsolidatorService @Inject()(
     untilInstant: Instant,
     formDataIds: List[String],
     outputDir: Path,
-    format: ConsolidationFormat) =
+    format: ConsolidationFormat
+  ) =
     liftIO(
       formRepository
         .formsSource(projectId, batchSize, afterObjectId, untilInstant)
@@ -100,8 +95,8 @@ class ConsolidatorService @Inject()(
         .map { filePartOutputStageResult =>
           Right(filePartOutputStageResult)
         }
-        .recover {
-          case e => Left(e)
+        .recover { case e =>
+          Left(e)
         }
     )
 
@@ -121,7 +116,8 @@ class ConsolidatorService @Inject()(
   private def formDataIds(
     projectId: String,
     afterObjectId: Option[BSONObjectID],
-    format: ConsolidationFormat): IO[List[String]] =
+    format: ConsolidationFormat
+  ): IO[List[String]] =
     format match {
       case ConsolidationFormat.csv | ConsolidationFormat.`xlsx` =>
         liftIO(formRepository.distinctFormDataIds(projectId, afterObjectId))

@@ -52,21 +52,20 @@ trait ErrorHandler {
     }
 
   private def mapToAPIFieldErrors(errors: Seq[(JsPath, Seq[JsonValidationError])]) =
-    errors.map {
-      case (path, errors) =>
-        APIFieldError(
-          path.toString,
-          errors
-            .map { jsonError =>
-              jsonError.messages.head match {
-                case "error.minLength" =>
-                  s"Minimum length should be ${jsonError.args.headOption.getOrElse("")}"
-                case "error.path.missing" =>
-                  s"Is required"
-                case other => s"$other ${jsonError.args.headOption.getOrElse("")}".trim
-              }
+    errors.map { case (path, errors) =>
+      APIFieldError(
+        path.toString,
+        errors
+          .map { jsonError =>
+            jsonError.messages.head match {
+              case "error.minLength" =>
+                s"Minimum length should be ${jsonError.args.headOption.getOrElse("")}"
+              case "error.path.missing" =>
+                s"Is required"
+              case other => s"$other ${jsonError.args.headOption.getOrElse("")}".trim
             }
-            .mkString(",")
-        )
+          }
+          .mkString(",")
+      )
     }.toList
 }

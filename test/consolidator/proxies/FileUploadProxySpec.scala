@@ -64,7 +64,8 @@ class FileUploadProxySpec
       )
     )
     lazy val responseHeaders: Map[String, Seq[String]] = Map(
-      HeaderNames.LOCATION -> Seq("localhost/file-upload/envelopes/some-envelope-id"))
+      HeaderNames.LOCATION -> Seq("localhost/file-upload/envelopes/some-envelope-id")
+    )
     lazy val responseStatus: Int = 201
     lazy val responseBody: String = ""
     lazy val response = Future.successful(
@@ -89,7 +90,8 @@ class FileUploadProxySpec
             *,
             *[HttpReads[HttpResponse]],
             *,
-            *) wasCalled once
+            *
+          ) wasCalled once
         }
       }
     }
@@ -127,7 +129,8 @@ class FileUploadProxySpec
 
         whenReady(future) { result =>
           result shouldBe Left(
-            GenericFileUploadError(s"Create envelope failed [status=$responseStatus, body=$responseBody]"))
+            GenericFileUploadError(s"Create envelope failed [status=$responseStatus, body=$responseBody]")
+          )
         }
       }
     }
@@ -140,7 +143,8 @@ class FileUploadProxySpec
 
         whenReady(future) { result =>
           result shouldBe Left(
-            GenericFileUploadError(s"Create envelope failed [error=java.net.ConnectException: connection failed]"))
+            GenericFileUploadError(s"Create envelope failed [error=java.net.ConnectException: connection failed]")
+          )
         }
       }
     }
@@ -172,7 +176,8 @@ class FileUploadProxySpec
             *,
             *[HttpReads[HttpResponse]],
             *,
-            *) wasCalled once
+            *
+          ) wasCalled once
         }
       }
     }
@@ -186,7 +191,8 @@ class FileUploadProxySpec
 
         whenReady(future) { result =>
           result shouldBe Left(
-            GenericFileUploadError(s"Route envelope failed [status=$responseStatus, body=$responseBody]"))
+            GenericFileUploadError(s"Route envelope failed [status=$responseStatus, body=$responseBody]")
+          )
         }
       }
     }
@@ -199,7 +205,8 @@ class FileUploadProxySpec
 
         whenReady(future) { result =>
           result shouldBe Left(
-            GenericFileUploadError(s"Route envelope failed [error=java.net.ConnectException: connection failed]"))
+            GenericFileUploadError(s"Route envelope failed [error=java.net.ConnectException: connection failed]")
+          )
         }
       }
     }

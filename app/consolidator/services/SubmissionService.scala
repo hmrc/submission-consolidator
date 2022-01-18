@@ -36,7 +36,7 @@ import org.slf4j.{ Logger, LoggerFactory }
 import scala.concurrent.ExecutionContext
 
 @Singleton
-class SubmissionService @Inject()(
+class SubmissionService @Inject() (
   fileUploadProxy: FileUploadProxy,
   fileUploadFrontEndProxy: FileUploadFrontEndProxy,
   uniqueReferenceGenerator: UniqueReferenceGenerator
@@ -50,9 +50,9 @@ class SubmissionService @Inject()(
   private val SUBMISSION_REF_LENGTH = 12
   private val REPORT_FILE_PATTERN = "report-(\\d+)\\.(.+)".r
 
-  def submit(reportFiles: List[File], params: FormConsolidatorParams)(
-    implicit
-    time: Time[Instant]): IO[NonEmptyList[String]] = {
+  def submit(reportFiles: List[File], params: FormConsolidatorParams)(implicit
+    time: Time[Instant]
+  ): IO[NonEmptyList[String]] = {
     implicit val now: Instant = time.now()
     val zonedDateTime = now.atZone(ZoneId.systemDefault())
 
@@ -62,24 +62,25 @@ class SubmissionService @Inject()(
           case REPORT_FILE_PATTERN(reportFileId, _) =>
             reportFileId.toInt
           case _ => throw new IllegalArgumentException(s"Report file name not in expected format ${f.getName}")
-      })
+        }
+      )
     assert(reportFileList.nonEmpty, s"Report files should be non-empty")
     logger.info(
       s"Uploading reports to file-upload service [reportFiles=$reportFiles, params=$params]"
     )
 
-    val groupedReportFiles = reportFileList.foldLeft(List(List[File]())) {
-      case (acc, reportFile) =>
-        if (acc.head.map(_.length()).sum + reportFile.length() > maxReportAttachmentsSize) {
-          List(reportFile) :: acc
-        } else {
-          (reportFile :: acc.head) :: acc.tail
-        }
+    val groupedReportFiles = reportFileList.foldLeft(List(List[File]())) { case (acc, reportFile) =>
+      if (acc.head.map(_.length()).sum + reportFile.length() > maxReportAttachmentsSize) {
+        List(reportFile) :: acc
+      } else {
+        (reportFile :: acc.head) :: acc.tail
+      }
     }
 
     fromListUnsafe(groupedReportFiles.map(_.reverse).map { reportFiles =>
       logger.info(
-        s"Creating envelope and uploading files ${reportFiles.map(_.getName)} for project ${params.projectId}")
+        s"Creating envelope and uploading files ${reportFiles.map(_.getName)} for project ${params.projectId}"
+      )
       val createEnvelopeRequest = CreateEnvelopeRequest(
         consolidator.proxies.Metadata("gform"),
         Constraints(
@@ -90,7 +91,8 @@ class SubmissionService @Inject()(
             "text/plain",
             "text/csv",
             "application/pdf",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          ),
           false
         )
       )
@@ -119,7 +121,8 @@ class SubmissionService @Inject()(
                 envelopeId,
                 FileId(file.getName.substring(0, file.getName.lastIndexOf("."))),
                 file,
-                params.format.contentType)
+                params.format.contentType
+              )
           )
         }).parSequence
 

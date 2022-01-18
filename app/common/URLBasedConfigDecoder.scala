@@ -41,21 +41,21 @@ trait URLBasedConfigDecoder {
         case ConfigValueType.STRING =>
           decodedValues += key -> decode(configValue)
         case ConfigValueType.LIST =>
-          configValue.asInstanceOf[ConfigList].asScala.zipWithIndex.foreach {
-            case (value, index) => decodeRecursive(key + "." + index, value)
+          configValue.asInstanceOf[ConfigList].asScala.zipWithIndex.foreach { case (value, index) =>
+            decodeRecursive(key + "." + index, value)
           }
         case ConfigValueType.OBJECT =>
-          configValue.asInstanceOf[ConfigObject].forEach {
-            case (subKey, subValue) => decodeRecursive(key + "." + subKey, subValue)
+          configValue.asInstanceOf[ConfigObject].forEach { case (subKey, subValue) =>
+            decodeRecursive(key + "." + subKey, subValue)
           }
         case _ =>
           decodedValues += key -> configValue
       }
-    configuration.entrySet.foreach {
-      case (key, configValue) => decodeRecursive(key, configValue)
+    configuration.entrySet.foreach { case (key, configValue) =>
+      decodeRecursive(key, configValue)
     }
-    Configuration(decodedValues.foldLeft(configuration.underlying) {
-      case (config, (path, updatedConfig)) => config.withValue(path, updatedConfig)
+    Configuration(decodedValues.foldLeft(configuration.underlying) { case (config, (path, updatedConfig)) =>
+      config.withValue(path, updatedConfig)
     })
   }
 }

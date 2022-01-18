@@ -21,7 +21,8 @@ case class ContentType(value: String) extends AnyVal
 object ContentType {
   val `text/plain` = ContentType("text/plain")
   val `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` = ContentType(
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  )
   val `text/csv` = ContentType("text/csv")
   val `application/xml` = ContentType("application/xml")
   val `application/pdf` = ContentType("application/pdf")

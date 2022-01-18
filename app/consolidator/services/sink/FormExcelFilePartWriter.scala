@@ -81,8 +81,8 @@ class FormExcelFilePartWriter(
         sheet = workbook.createSheet("Forms")
       }
       val row = sheet.createRow(rowNum)
-      cells.zipWithIndex.foreach {
-        case (c, i) => row.createCell(i).setCellValue(c)
+      cells.zipWithIndex.foreach { case (c, i) =>
+        row.createCell(i).setCellValue(c)
       }
       rowNum += 1
     }

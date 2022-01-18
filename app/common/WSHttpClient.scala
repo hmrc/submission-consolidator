@@ -34,11 +34,11 @@ import uk.gov.hmrc.play.http.ws.{ WSHttpResponse, WSPost }
 
 import scala.concurrent.{ ExecutionContext, Future }
 @Singleton
-class WSHttpClient @Inject()(
+class WSHttpClient @Inject() (
   val config: Configuration,
   override val wsClient: WSClient,
-  override val actorSystem: ActorSystem)
-    extends HttpPost with WSPost {
+  override val actorSystem: ActorSystem
+) extends HttpPost with WSPost {
 
   override lazy val configuration: Config = config.underlying
   override val hooks: Seq[HttpHook] = Seq.empty
@@ -48,12 +48,14 @@ class WSHttpClient @Inject()(
     preservingMdc {
       buildRequest(url, Seq.empty)
         .post(
-          Source(FilePart(file.getName, file.getName, Some(contentType.value), FileIO.fromPath(file.toPath)) :: Nil))
+          Source(FilePart(file.getName, file.getName, Some(contentType.value), FileIO.fromPath(file.toPath)) :: Nil)
+        )
         .map(WSHttpResponse(_))
     }
 
-  def POSTFile(url: String, fileName: String, body: ByteString, contentType: ContentType)(
-    implicit ec: ExecutionContext): Future[HttpResponse] =
+  def POSTFile(url: String, fileName: String, body: ByteString, contentType: ContentType)(implicit
+    ec: ExecutionContext
+  ): Future[HttpResponse] =
     preservingMdc {
       val source: Source[FilePart[Source[ByteString, NotUsed]], NotUsed] = Source(
         FilePart(fileName, fileName, Some(contentType.value), Source.single(body)) :: Nil

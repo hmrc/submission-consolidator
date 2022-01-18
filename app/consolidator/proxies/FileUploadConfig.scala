@@ -20,7 +20,7 @@ import javax.inject.{ Inject, Singleton }
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 @Singleton
-class FileUploadConfig @Inject()(
+class FileUploadConfig @Inject() (
   servicesConfig: ServicesConfig
 ) {
 

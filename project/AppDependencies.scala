@@ -4,7 +4,7 @@ import sbt._
 object AppDependencies {
 
   val compile = Seq(
-    "uk.gov.hmrc"           %% "bootstrap-backend-play-28" % "5.16.0",
+    "uk.gov.hmrc"           %% "bootstrap-backend-play-28" % "5.19.0",
     "uk.gov.hmrc"           %% "simple-reactivemongo"      % "8.0.0-play-28",
     "org.reactivemongo"     %% "reactivemongo-akkastream"  % "0.20.9",
     "com.enragedginger"     %% "akka-quartz-scheduler"     % "1.9.1-akka-2.6.x",
@@ -18,7 +18,7 @@ object AppDependencies {
   )
 
   val test = Seq(
-    "uk.gov.hmrc"            %% "bootstrap-test-play-28"    % "5.16.0"  % Test,
+    "uk.gov.hmrc"            %% "bootstrap-test-play-28"    % "5.19.0"  % Test,
     "org.scalatest"          %% "scalatest"                 % "3.1.4"   % Test,
     "org.scalacheck"         %% "scalacheck"                % "1.14.3"  % Test,
     "org.scalatestplus"      %% "scalacheck-1-14"           % "3.1.0.0" % Test,

@@ -70,15 +70,17 @@ class UniqueIdRepositorySpec
       val newUniqueId = UniqueId("TEST_NEW_VALUE")
       repository.insert(existingUniqueId).futureValue
       var attempt = 0
-      val future = repository.insertWithRetries(() => {
-        attempt match {
-          case 0 =>
-            attempt += 1
-            existingUniqueId.copy(id = BSONObjectID.generate())
-          case _ =>
-            newUniqueId
-        }
-      }, 2)
+      val future = repository.insertWithRetries(
+        () =>
+          attempt match {
+            case 0 =>
+              attempt += 1
+              existingUniqueId.copy(id = BSONObjectID.generate())
+            case _ =>
+              newUniqueId
+          },
+        2
+      )
 
       whenReady(future) { result =>
         result shouldBe Some(newUniqueId)
