@@ -1,4 +1,5 @@
 # microservice specific routes
 
-POST    /form   collector.controllers.FormController.addForm()
-POST    /consolidate/:consolidatorJobId/:startDate/:endDate consolidator.controllers.ManualConsolidationController.consolidateAndSubmit(consolidatorJobId,startDate,endDate)
+POST    /form                                                 collector.controllers.FormController.addForm()
+POST    /consolidate/:consolidatorJobId/:startDate/:endDate   consolidator.controllers.ManualConsolidationController.consolidateAndSubmit(consolidatorJobId,startDate,endDate)
+POST    /sdes/callback                                        consolidator.controllers.SdesCallbackController.callback()

@@ -16,11 +16,15 @@
 
 package consolidator.services
 
+import akka.NotUsed
+import akka.stream.scaladsl.Source
+import akka.util.ByteString
 import consolidator.scheduler.UntilTime.UntilTime
 import consolidator.scheduler.{ Destination, UntilTime }
 import consolidator.services.ConsolidationFormat.ConsolidationFormat
 
 import java.time.{ Instant, ZoneId }
+import java.util.UUID
 
 trait FormConsolidatorParams {
 
@@ -64,4 +68,20 @@ case class ManualFormConsolidatorParams(
 ) extends FormConsolidatorParams {
 
   override def getUntilInstant(currentInstant: Instant): Instant = endInstant
+}
+
+trait UniqueIdGenerator {
+  def generate: String
+}
+
+object UniqueIdGenerator {
+  implicit val uuidStringGenerator = new UniqueIdGenerator {
+    override def generate: String = UUID.randomUUID().toString
+  }
+}
+
+object ObjectStoreHelper {
+
+  def toSource(content: ByteString): Source[ByteString, NotUsed] =
+    Source.single(content)
 }

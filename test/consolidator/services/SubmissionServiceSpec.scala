@@ -16,28 +16,30 @@
 
 package consolidator.services
 
-import java.time.format.DateTimeFormatter
-import java.time.{ Instant, ZoneId }
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import common.UniqueReferenceGenerator.UniqueRef
 import common.{ ContentType, Time, UniqueReferenceGenerator }
 import consolidator.TestHelper.{ createFileInDir, createTmpDir }
-import consolidator.proxies._
+import consolidator.connectors.ObjectStoreConnector
 import consolidator.scheduler.{ FileUpload, UntilTime }
 import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
-import consolidator.services.SubmissionService.FileIds
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.objectstore.client.{ Md5Hash, ObjectSummaryWithMd5 }
+import uk.gov.hmrc.objectstore.client.Path.File
 
+import java.nio.file.Files
+import java.time.format.DateTimeFormatter
+import java.time.{ Instant, ZoneId }
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class SubmissionServiceSpec
     extends AnyWordSpec with IdiomaticMockito with ArgumentMatchersSugar with Matchers with FileUploadSettings {
-
   private val DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd")
 
   trait TestFixture {
@@ -55,25 +57,24 @@ class SubmissionServiceSpec
       FileUpload("some-classification", "some-business-area"),
       UntilTime.now
     )
-    val mockFileUploadProxy = mock[FileUploadProxy](withSettings.lenient())
-    val mockFileUploadFrontendProxy = mock[FileUploadFrontEndProxy](withSettings.lenient())
+    val mockObjectStoreConnector = mock[ObjectStoreConnector](withSettings.lenient())
     val mockUniqueReferenceGenerator = mock[UniqueReferenceGenerator](withSettings.lenient())
+    val mockSdesService = mock[SdesService](withSettings.lenient())
 
-    val someEnvelopedId = "some-envelope-id"
     val someSubmissionRef = "some-unique-id"
     val now = Instant.now()
     implicit val timeInstant: Time[Instant] = () => now
-
-    lazy val createEnvelopeResponse: Future[Either[FileUploadError, String]] = Future.successful(Right(someEnvelopedId))
+    implicit val hc = new HeaderCarrier()
+    val objectSummary = ObjectSummaryWithMd5(File("test"), 10L, Md5Hash("md5"), Instant.now())
 
     mockUniqueReferenceGenerator.generate(*) shouldReturn Future.successful(Right(UniqueRef(someSubmissionRef)))
-    mockFileUploadProxy.createEnvelope(*) shouldReturn createEnvelopeResponse
-    mockFileUploadFrontendProxy.upload(*, *, *, *[ContentType]) shouldReturn Future.successful(Right(()))
-    mockFileUploadFrontendProxy.upload(*, *, *, *, *[ContentType]) shouldReturn Future.successful(Right(()))
-    mockFileUploadProxy.routeEnvelope(*) shouldReturn Future.successful(Right(()))
+    mockObjectStoreConnector.upload(*, *, *, *[ContentType]) shouldReturn Future.successful(Right(()))
+    mockObjectStoreConnector.upload(*, *, *, *[ContentType]) shouldReturn Future.successful(Right(()))
+    mockObjectStoreConnector.zipFiles(*) shouldReturn Future.successful(Right(objectSummary))
+    mockSdesService.notifySDES(*, *, *[ObjectSummaryWithMd5]) shouldReturn Future.successful(Right(()))
 
     val submissionService =
-      new SubmissionService(mockFileUploadProxy, mockFileUploadFrontendProxy, mockUniqueReferenceGenerator) {
+      new SubmissionService(mockUniqueReferenceGenerator, mockObjectStoreConnector, mockSdesService) {
         override lazy val maxReportAttachmentsSize = maxReportAttachmentsSizeOverride
       }
   }
@@ -88,46 +89,30 @@ class SubmissionServiceSpec
         submissionService.submit(reportFiles, schedulerFormConsolidatorParams).unsafeRunSync()
 
       //then
-      envelopeIds shouldEqual NonEmptyList.of(someEnvelopedId)
-      mockFileUploadProxy.createEnvelope(
-        CreateEnvelopeRequest(
-          consolidator.proxies.Metadata("gform"),
-          Constraints(
-            numberOfReportFiles + 2,
-            "25MB",
-            "10MB",
-            List(
-              "text/plain",
-              "text/csv",
-              "application/pdf",
-              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            ),
-            false
-          )
-        )
-      ) wasCalled once
+      envelopeIds should contain
       mockUniqueReferenceGenerator.generate(12) wasCalled once
       reportFiles.foreach { f =>
-        mockFileUploadFrontendProxy
-          .upload(someEnvelopedId, FileId(f.getName.split("\\.").head), f, ContentType.`text/plain`) wasCalled once
+        mockObjectStoreConnector.upload(
+          any[String],
+          f.getName.split("\\.").head,
+          ByteString(Files.readAllBytes(f.toPath)),
+          ContentType.`text/plain`
+        ) wasCalled once
       }
-      mockFileUploadFrontendProxy.upload(
-        someEnvelopedId,
-        FileIds.xmlDocument,
+      mockObjectStoreConnector.upload(
+        any[String],
         s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-metadata.xml",
         ByteString(buildMetadataDocument(now.atZone(ZoneId.systemDefault()), "pdf", "application/pdf", 2).toXml),
         ContentType.`application/xml`
       ) wasCalled once
-      mockFileUploadFrontendProxy.upload(
-        someEnvelopedId,
-        FileIds.pdf,
+      mockObjectStoreConnector.upload(
+        any[String],
         s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-iform.pdf",
         *,
         ContentType.`application/pdf`
       ) wasCalled once
-      mockFileUploadProxy.routeEnvelope(
-        RouteEnvelopeRequest(someEnvelopedId, "dfs", "DMS")
-      ) wasCalled once
+      mockObjectStoreConnector.zipFiles(any[String]) wasCalled once
+      mockSdesService.notifySDES(any[String], any[String], any[ObjectSummaryWithMd5]) wasCalled once
     }
 
     "create multiple envelopes when size of report file attachments exceeds maxReportAttachments" in new TestFixture {
@@ -138,55 +123,29 @@ class SubmissionServiceSpec
         submissionService.submit(reportFiles, schedulerFormConsolidatorParams).unsafeRunSync()
 
       //then
-      envelopeIds shouldEqual NonEmptyList.of(someEnvelopedId, someEnvelopedId)
-      mockFileUploadProxy.createEnvelope(
-        CreateEnvelopeRequest(
-          consolidator.proxies.Metadata("gform"),
-          Constraints(
-            3,
-            "25MB",
-            "10MB",
-            List(
-              "text/plain",
-              "text/csv",
-              "application/pdf",
-              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            ),
-            false
-          )
-        )
-      ) wasCalled twice
+      envelopeIds should contain
       reportFiles.foreach { f =>
-        mockFileUploadFrontendProxy
-          .upload(someEnvelopedId, FileId(f.getName.split("\\.").head), f, ContentType.`text/plain`) wasCalled once
+        mockObjectStoreConnector.upload(
+          any[String],
+          f.getName.split("\\.").head,
+          ByteString(Files.readAllBytes(f.toPath)),
+          ContentType.`text/plain`
+        ) wasCalled once
       }
-      mockFileUploadFrontendProxy.upload(
-        someEnvelopedId,
-        FileIds.xmlDocument,
+      mockObjectStoreConnector.upload(
+        any[String],
         s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-metadata.xml",
         ByteString(buildMetadataDocument(now.atZone(ZoneId.systemDefault()), "pdf", "application/pdf", 1).toXml),
         ContentType.`application/xml`
       ) wasCalled twice
-      mockFileUploadFrontendProxy.upload(
-        someEnvelopedId,
-        FileIds.pdf,
+      mockObjectStoreConnector.upload(
+        any[String],
         s"$someSubmissionRef-${DATE_FORMAT.format(now.atZone(ZoneId.systemDefault()))}-iform.pdf",
         *,
         ContentType.`application/pdf`
       ) wasCalled twice
-      mockFileUploadProxy.routeEnvelope(
-        RouteEnvelopeRequest(someEnvelopedId, "dfs", "DMS")
-      ) wasCalled twice
-    }
-
-    "raise error if create envelope fails" in new TestFixture {
-      override lazy val createEnvelopeResponse = Future.successful(Left(GenericFileUploadError("some error")))
-
-      //when
-      submissionService.submit(reportFiles, schedulerFormConsolidatorParams).unsafeRunAsync {
-        case Left(error) => error shouldBe GenericFileUploadError("some error")
-        case Right(_)    => fail("Should have failed")
-      }
+      mockObjectStoreConnector.zipFiles(any[String]) wasCalled twice
+      mockSdesService.notifySDES(any[String], any[String], any[ObjectSummaryWithMd5]) wasCalled twice
     }
   }
 }

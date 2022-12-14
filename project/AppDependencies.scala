@@ -4,17 +4,18 @@ import sbt._
 object AppDependencies {
 
   val compile = Seq(
-    "uk.gov.hmrc"           %% "bootstrap-backend-play-28" % "5.19.0",
-    "uk.gov.hmrc"           %% "simple-reactivemongo"      % "8.0.0-play-28",
-    "org.reactivemongo"     %% "reactivemongo-akkastream"  % "0.20.9",
-    "com.enragedginger"     %% "akka-quartz-scheduler"     % "1.9.1-akka-2.6.x",
-    "org.typelevel"         %% "cats-effect"               % "2.2.0-RC3",
-    "uk.gov.hmrc"           %% "mongo-lock"                % "7.0.0-play-28",
-    "org.apache.commons"     % "commons-text"              % "1.9",
-    "org.xhtmlrenderer"      % "flying-saucer-pdf"         % "9.1.20",
-    "org.apache.poi"         % "poi-ooxml"                 % "4.1.2",
-    "org.julienrf"          %% "play-json-derived-codecs"  % "10.0.2",
-    "com.chuusai"           %% "shapeless"                 % "2.3.3"
+    "uk.gov.hmrc"                %% "bootstrap-backend-play-28"   % "5.19.0",
+    "uk.gov.hmrc"                %% "simple-reactivemongo"        % "8.0.0-play-28",
+    "org.reactivemongo"          %% "reactivemongo-akkastream"    % "0.20.9",
+    "com.enragedginger"          %% "akka-quartz-scheduler"       % "1.9.1-akka-2.6.x",
+    "org.typelevel"              %% "cats-effect"                 % "2.2.0-RC3",
+    "uk.gov.hmrc"                %% "mongo-lock"                  % "7.0.0-play-28",
+    "org.apache.commons"          % "commons-text"                % "1.9",
+    "org.xhtmlrenderer"           % "flying-saucer-pdf"           % "9.1.20",
+    "org.apache.poi"              % "poi-ooxml"                   % "4.1.2",
+    "org.julienrf"               %% "play-json-derived-codecs"    % "10.0.2",
+    "com.chuusai"                %% "shapeless"                   % "2.3.3",
+    "uk.gov.hmrc.objectstore"    %% "object-store-client-play-28" % "0.39.0",
   )
 
   val test = Seq(
