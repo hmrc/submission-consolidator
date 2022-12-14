@@ -5,11 +5,10 @@ object AppDependencies {
 
   val compile = Seq(
     "uk.gov.hmrc"                %% "bootstrap-backend-play-28"   % "5.19.0",
-    "uk.gov.hmrc"                %% "simple-reactivemongo"        % "8.0.0-play-28",
     "org.reactivemongo"          %% "reactivemongo-akkastream"    % "0.20.9",
     "com.enragedginger"          %% "akka-quartz-scheduler"       % "1.9.1-akka-2.6.x",
     "org.typelevel"              %% "cats-effect"                 % "2.2.0-RC3",
-    "uk.gov.hmrc"                %% "mongo-lock"                  % "7.0.0-play-28",
+    "uk.gov.hmrc"                %% "mongo-lock"                  % "7.1.0-play-28",
     "org.apache.commons"          % "commons-text"                % "1.9",
     "org.xhtmlrenderer"           % "flying-saucer-pdf"           % "9.1.20",
     "org.apache.poi"              % "poi-ooxml"                   % "4.1.2",
