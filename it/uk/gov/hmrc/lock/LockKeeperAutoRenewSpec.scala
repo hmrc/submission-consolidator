@@ -75,11 +75,9 @@ class LockKeeperAutoRenewSpec
 
     "there is no existing lock" should {
       "acquire the lock and release after future completes" in new TestFixture {
-        val future = lockKeeper.withLock(Future(1))
-        lockRepository.isLocked(lockKeeper.id,lockKeeper.owner).futureValue shouldEqual true
-        whenReady(future) { result =>
-          result shouldBe Some(1)
-        }
+        val future = lockKeeper.withLock(Future(1)).futureValue
+        lockRepository.isLocked(lockKeeper.id,lockKeeper.owner).futureValue shouldEqual false
+        future shouldBe Some(1)
       }
     }
 
@@ -112,7 +110,7 @@ class LockKeeperAutoRenewSpec
 
         whenReady(lockKeeper.withLock(Future(1))) { result =>
           result shouldBe None
-          lockRepository.collection.find().toFuture().futureValue shouldBe List(existingLock)
+          lockRepository.collection.find().toFuture().futureValue shouldEqual List(existingLock)
         }
       }
     }
