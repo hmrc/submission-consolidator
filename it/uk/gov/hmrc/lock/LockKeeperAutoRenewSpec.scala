@@ -22,7 +22,7 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.slf4j.{Logger, LoggerFactory}
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.{Application, Configuration}
-import uk.gov.hmrc.mongo.lock.{Lock, LockKeeperAutoRenew, LockRepository, MongoLockRepository}
+import uk.gov.hmrc.mongo.lock.{Lock, LockRepository, MongoLockRepository}
 import uk.gov.hmrc.mongo.{CurrentTimestampSupport, MongoComponent}
 
 import java.time.Instant
@@ -43,9 +43,6 @@ class LockKeeperAutoRenewSpec
   override def beforeAll() = {
     lockRepository = new MongoLockRepository(app.injector.instanceOf[MongoComponent],new CurrentTimestampSupport())
   }
-
-//  override def beforeEach(): Unit =
-//    lockRepository.removeAll().futureValue
 
   override def fakeApplication(): Application = {
     val config =
@@ -149,22 +146,5 @@ class LockKeeperAutoRenewSpec
         }
       }
     }
-
-//    "future body takes longer then lock duration" should {
-//      "auto renew the lock" in new TestFixture {
-//
-//        val future = lockKeeper
-//          .withLock(Future {
-//            val lockBefore = Await.result(lockRepository.findAll().map(_.head), 2.seconds)
-//            Thread.sleep(7000)
-//            val lockAfter = Await.result(lockRepository.findAll().map(_.head), 2.seconds)
-//            (lockBefore, lockAfter)
-//          })
-//        whenReady(future) { locks =>
-//          val (lockBefore, lockAfter)  = locks.get
-//          lockAfter.expiryTime.isAfter(lockBefore.expiryTime) shouldBe true
-//        }
-//      }
-//    }
   }
 }

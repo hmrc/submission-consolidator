@@ -28,7 +28,8 @@ import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepos
 import consolidator.services.ConsolidatorService.ConsolidationResult
 import consolidator.services._
 import org.slf4j.{ Logger, LoggerFactory }
-import uk.gov.hmrc.mongo.lock.{ LockKeeperAutoRenew, LockRepository }
+import uk.gov.hmrc.lock.LockKeeperAutoRenew
+import uk.gov.hmrc.mongo.lock.LockRepository
 
 import java.nio.file.Files.createDirectories
 import java.nio.file.{ Path, Paths }

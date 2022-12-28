@@ -150,7 +150,7 @@ class FormRepositorySpec
       val future = source.runWith(Sink.seq[Form])
 
       whenReady(future) { result =>
-        result.toList shouldEqual forms
+        result shouldEqual forms
       }
     }
   }
@@ -165,18 +165,6 @@ class FormRepositorySpec
       whenReady(future) { result =>
         result.isRight shouldBe true
         result.right.get shouldBe forms.flatMap(_.formData).map(_.id).distinct.sorted
-      }
-    }
-
-    "return error when aggregation fails" in new FormsTestFixture {
-      stopMongoD()
-      val future: Future[Either[FormError, List[String]]] =
-        formRepository.distinctFormDataIds(projectId, Some(afterObjectId))
-      whenReady(future) { result =>
-        result.isLeft shouldBe true
-        result.left.get shouldBe a[MongoGenericError]
-        result.left.get.getMessage contains "MongoError['No primary node is available!"
-        init()
       }
     }
   }

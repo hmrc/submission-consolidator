@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mongo.lock
+package uk.gov.hmrc.lock
 
 import org.slf4j.{ Logger, LoggerFactory }
+import uk.gov.hmrc.mongo.lock.LockRepository
 
 import java.util.UUID
 import java.util.concurrent.{ Executors, ScheduledExecutorService, TimeUnit }

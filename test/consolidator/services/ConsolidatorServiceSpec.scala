@@ -38,6 +38,7 @@ import play.api.Configuration
 import java.nio.file.{ Files, Path, Paths }
 import java.time.temporal.ChronoUnit
 import java.time.{ Instant, ZoneId }
+import java.util.Date
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -289,7 +290,7 @@ class ConsolidatorServiceSpec
           mockFormRepository.formsSource(
             projectId,
             _batchSize,
-            Some(any[ObjectId]),
+            Option(ObjectId.getSmallestWithDate(Date.from(startInstant))),
             endInstant
           ) wasCalled once
         }

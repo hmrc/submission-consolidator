@@ -19,21 +19,21 @@ package collector.repositories
 import akka.stream.scaladsl.Source
 import org.bson.types.ObjectId
 import org.mongodb.scala.bson.BsonValue
-import org.mongodb.scala.model.Aggregates.{group, sort, unwind}
+import org.mongodb.scala.model.Aggregates.{ group, sort, unwind }
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.Indexes.ascending
-import org.mongodb.scala.model.{Aggregates, IndexModel, IndexOptions, Sorts}
-import org.mongodb.scala.{MongoSocketWriteException, MongoWriteException}
-import org.slf4j.{Logger, LoggerFactory}
+import org.mongodb.scala.model.{ Aggregates, IndexModel, IndexOptions, Sorts }
+import org.mongodb.scala.{ MongoSocketWriteException, MongoWriteException }
+import org.slf4j.{ Logger, LoggerFactory }
 import play.api.Configuration
 import uk.gov.hmrc.mongo.MongoComponent
-import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
+import uk.gov.hmrc.mongo.play.json.{ Codecs, PlayMongoRepository }
 
 import java.time.Instant
 import java.util.Date
 import java.util.concurrent.TimeUnit
-import javax.inject.{Inject, Singleton}
-import scala.concurrent.{ExecutionContext, Future}
+import javax.inject.{ Inject, Singleton }
+import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
 class FormRepository @Inject() (mongo: MongoComponent, config: Configuration)(implicit

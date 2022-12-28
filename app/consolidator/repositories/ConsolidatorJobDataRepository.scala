@@ -16,17 +16,18 @@
 
 package consolidator.repositories
 
+import org.mongodb.scala.bson.{ BsonArray, BsonDocument, Document }
 import org.mongodb.scala.model.Aggregates.unwind
-import org.mongodb.scala.model.Filters.{and, equal, exists}
+import org.mongodb.scala.model.Filters.{ and, equal, exists }
 import org.mongodb.scala.model.Indexes.ascending
 import org.mongodb.scala.model.Projections.computed
 import org.mongodb.scala.model._
-import org.slf4j.{Logger, LoggerFactory}
+import org.slf4j.{ Logger, LoggerFactory }
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 
-import javax.inject.{Inject, Singleton}
-import scala.concurrent.{ExecutionContext, Future}
+import javax.inject.{ Inject, Singleton }
+import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
 class ConsolidatorJobDataRepository @Inject() (mongo: MongoComponent)(implicit ec: ExecutionContext)
@@ -66,43 +67,29 @@ class ConsolidatorJobDataRepository @Inject() (mongo: MongoComponent)(implicit e
   )(implicit ec: ExecutionContext): Future[Either[ConsolidatorJobDataError, Option[ConsolidatorJobData]]] = {
 
     // considers records that have lastObjectId defined i.e successful job execution
-    //val matchQueryStage = Match(Json.obj("projectId" -> projectId, "lastObjectId" -> Json.obj("$exists" -> true)))
     val filter = Aggregates.filter(and(equal("projectId", projectId), exists("lastObjectId")))
-
     // get the max endTimestamp
-//    val groupStage = Group(Json.obj())(
-//      "maxEndTimestamp" -> Max(JsString("$endTimestamp")),
-//      "docs"            -> Push(JsString("$$ROOT"))
-//    )
     val group = Aggregates.group(
       "",
       Accumulators.max("maxEndTimestamp", "$endTimestamp"),
       Accumulators.push("docs", "$$ROOT")
     )
-
     // project record with max endTimestamp value
     val project = Aggregates.project(
-      Updates.combine(
-        computed("maxDoc", equal("endTimestamp","$maxEndTimestamp")),
+      computed(
+        "maxDoc",
+        BsonDocument(
+          "$filter" -> Document(
+            "input" -> "$docs",
+            "as"    -> "doc",
+            "cond"  -> Document("$eq" -> BsonArray("$$doc.endTimestamp", "$maxEndTimestamp"))
+          )
+        )
       )
     )
-//val projectStage = Project(
-//  Json.obj(
-//    "maxDoc" -> Filter(
-//      JsString("$docs"),
-//      "doc",
-//      Json.obj(
-//        "$eq" -> Json.arr("$$doc.endTimestamp", "$maxEndTimestamp")
-//      )
-//    )
-//  )
-//)
 
-//    val unwindStage = UnwindField("maxDoc")
     val unwindStage = unwind("$maxDoc")
-//
-////    val replaceRootStage = ReplaceRootField("maxDoc")
-    val replaceRoot = Aggregates.replaceRoot("maxDoc")
+    val replaceRoot = Aggregates.replaceRoot("$maxDoc")
 
     val pipeline = List(filter, group, project, unwindStage, replaceRoot)
 

@@ -34,6 +34,7 @@ import org.bson.types.ObjectId
 import javax.inject.{ Inject, Singleton }
 import play.api.Configuration
 
+import java.util.Date
 import scala.concurrent.ExecutionContext
 
 @Singleton
@@ -109,7 +110,7 @@ class ConsolidatorService @Inject() (
         } yield lastObjectId
       case u: ManualFormConsolidatorParams =>
         IO.pure(
-          Option(ObjectId.get())
+          Option(ObjectId.getSmallestWithDate(Date.from(u.startInstant)))
         )
     }
 
