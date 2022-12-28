@@ -20,7 +20,7 @@ import akka.actor.{ActorSystem, ClassicActorSystemProvider}
 import akka.stream.{Materializer, SystemMaterializer}
 import collector.repositories.FormRepository
 import collector.{APIFormStubs, ITSpec}
-import com.github.tomakehurst.wiremock.client.WireMock.configureFor
+import com.github.tomakehurst.wiremock.client.WireMock.{configureFor, postRequestedFor, urlEqualTo, verify}
 import com.typesafe.config.ConfigFactory
 import org.mongodb.scala.bson.collection.immutable.Document
 import org.scalatest.concurrent.Eventually
@@ -103,10 +103,10 @@ class ManualConsolidatorSpec extends ITSpec with Eventually {
           .withFallback(baseConfig.underlying)
       )
 
-    val baseUrl = "object-store"
+    val osBaseUrl = s"http://localhost:$wiremockPort/object-store"
     val owner = "owner"
     val token = s"token-${randomUUID().toString}"
-    val objectStoreConfig = ObjectStoreClientConfig(baseUrl, owner, token, OneWeek)
+    val objectStoreConfig = ObjectStoreClientConfig(osBaseUrl, owner, token, OneWeek)
 
     implicit val system = ActorSystem()
 
@@ -131,12 +131,16 @@ class ManualConsolidatorSpec extends ITSpec with Eventually {
           .post(APIFormStubs.validForm)
           .futureValue
 
-         wsClient
+        val future =wsClient
           .url(baseUrl+s"/consolidate/some-project-id-job/${LocalDate.now().format(DATE_FORMAT)}/${LocalDate.now().format(DATE_FORMAT)}")
           .withHttpHeaders("Content-Type" -> "application/json")
           .post(APIFormStubs.formEmptySubmissionRef)
-          .futureValue
 
+
+        whenReady(future) { _ =>
+          verify(postRequestedFor(urlEqualTo("/sdes-stub/notification/fileready")))
+          verify(postRequestedFor(urlEqualTo("/object-store/object-store/ops/zip")))
+        }
       }
     }
   }

@@ -26,11 +26,9 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatestplus.play.guice.GuiceOneServerPerSuite
 import play.api.Configuration
+import play.api.libs.json.Json
 import play.api.libs.ws.WSClient
-import uk.gov.hmrc.objectstore.client.Path.File
-import uk.gov.hmrc.objectstore.client.{Md5Hash, ObjectSummaryWithMd5}
 
-import java.time.Instant
 import scala.util.Random
 
 trait ITSpec
@@ -55,14 +53,31 @@ trait ITSpec
   val wireMockServer = new WireMockServer(options().port(wiremockPort))
 
   def wiremockStubs() = {
-    val objectSummary = ObjectSummaryWithMd5(File("test.txt"), 10L, Md5Hash("md5"), Instant.now())
+    val objectSummaryJson = Json.parse(
+        """
+          | {
+          |   "location" : "test.txt",
+          |   "contentLength": 10,
+          |   "contentMD5": "md5",
+          |   "lastModified": "2020-01-01T00:00:00Z"
+          | }
+          |""".stripMargin)
+
 
     stubFor(
-      post(urlEqualTo("object-store/object-store/ops/zip"))
+      post(urlEqualTo(s"/object-store/object-store/ops/zip"))
         .willReturn(
           aResponse()
             .withStatus(201)
-            .withBody(objectSummary.toString)
+            .withBody(Json.prettyPrint(objectSummaryJson))
+        )
+    )
+
+    stubFor(
+      post(urlEqualTo(s"/sdes-stub/notification/fileready"))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
         )
     )
   }

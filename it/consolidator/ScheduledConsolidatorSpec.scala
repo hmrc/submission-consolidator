@@ -96,10 +96,10 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
           .withFallback(baseConfig.underlying)
       )
 
-    val baseUrl = "objectStoreUrl"
+    val osBaseUrl = s"http://localhost:$wiremockPort/object-store"
     val owner = "owner"
     val token = s"token-${randomUUID().toString}"
-    val objectStoreConfig = ObjectStoreClientConfig(baseUrl, owner, token, OneWeek)
+    val objectStoreConfig = ObjectStoreClientConfig(osBaseUrl, owner, token, OneWeek)
 
     implicit val system = ActorSystem()
 
@@ -132,6 +132,11 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
           .withHttpHeaders("Content-Type" -> "application/json")
           .post(APIFormStubs.validForm)
           .futureValue
+
+        eventually {
+          verify(postRequestedFor(urlEqualTo("/sdes-stub/notification/fileready")))
+          verify(postRequestedFor(urlEqualTo("/object-store/object-store/ops/zip")))
+        }
       }
     }
   }
