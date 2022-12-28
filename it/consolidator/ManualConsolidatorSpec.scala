@@ -16,22 +16,21 @@
 
 package consolidator
 
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-
-import collector.{APIFormStubs, ITSpec}
 import collector.repositories.FormRepository
+import collector.{APIFormStubs, ITSpec}
 import com.github.tomakehurst.wiremock.client.WireMock.{configureFor, postRequestedFor, urlEqualTo, verify}
 import com.typesafe.config.ConfigFactory
+import org.mongodb.scala.bson.collection.immutable.Document
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.slf4j.{Logger, LoggerFactory}
-import play.api.{Application, Configuration}
 import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.{Application, Configuration}
 
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import scala.concurrent.Await.ready
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class ManualConsolidatorSpec extends ITSpec with Eventually {
 
@@ -42,7 +41,7 @@ class ManualConsolidatorSpec extends ITSpec with Eventually {
   private val DATE_FORMAT = DateTimeFormatter.ISO_DATE
 
   override def beforeEach(): Unit =
-    ready(app.injector.instanceOf[FormRepository].removeAll(), 5.seconds)
+    ready(app.injector.instanceOf[FormRepository].collection.deleteMany(Document()).toFuture(), 5.seconds)
 
   override def beforeAll(): Unit = {
     wireMockServer.start()

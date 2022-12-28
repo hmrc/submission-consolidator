@@ -16,15 +16,15 @@
 
 package collector
 
-import org.scalatest.time.{Millis, Seconds, Span}
-import org.slf4j.{Logger, LoggerFactory}
-import play.api.{Application, Configuration}
-import play.api.inject.guice.GuiceApplicationBuilder
 import collector.repositories.FormRepository
 import com.typesafe.config.ConfigFactory
+import org.mongodb.scala.bson.collection.immutable.Document
+import org.scalatest.time.{Millis, Seconds, Span}
+import org.slf4j.{Logger, LoggerFactory}
+import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.{Application, Configuration}
 
 import scala.concurrent.Await.ready
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 class AddFormSpec extends ITSpec {
@@ -34,7 +34,7 @@ class AddFormSpec extends ITSpec {
   override implicit val patienceConfig = PatienceConfig(Span(10, Seconds), Span(1, Millis))
 
   override def beforeEach(): Unit =
-    ready(app.injector.instanceOf[FormRepository].removeAll(), 5.seconds)
+    ready(app.injector.instanceOf[FormRepository].collection.deleteMany(Document()).toFuture(), 5.seconds)
 
   override def fakeApplication(): Application = {
     val config =

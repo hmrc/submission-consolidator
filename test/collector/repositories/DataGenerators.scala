@@ -16,11 +16,11 @@
 
 package collector.repositories
 
-import java.time.Instant
-
 import consolidator.repositories.ConsolidatorJobData
+import org.bson.types.ObjectId
 import org.scalacheck.Gen
-import reactivemongo.bson.BSONObjectID
+
+import java.time.Instant
 
 trait DataGenerators {
 
@@ -53,10 +53,10 @@ trait DataGenerators {
     projectId      <- Gen.alphaNumStr.suchThat(!_.isEmpty)
     startTimestamp <- genInstant
     endTimestamp   <- genInstant
-    lastObjectId   <- Gen.some(BSONObjectID.generate())
+    lastObjectId   <- Gen.some(ObjectId.get())
     error          <- Gen.const(None)
     envelopeId     <- Gen.uuid.map(u => Some(u.toString))
-  } yield ConsolidatorJobData(projectId, startTimestamp, endTimestamp, lastObjectId, error, envelopeId)
+  } yield ConsolidatorJobData(projectId, startTimestamp, endTimestamp, lastObjectId, error, envelopeId, ObjectId.get())
 
   val genConsolidatorJobDataWithError = for {
     consolidatorData <- genConsolidatorJobData

@@ -16,10 +16,6 @@
 
 package consolidator
 
-import java.nio.file.Files.createDirectories
-import java.nio.file.{ Path, Paths }
-import java.text.SimpleDateFormat
-import java.util.Date
 import akka.actor.ActorSystem
 import akka.testkit.{ ImplicitSender, TestKit }
 import cats.data.NonEmptyList
@@ -31,16 +27,20 @@ import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
 import consolidator.scheduler.{ FileUpload, UntilTime }
 import consolidator.services.ConsolidatorService.ConsolidationResult
-import consolidator.services.{ ConsolidationFormat, ConsolidatorService, DeleteDirService, ScheduledFormConsolidatorParams, SubmissionService }
+import consolidator.services._
+import org.bson.types.ObjectId
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.captor.ArgCaptor
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import reactivemongo.bson.BSONObjectID
-import uk.gov.hmrc.lock.LockRepository
+import uk.gov.hmrc.mongo.lock.MongoLockRepository
 
+import java.nio.file.Files.createDirectories
+import java.nio.file.{ Path, Paths }
+import java.text.SimpleDateFormat
+import java.util.Date
 import scala.concurrent.Future
 
 class FormConsolidatorActorSpec
@@ -56,13 +56,13 @@ class FormConsolidatorActorSpec
     val mockConsolidatorService = mock[ConsolidatorService](withSettings.lenient())
     val mockFileUploaderService = mock[SubmissionService](withSettings.lenient())
     val mockConsolidatorJobDataRepository = mock[ConsolidatorJobDataRepository](withSettings.lenient())
-    val mockLockRepository = mock[LockRepository](withSettings.lenient())
+    val mockLockRepository = mock[MongoLockRepository](withSettings.lenient())
     val mockMetricsClient = mock[MetricsClient](withSettings.lenient())
     val mockDeleteDirService = mock[DeleteDirService](withSettings.lenient())
 
     val now = new Date()
     val projectId = "some-project-id"
-    val lastObjectId = BSONObjectID.generate()
+    val lastObjectId = ObjectId.get()
     val reportDir = createReportDir(projectId, now)
     val reportFiles = reportDir.toFile.listFiles().toList
     val envelopeId = "some-envelope-id"
@@ -87,12 +87,12 @@ class FormConsolidatorActorSpec
 
     val messageWithFireTime = MessageWithFireTime(schedulerFormConsolidatorParams, now)
 
-    mockLockRepository.lock(*, *, *) shouldReturn Future.successful(true)
-    mockLockRepository.renew(*, *, *) shouldReturn Future.successful(true)
+    mockLockRepository.takeLock(*, *, *) shouldReturn Future.successful(true)
+    mockLockRepository.refreshExpiry(*, *, *) shouldReturn Future.successful(true)
     mockLockRepository.releaseLock(*, *) shouldReturn Future.successful(())
 
     def assertConsolidatorData(
-      lastObjectId: Option[BSONObjectID],
+      lastObjectId: Option[ObjectId],
       error: Option[String],
       envelopeId: Option[String]
     ) = {
@@ -131,7 +131,7 @@ class FormConsolidatorActorSpec
 
       "skip consolidation if lock is not available" in new TestFixture {
 
-        mockLockRepository.lock(*, *, *) shouldReturn Future.successful(false)
+        mockLockRepository.takeLock(*, *, *) shouldReturn Future.successful(false)
 
         actor ! messageWithFireTime
 

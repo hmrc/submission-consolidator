@@ -43,7 +43,7 @@ class SdesService @Inject() (
     objWithSummary: ObjectSummaryWithMd5
   ): Future[Either[Exception, Unit]] = {
     val sdesSubmission = SdesSubmission.createSdesSubmission(envelopeId, submissionRef)
-    val notifyRequest = createNotifyRequest(objWithSummary, sdesSubmission.correlationId)
+    val notifyRequest = createNotifyRequest(objWithSummary, sdesSubmission._id)
     for {
       res <- sdesConnector.notifySDES(notifyRequest)
       _   <- sdesSubmissionRepository.upsert(sdesSubmission)
@@ -66,10 +66,10 @@ class SdesService @Inject() (
 
   def save(sdesSubmission: SdesSubmission)(implicit ec: ExecutionContext): Future[Unit] =
     for {
-      _ <- sdesSubmissionRepository.removeById(sdesSubmission.id)
+      _ <- sdesSubmissionRepository.delete(sdesSubmission._id)
       _ <- sdesSubmissionRepository.upsert(sdesSubmission)
     } yield ()
 
-  def findByCorrelationId(correlationId: String)(implicit ec: ExecutionContext): Future[Option[SdesSubmission]] =
-    sdesSubmissionRepository.findByCorrelationId(correlationId)
+  def find(id: String): Future[Option[SdesSubmission]] =
+    sdesSubmissionRepository.find(id)
 }

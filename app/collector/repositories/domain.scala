@@ -16,12 +16,14 @@
 
 package collector.repositories
 
+import collector.common.ApplicationError
+import julienrf.json.derived
+import org.bson.types.ObjectId
+import play.api.libs.json._
+import uk.gov.hmrc.mongo.play.json.formats.{ MongoFormats, MongoJavatimeFormats }
+
 import java.time.format.DateTimeFormatter
 import java.time.{ Instant, ZoneId }
-
-import collector.common.ApplicationError
-import play.api.libs.json.{ Format, JsValue, Json, Reads, Writes, __ }
-import reactivemongo.bson.BSONObjectID
 
 case class FormField(id: String, value: String)
 object FormField {
@@ -35,27 +37,25 @@ case class Form(
   customerId: String,
   submissionTimestamp: Instant,
   formData: List[FormField],
-  id: BSONObjectID = BSONObjectID.generate
+  _id: ObjectId = ObjectId.get()
 )
 
 object Form {
 
   val DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneId.of("UTC"))
 
-  import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.{ mongoEntity, objectIdFormats }
-
-  val instantWrites: Writes[Instant] = new Writes[Instant] {
-    def writes(datetime: Instant): JsValue = Json.obj("$date" -> datetime.toEpochMilli)
+  implicit val format: OFormat[Form] = {
+    implicit val instantFormat: Format[Instant] = MongoJavatimeFormats.instantFormat
+    implicit val oidFormat: Format[ObjectId] = MongoFormats.objectIdFormat
+    derived.oformat()
   }
+}
 
-  val instantReads: Reads[Instant] =
-    (__ \ "$date").read[Long].map(Instant.ofEpochMilli)
+case class AggregateResult(_id: String)
 
-  implicit val instantFormats: Format[Instant] = Format(instantReads, instantWrites)
-
-  implicit val formats: Format[Form] = mongoEntity {
-    Json.format[Form]
-  }
+object AggregateResult {
+  implicit val format: OFormat[AggregateResult] =
+    derived.oformat()
 }
 
 abstract class FormError(message: String) extends ApplicationError(message)

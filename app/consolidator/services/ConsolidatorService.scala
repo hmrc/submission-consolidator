@@ -19,7 +19,6 @@ package consolidator.services
 import java.io.File
 import java.nio.file.Path
 import java.time.Instant
-
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
 import cats.effect.{ ContextShift, IO }
@@ -30,9 +29,10 @@ import consolidator.repositories.ConsolidatorJobDataRepository
 import consolidator.services.ConsolidatorService.ConsolidationResult
 import ConsolidationFormat.ConsolidationFormat
 import consolidator.services.sink.{ FilePartOutputStage, FormCSVFilePartWriter, FormExcelFilePartWriter, FormJsonLineFilePartWriter }
+import org.bson.types.ObjectId
+
 import javax.inject.{ Inject, Singleton }
 import play.api.Configuration
-import reactivemongo.bson.BSONObjectID
 
 import scala.concurrent.ExecutionContext
 
@@ -58,7 +58,7 @@ class ConsolidatorService @Inject() (
 
   private def processForms(
     params: FormConsolidatorParams,
-    afterObjectId: Option[BSONObjectID],
+    afterObjectId: Option[ObjectId],
     untilInstant: Instant,
     outputPath: Path
   ): IO[Option[ConsolidationResult]] =
@@ -67,11 +67,11 @@ class ConsolidatorService @Inject() (
       filePartOutputStageResult <-
         writeFormsToFiles(params.projectId, afterObjectId, untilInstant, formDataIds, outputPath, params.format)
     } yield filePartOutputStageResult
-      .map(f => ConsolidationResult(f.lastValue.id, f.count, f.reportFiles.toList))
+      .map(f => ConsolidationResult(f.lastValue._id, f.count, f.reportFiles.toList))
 
   private def writeFormsToFiles(
     projectId: String,
-    afterObjectId: Option[BSONObjectID],
+    afterObjectId: Option[ObjectId],
     untilInstant: Instant,
     formDataIds: List[String],
     outputDir: Path,
@@ -109,13 +109,13 @@ class ConsolidatorService @Inject() (
         } yield lastObjectId
       case u: ManualFormConsolidatorParams =>
         IO.pure(
-          Option(BSONObjectID.fromTime(u.startInstant.toEpochMilli, true))
+          Option(ObjectId.get())
         )
     }
 
   private def formDataIds(
     projectId: String,
-    afterObjectId: Option[BSONObjectID],
+    afterObjectId: Option[ObjectId],
     format: ConsolidationFormat
   ): IO[List[String]] =
     format match {
@@ -126,5 +126,5 @@ class ConsolidatorService @Inject() (
 }
 
 object ConsolidatorService {
-  case class ConsolidationResult(lastObjectId: BSONObjectID, count: Int, reportFiles: List[File])
+  case class ConsolidationResult(lastObjectId: ObjectId, count: Int, reportFiles: List[File])
 }

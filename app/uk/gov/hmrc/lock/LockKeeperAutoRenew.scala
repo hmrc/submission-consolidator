@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.lock
+package uk.gov.hmrc.mongo.lock
+
+import org.slf4j.{ Logger, LoggerFactory }
 
 import java.util.UUID
 import java.util.concurrent.{ Executors, ScheduledExecutorService, TimeUnit }
-
-import org.joda.time.Duration
-import org.slf4j.{ Logger, LoggerFactory }
-
+import scala.concurrent.duration.Duration
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success, Try }
 
@@ -37,15 +36,15 @@ trait LockKeeperAutoRenew {
     logger.info(s"Trying to acquire lock [id=$id, duration=$duration, owner=$owner]")
 
     repo
-      .lock(id, owner, duration)
+      .takeLock(id, owner, duration)
       .flatMap {
         case true =>
           val renewalScheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
-          val period = duration.getMillis - 3000
+          val period = duration.toMillis - 3000
           if (period > 0) {
             renewalScheduler.scheduleAtFixedRate(
               () => {
-                repo.renew(id, owner, duration).recover { case e =>
+                repo.refreshExpiry(id, owner, duration).recover { case e =>
                   logger.warn("Failed to renew lock via renewal renewalTimer", e)
                 }
                 ()

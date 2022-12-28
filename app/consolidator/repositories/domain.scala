@@ -20,8 +20,10 @@ import cats.Eq
 import collector.common.ApplicationError
 import consolidator.repositories.NotificationStatus.FileReady
 import consolidator.services.UniqueIdGenerator
+import julienrf.json.derived
+import org.bson.types.ObjectId
 import play.api.libs.json._
-import reactivemongo.bson.BSONObjectID
+import uk.gov.hmrc.mongo.play.json.formats.{ MongoFormats, MongoJavatimeFormats }
 
 import java.time.Instant
 import java.util.UUID
@@ -30,25 +32,17 @@ case class ConsolidatorJobData(
   projectId: String,
   startTimestamp: Instant,
   endTimestamp: Instant,
-  lastObjectId: Option[BSONObjectID],
+  lastObjectId: Option[ObjectId],
   error: Option[String],
   envelopeId: Option[String],
-  id: BSONObjectID = BSONObjectID.generate()
+  _id: ObjectId = ObjectId.get()
 )
 object ConsolidatorJobData {
-  import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.{ mongoEntity, objectIdFormats }
 
-  val instantWrites: Writes[Instant] = new Writes[Instant] {
-    def writes(datetime: Instant): JsValue = Json.obj("$date" -> datetime.toEpochMilli)
-  }
-
-  val instantReads: Reads[Instant] =
-    (__ \ "$date").read[Long].map(Instant.ofEpochMilli)
-
-  implicit val instantFormats: Format[Instant] = Format(instantReads, instantWrites)
-
-  implicit val formats = mongoEntity {
-    Json.format[ConsolidatorJobData]
+  implicit val format: OFormat[ConsolidatorJobData] = {
+    implicit val instantFormat: Format[Instant] = MongoJavatimeFormats.instantFormat
+    implicit val oidFormat: Format[ObjectId] = MongoFormats.objectIdFormat
+    derived.oformat()
   }
 }
 
@@ -61,13 +55,12 @@ case class GenericSdesSubmissionError(message: String) extends SdesSubmissionErr
 case class SdesSubmission(
   envelopeId: String,
   submissionRef: String,
-  correlationId: String,
   submittedAt: Instant = Instant.now,
   isProcessed: Boolean = false,
   status: NotificationStatus,
   failureReason: Option[String] = None,
   confirmedAt: Option[Instant] = None,
-  id: BSONObjectID = BSONObjectID.generate()
+  _id: String = UniqueIdGenerator.uuidStringGenerator.generate
 )
 
 object SdesSubmission {
@@ -75,26 +68,15 @@ object SdesSubmission {
     SdesSubmission(
       envelopeId,
       submissionRef,
-      UniqueIdGenerator.uuidStringGenerator.generate,
       status = FileReady
     )
 
   implicit val formatUUID: Format[UUID] =
     Format(_.validate[String].map(UUID.fromString), uuid => JsString(uuid.toString))
 
-  import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.{ mongoEntity, objectIdFormats }
-
-  val instantWrites: Writes[Instant] = new Writes[Instant] {
-    def writes(datetime: Instant): JsValue = Json.obj("$date" -> datetime.toEpochMilli)
-  }
-
-  val instantReads: Reads[Instant] =
-    (__ \ "$date").read[Long].map(Instant.ofEpochMilli)
-
-  implicit val instantFormats: Format[Instant] = Format(instantReads, instantWrites)
-
-  implicit val formats = mongoEntity {
-    Json.format[SdesSubmission]
+  implicit val format: OFormat[SdesSubmission] = {
+    implicit val instantFormat: Format[Instant] = MongoJavatimeFormats.instantFormat
+    derived.oformat()
   }
 }
 

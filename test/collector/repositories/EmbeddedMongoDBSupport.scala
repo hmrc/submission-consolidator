@@ -16,9 +16,9 @@
 
 package collector.repositories
 
-import de.flapdoodle.embed.mongo.{ MongodExecutable, MongodStarter }
-import de.flapdoodle.embed.mongo.config.{ MongodConfigBuilder, Net }
+import de.flapdoodle.embed.mongo.config.{ MongodConfig, Net }
 import de.flapdoodle.embed.mongo.distribution.Version
+import de.flapdoodle.embed.mongo.{ MongodExecutable, MongodProcess, MongodStarter }
 import de.flapdoodle.embed.process.runtime.Network
 
 import scala.util.Random
@@ -28,20 +28,20 @@ trait EmbeddedMongoDBSupport {
   val mongoHost = "localhost"
   val mongoPort = 10000 + Random.nextInt(10000)
 
-  // embedded mondodb instance
   var mongodExecutable: MongodExecutable = _
 
-  def startMongoD() =
+  def startMongoD(): MongodProcess =
     mongodExecutable.start()
 
-  def stopMongoD() =
+  def stopMongoD(): Unit =
     mongodExecutable.stop()
 
-  def initMongoDExecutable() =
+  def initMongoDExecutable(): Unit =
     mongodExecutable = MongodStarter.getDefaultInstance
       .prepare(
-        new MongodConfigBuilder()
-          .version(Version.Main.V3_6)
+        MongodConfig
+          .builder()
+          .version(Version.Main.V4_2)
           .net(new Net(mongoHost, mongoPort, Network.localhostIsIPv6()))
           .build()
       )

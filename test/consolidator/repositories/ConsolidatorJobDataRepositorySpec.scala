@@ -17,6 +17,8 @@
 package consolidator.repositories
 
 import collector.repositories.{ DataGenerators, EmbeddedMongoDBSupport }
+import org.mongodb.scala.Document
+import org.mongodb.scala.model.Filters
 import org.scalacheck.Gen
 import org.scalacheck.rng.Seed
 import org.scalatest.concurrent.ScalaFutures
@@ -25,8 +27,7 @@ import org.scalatest.time.{ Millis, Seconds, Span }
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import play.modules.reactivemongo.ReactiveMongoComponent
-import uk.gov.hmrc.mongo.MongoConnector
+import uk.gov.hmrc.mongo.MongoComponent
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -45,7 +46,7 @@ class ConsolidatorJobDataRepositorySpec
     stopMongoD()
 
   override def beforeEach(): Unit =
-    repository.removeAll().futureValue
+    repository.collection.deleteMany(Document()).toFuture()
 
   private def init() = {
     initMongoDExecutable()
@@ -60,7 +61,12 @@ class ConsolidatorJobDataRepositorySpec
 
         whenReady(future) { result =>
           result shouldBe Right(())
-          repository.findById(consolidatorJobData.id).futureValue shouldBe Some(consolidatorJobData)
+          repository.collection
+            .find(Filters.equal("_id", consolidatorJobData._id))
+            .headOption()
+            .futureValue shouldBe Some(
+            consolidatorJobData
+          )
         }
       }
     }
@@ -71,7 +77,12 @@ class ConsolidatorJobDataRepositorySpec
 
         whenReady(future) { result =>
           result shouldBe Right(())
-          repository.findById(consolidatorJobData.id).futureValue shouldBe Some(consolidatorJobData)
+          repository.collection
+            .find(Filters.equal("_id", consolidatorJobData._id))
+            .headOption()
+            .futureValue shouldBe Some(
+            consolidatorJobData
+          )
         }
       }
     }
@@ -80,7 +91,7 @@ class ConsolidatorJobDataRepositorySpec
 
       "return None, when no records exist" in {
 
-        assert(repository.findAll().futureValue.isEmpty)
+        assert(repository.collection.find().headOption().futureValue.isEmpty)
 
         val future = repository.findRecentLastObjectId("some-project-id")
 
@@ -146,12 +157,8 @@ class ConsolidatorJobDataRepositorySpec
   }
 
   def buildRepository(mongoHost: String, mongoPort: Int) = {
-    val connector =
-      MongoConnector(s"mongodb://$mongoHost:$mongoPort/submission-consolidator")
-    val reactiveMongoComponent = new ReactiveMongoComponent {
-      override def mongoConnector: MongoConnector =
-        connector
-    }
+    val url = s"mongodb://$mongoHost:$mongoPort/submission-consolidator"
+    val reactiveMongoComponent = MongoComponent(url)
     new ConsolidatorJobDataRepository(reactiveMongoComponent)
   }
 }

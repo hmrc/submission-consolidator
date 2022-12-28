@@ -20,6 +20,7 @@ import collector.repositories.FormRepository
 import collector.{APIFormStubs, ITSpec}
 import com.github.tomakehurst.wiremock.client.WireMock._
 import com.typesafe.config.ConfigFactory
+import org.mongodb.scala.Document
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.slf4j.{Logger, LoggerFactory}
@@ -27,7 +28,6 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.{Application, Configuration}
 
 import scala.concurrent.Await.ready
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 class ScheduledConsolidatorSpec extends ITSpec with Eventually {
@@ -37,7 +37,7 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
   override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
 
   override def beforeEach(): Unit =
-    ready(app.injector.instanceOf[FormRepository].removeAll(), 5.seconds)
+    ready(app.injector.instanceOf[FormRepository].collection.deleteMany(Document()).toFuture(), 5.seconds)
 
   override def fakeApplication(): Application = {
     val configOverride = s"""

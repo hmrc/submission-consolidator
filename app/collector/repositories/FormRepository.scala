@@ -16,82 +16,53 @@
 
 package collector.repositories
 
-import java.time.Instant
-import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
-import cats.syntax.either._
-
-import javax.inject.{ Inject, Singleton }
-import org.slf4j.{ Logger, LoggerFactory }
+import org.bson.types.ObjectId
+import org.mongodb.scala.bson.BsonValue
+import org.mongodb.scala.model.Aggregates.{group, sort, unwind}
+import org.mongodb.scala.model.Filters._
+import org.mongodb.scala.model.Indexes.ascending
+import org.mongodb.scala.model.{Aggregates, IndexModel, IndexOptions, Sorts}
+import org.mongodb.scala.{MongoSocketWriteException, MongoWriteException}
+import org.slf4j.{Logger, LoggerFactory}
 import play.api.Configuration
-import play.api.libs.json.Json.{ obj, toJson }
-import play.api.libs.json.{ JsObject, JsString, Json }
-import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.akkastream.cursorProducer
-import reactivemongo.api.commands.LastError
-import reactivemongo.api.indexes.{ Index, IndexType }
-import reactivemongo.api.{ Cursor, QueryOpts }
-import reactivemongo.bson.{ BSONDocument, BSONObjectID }
-import reactivemongo.core.actors.Exceptions.PrimaryUnavailableException
-import reactivemongo.play.json.ImplicitBSONHandlers
-import uk.gov.hmrc.mongo.ReactiveRepository
-import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
+import uk.gov.hmrc.mongo.MongoComponent
+import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 
-import scala.concurrent.{ ExecutionContext, Future }
+import java.time.Instant
+import java.util.Date
+import java.util.concurrent.TimeUnit
+import javax.inject.{Inject, Singleton}
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class FormRepository @Inject() (mongoComponent: ReactiveMongoComponent, config: Configuration)(implicit
-  system: ActorSystem,
+class FormRepository @Inject() (mongo: MongoComponent, config: Configuration)(implicit
   ec: ExecutionContext
-) extends ReactiveRepository[Form, BSONObjectID](
+) extends PlayMongoRepository[Form](
+      mongoComponent = mongo,
       collectionName = "forms",
-      mongo = mongoComponent.mongoConnector.db,
-      domainFormat = Form.formats,
-      idFormat = ReactiveMongoFormats.objectIdFormats
+      domainFormat = Form.format,
+      indexes = Seq(
+        IndexModel(ascending("submissionRef"), IndexOptions().name("submissionRefUniqueIdx").unique(true)),
+        IndexModel(ascending("projectId"), IndexOptions().name("projectIdIdx")),
+        IndexModel(
+          ascending("submissionTimestamp"),
+          IndexOptions()
+            .name("submissionTimestampIdx")
+            .background(false)
+            .expireAfter(config.get[Long]("mongodb.timeToLiveInSeconds"), TimeUnit.SECONDS)
+        )
+      ),
+      replaceIndexes = false
     ) {
-  import ImplicitBSONHandlers._
-
-  override val logger: Logger = LoggerFactory.getLogger(getClass)
-
-  private val expireAfterSeconds = "expireAfterSeconds"
-  private lazy val maybeTtl: Option[Long] = config.getOptional[Long]("mongodb.timeToLiveInSeconds")
-
-  (for {
-    _ <- IndexManager.checkIndexTtl(collection, "submissionTimestampIdx", maybeTtl)
-    _ <- ensureIndex("submissionRef", "submissionRefUniqueIdx", true, None)
-    _ <- ensureIndex("projectId", "projectIdIdx", false, None)
-    _ <- ensureIndex("submissionTimestamp", "submissionTimestampIdx", false, maybeTtl)
-  } yield ()) recoverWith { case t: Throwable =>
-    Future.successful(logger.error(s"Error ensuring indexes on collection ${collection.name}", t))
-  }
-
-  def ensureIndex(field: String, indexName: String, isUnique: Boolean, ttl: Option[Long]): Future[Boolean] = {
-
-    val defaultIndex: Index = Index(Seq((field, IndexType.Ascending)), Some(indexName), unique = isUnique)
-
-    val index: Index = ttl.fold(defaultIndex) { ttl =>
-      Index(
-        Seq((field, IndexType.Ascending)),
-        Some(indexName),
-        isUnique,
-        background = true,
-        options = BSONDocument(expireAfterSeconds -> ttl)
-      )
-    }
-
-    collection.indexesManager.ensure(index) map { result =>
-      logger.warn(s"Created index $indexName on collection ${collection.name} with TTL value $ttl -> result: $result")
-      result
-    } recover { case e =>
-      logger.error("Failed to set TTL index", e)
-      false
-    }
-  }
+  val logger: Logger = LoggerFactory.getLogger(getClass)
 
   def addForm(
     form: Form
   )(implicit ec: ExecutionContext): Future[Either[FormError, Unit]] =
-    insert(form)
+    collection
+      .insertOne(form)
+      .toFuture()
       .map(_ => Right(()))
       .recover {
         case MongoError(Some(11000), message) if message.contains("submissionRef") =>
@@ -102,7 +73,7 @@ class FormRepository @Inject() (mongoComponent: ReactiveMongoComponent, config: 
               "submissionRef must be unique"
             )
           )
-        case unavailable: PrimaryUnavailableException =>
+        case unavailable: MongoSocketWriteException =>
           logger.error("Mongodb is unavailable", unavailable)
           Left(MongoUnavailable(unavailable.getMessage))
         case other =>
@@ -115,57 +86,61 @@ class FormRepository @Inject() (mongoComponent: ReactiveMongoComponent, config: 
     * @param ec
     * @return
     */
-  def distinctFormDataIds(projectId: String, afterObjectId: Option[BSONObjectID] = None)(implicit
+  def distinctFormDataIds(projectId: String, afterObjectId: Option[ObjectId] = None)(implicit
     ec: ExecutionContext
-  ): Future[Either[FormError, List[String]]] =
+  ): Future[Either[FormError, List[String]]] = {
+
+    val filter = Aggregates.filter(
+      and(equal("projectId", projectId), afterObjectId.map(aoid => gt("_id", aoid)).getOrElse(exists("_id")))
+    )
+
     collection
-      .aggregateWith[JsObject]() { framework =>
-        import framework._
-        val afterObjectIdSelector: JsObject = afterObjectId
-          .map(aoid => obj("_id" -> obj("$gt" -> ReactiveMongoFormats.objectIdWrite.writes(aoid))))
-          .getOrElse(obj())
-        Match(Json.obj("projectId" -> JsString(projectId)) ++ afterObjectIdSelector) -> List(
-          UnwindField("formData"),
-          GroupField("formData.id")(),
-          Sort(Ascending("_id"))
+      .aggregate[BsonValue](
+        List(
+          filter,
+          unwind("$formData"),
+          group("$formData.id"),
+          sort(Sorts.ascending("_id"))
         )
-      }
-      .collect[List](-1, Cursor.FailOnError())
-      .map(jsObjectList => jsObjectList.map(jsObject => (jsObject \ "_id").get.as[JsString].value).asRight[FormError])
+      )
+      .toFuture()
+      .map(_.map(Codecs.fromBson[AggregateResult](_)._id).toList)
+      .map(Right(_))
       .recover { case e =>
-        MongoGenericError(e.getMessage).asLeft[List[String]]
+        Left(MongoGenericError(e.getMessage))
       }
+  }
 
   def formsSource(
     projectId: String,
     batchSize: Int,
-    afterObjectId: Option[BSONObjectID],
+    afterObjectId: Option[ObjectId],
     untilInstant: Instant // inclusive
   ): Source[Form, Future[Unit]] = {
 
     logger.info(
-      s"Fetching forms from ${afterObjectId.map(aoid => Instant.ofEpochMilli(aoid.time))}(exclusive) until $untilInstant(inclusive) for project $projectId"
-    )
-    val afterObjectSelector: JsObject = afterObjectId
-      .map(aoid => obj("$gt" -> ReactiveMongoFormats.objectIdWrite.writes(aoid)))
-      .getOrElse(obj())
-
-    val selector = obj(
-      "projectId" -> toJson(projectId),
-      "_id" -> (obj(
-        "$lte" -> ReactiveMongoFormats.objectIdWrite.writes(BSONObjectID.fromTime(untilInstant.toEpochMilli))
-      ) ++ afterObjectSelector)
+      s"Fetching forms from ${afterObjectId.map(aoid => aoid.getTimestamp)}(exclusive) until $untilInstant(inclusive) for project $projectId"
     )
 
-    collection
-      .find(selector, Option.empty[JsObject])
-      .options(QueryOpts().batchSize(batchSize))
-      .cursor[Form]()
-      .documentSource()
+    val filter = and(
+      equal("projectId", projectId),
+      lte("_id", ObjectId.getSmallestWithDate(Date.from(untilInstant))),
+      afterObjectId.map(aoid => gt("_id", aoid)).getOrElse(exists("_id"))
+    )
+
+    Source
+      .fromPublisher(
+        collection
+          .find[BsonValue](filter)
+          .batchSize(batchSize)
+      )
+      .map(Codecs.fromBson[Form](_))
       .mapMaterializedValue(_ => Future.successful(()))
   }
 
   object MongoError {
-    def unapply(lastError: LastError): Option[(Option[Int], String)] = Some((lastError.code, lastError.message))
+    def unapply(lastError: MongoWriteException): Option[(Option[Int], String)] = Some(
+      (Some(lastError.getCode), lastError.getMessage)
+    )
   }
 }

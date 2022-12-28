@@ -17,33 +17,30 @@
 package common.repositories
 
 import common.repositories.UniqueIdRepository.{ UniqueId, UniqueIdGenFunction }
-import javax.inject.{ Inject, Singleton }
-import play.api.libs.json.Json
-import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.api.indexes.{ Index, IndexType }
-import reactivemongo.bson.BSONObjectID
-import uk.gov.hmrc.mongo.ReactiveRepository
-import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
+import julienrf.json.derived
+import org.bson.types.ObjectId
+import org.mongodb.scala.model.Indexes.ascending
+import org.mongodb.scala.model.{ IndexModel, IndexOptions }
+import org.slf4j.{ Logger, LoggerFactory }
+import play.api.libs.json.{ Format, OFormat }
+import uk.gov.hmrc.mongo.MongoComponent
+import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
+import uk.gov.hmrc.mongo.play.json.formats.MongoFormats
 
+import javax.inject.{ Inject, Singleton }
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class UniqueIdRepository @Inject() (mongoComponent: ReactiveMongoComponent)(implicit ec: ExecutionContext)
-    extends ReactiveRepository[UniqueId, BSONObjectID](
+class UniqueIdRepository @Inject() (mongo: MongoComponent)(implicit ec: ExecutionContext)
+    extends PlayMongoRepository[UniqueId](
+      mongoComponent = mongo,
       collectionName = "unique_ids",
-      mongo = mongoComponent.mongoConnector.db,
-      domainFormat = UniqueId.formats,
-      idFormat = ReactiveMongoFormats.objectIdFormats
+      domainFormat = UniqueId.format,
+      indexes = Seq(IndexModel(ascending("value"), IndexOptions().name("valueUniqueIdx").unique(true))),
+      replaceIndexes = false
     ) {
 
-  override def indexes: Seq[Index] =
-    Seq(
-      Index(
-        Seq("value" -> IndexType.Ascending),
-        name = Some("valueUniqueIdx"),
-        unique = true
-      )
-    )
+  val logger: Logger = LoggerFactory.getLogger(getClass)
 
   def insertWithRetries(idGenFunction: UniqueIdGenFunction, attempts: Int = 5): Future[Option[UniqueId]] =
     (0 until attempts).foldLeft(Future.successful(Option.empty[UniqueId])) {
@@ -52,7 +49,9 @@ class UniqueIdRepository @Inject() (mongoComponent: ReactiveMongoComponent)(impl
           case None =>
             logger.info(s"insertWithRetries $attempt")
             val uniqueId = idGenFunction()
-            insert(uniqueId)
+            collection
+              .insertOne(uniqueId)
+              .toFuture()
               .map(_ => Option(uniqueId))
               .recoverWith { case e =>
                 logger.info("Failed to insert unique id", e)
@@ -67,12 +66,12 @@ object UniqueIdRepository {
 
   type UniqueIdGenFunction = () => UniqueId
 
-  case class UniqueId(value: String, id: BSONObjectID = BSONObjectID.generate())
+  case class UniqueId(value: String, _id: ObjectId = ObjectId.get())
 
   object UniqueId {
-    import uk.gov.hmrc.mongo.json.ReactiveMongoFormats.{ mongoEntity, objectIdFormats }
-    implicit val formats = mongoEntity {
-      Json.format[UniqueId]
+    val format: OFormat[UniqueId] = {
+      implicit val oidFormat: Format[ObjectId] = MongoFormats.objectIdFormat
+      derived.oformat()
     }
   }
 }
