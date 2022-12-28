@@ -18,11 +18,12 @@ package uk.gov.hmrc.lock
 
 import collector.ITSpec
 import com.typesafe.config.ConfigFactory
+import org.mongodb.scala.bson.collection.immutable.Document
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.slf4j.{Logger, LoggerFactory}
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.{Application, Configuration}
-import uk.gov.hmrc.mongo.lock.{Lock, LockRepository, MongoLockRepository}
+import uk.gov.hmrc.mongo.lock.{Lock, MongoLockRepository}
 import uk.gov.hmrc.mongo.{CurrentTimestampSupport, MongoComponent}
 
 import java.time.Instant
@@ -38,11 +39,14 @@ class LockKeeperAutoRenewSpec
 
   override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
 
-  var lockRepository: LockRepository = _
+  var lockRepository: MongoLockRepository = _
 
   override def beforeAll() = {
     lockRepository = new MongoLockRepository(app.injector.instanceOf[MongoComponent],new CurrentTimestampSupport())
   }
+
+  override def beforeEach(): Unit =
+    lockRepository.collection.deleteMany(Document()).toFuture()
 
   override def fakeApplication(): Application = {
     val config =
@@ -59,9 +63,9 @@ class LockKeeperAutoRenewSpec
   }
 
   trait TestFixture {
-    lazy val lockDuration = Duration.create(5,TimeUnit.SECONDS)
-    lazy val lockKeeper = new LockKeeperAutoRenew {
-      override val repo: LockRepository = lockRepository
+    lazy val lockDuration = Duration.create(3,TimeUnit.SECONDS)
+    lazy val lockKeeper =new LockKeeperAutoRenew {
+      override val repo: MongoLockRepository = lockRepository
       override val id: String = "TEST_LOCK"
       override val duration: Duration = lockDuration
     }
@@ -71,19 +75,22 @@ class LockKeeperAutoRenewSpec
 
     "there is no existing lock" should {
       "acquire the lock and release after future completes" in new TestFixture {
-        whenReady(lockKeeper.withLock(Future(1))) { result =>
+        val future = lockKeeper.withLock(Future(1))
+        lockRepository.isLocked(lockKeeper.id,lockKeeper.owner).futureValue shouldEqual true
+        whenReady(future) { result =>
           result shouldBe Some(1)
-//          lockRepository.findAll().futureValue shouldBe empty
         }
       }
     }
 
     "there is no existing lock and duration is less than 3 seconds (auto-renew seconds before duration)" should {
       "acquire the lock and release after future completes" in new TestFixture {
-//        override lazy val lockDuration: Duration = Duration.create(2,TimeUnit.SECONDS)
-        whenReady(lockKeeper.withLock(Future(1))) { result =>
+        override lazy val lockDuration = Duration.create(2,TimeUnit.SECONDS)
+        val future = lockKeeper.withLock(Future(1))
+        Thread.sleep(2000)
+        lockRepository.isLocked(lockKeeper.id,lockKeeper.owner).futureValue shouldEqual false
+        whenReady(future) { result =>
           result shouldBe Some(1)
-//          lockRepository.findAll().futureValue shouldBe empty
         }
       }
     }
@@ -93,7 +100,6 @@ class LockKeeperAutoRenewSpec
         whenReady(lockKeeper.withLock(Future.failed(new RuntimeException("future failed"))).failed) { result =>
           result shouldBe a[RuntimeException]
           result.getMessage shouldBe "future failed"
-//          lockRepository.findAll().futureValue shouldBe empty
         }
       }
     }
@@ -106,7 +112,7 @@ class LockKeeperAutoRenewSpec
 
         whenReady(lockKeeper.withLock(Future(1))) { result =>
           result shouldBe None
-//          lockRepository.findAll().futureValue shouldBe List(existingLock)
+          lockRepository.collection.find().toFuture().futureValue shouldBe List(existingLock)
         }
       }
     }
@@ -114,7 +120,7 @@ class LockKeeperAutoRenewSpec
     "concurrent access to lock" should {
       "grant the lock to one of the requesters" in new TestFixture {
         val otherLockKeeper = new LockKeeperAutoRenew {
-          override val repo: LockRepository = lockRepository
+          override val repo: MongoLockRepository = lockRepository
           override val id: String = "TEST_LOCK"
           override val duration: Duration = Duration.create(5,TimeUnit.SECONDS)
         }

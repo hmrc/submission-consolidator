@@ -17,7 +17,7 @@
 package consolidator.repositories
 
 import org.mongodb.scala.bson.{ BsonArray, BsonDocument, Document }
-import org.mongodb.scala.model.Aggregates.unwind
+import org.mongodb.scala.model.Aggregates.{ replaceRoot, unwind }
 import org.mongodb.scala.model.Filters.{ and, equal, exists }
 import org.mongodb.scala.model.Indexes.ascending
 import org.mongodb.scala.model.Projections.computed
@@ -89,9 +89,9 @@ class ConsolidatorJobDataRepository @Inject() (mongo: MongoComponent)(implicit e
     )
 
     val unwindStage = unwind("$maxDoc")
-    val replaceRoot = Aggregates.replaceRoot("$maxDoc")
+    val replaceRootStage = replaceRoot("$maxDoc")
 
-    val pipeline = List(filter, group, project, unwindStage, replaceRoot)
+    val pipeline = List(filter, group, project, unwindStage, replaceRootStage)
 
     collection
       .aggregate[ConsolidatorJobData](pipeline)

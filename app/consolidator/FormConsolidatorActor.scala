@@ -29,7 +29,7 @@ import consolidator.services.ConsolidatorService.ConsolidationResult
 import consolidator.services._
 import org.slf4j.{ Logger, LoggerFactory }
 import uk.gov.hmrc.lock.LockKeeperAutoRenew
-import uk.gov.hmrc.mongo.lock.LockRepository
+import uk.gov.hmrc.mongo.lock.MongoLockRepository
 
 import java.nio.file.Files.createDirectories
 import java.nio.file.{ Path, Paths }
@@ -47,7 +47,7 @@ class FormConsolidatorActor(
   consolidatorService: ConsolidatorService,
   fileUploaderService: SubmissionService,
   consolidatorJobDataRepository: ConsolidatorJobDataRepository,
-  lockRepository: LockRepository,
+  lockRepository: MongoLockRepository,
   metricsClient: MetricsClient,
   deleteDirService: DeleteDirService
 ) extends Actor with IOUtils {
@@ -90,7 +90,7 @@ class FormConsolidatorActor(
       }
 
       val lock = new LockKeeperAutoRenew {
-        override val repo: LockRepository = lockRepository
+        override val repo: MongoLockRepository = lockRepository
         override val id: String = params.projectId
         override val duration: Duration = Duration.create(5, TimeUnit.MINUTES)
       }
@@ -170,7 +170,7 @@ object FormConsolidatorActor {
     consolidatorService: ConsolidatorService,
     fileUploaderService: SubmissionService,
     consolidatorJobDataRepository: ConsolidatorJobDataRepository,
-    lockRepository: LockRepository,
+    lockRepository: MongoLockRepository,
     metricsClient: MetricsClient,
     deleteDirService: DeleteDirService
   ): Props =

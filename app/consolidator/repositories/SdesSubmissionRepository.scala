@@ -17,6 +17,8 @@
 package consolidator.repositories
 
 import org.mongodb.scala.model.Filters.equal
+import org.mongodb.scala.model.Indexes.descending
+import org.mongodb.scala.model.{ IndexModel, IndexOptions }
 import org.mongodb.scala.result.DeleteResult
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
@@ -30,7 +32,7 @@ class SdesSubmissionRepository @Inject() (mongo: MongoComponent)(implicit ec: Ex
       mongoComponent = mongo,
       collectionName = "sdes_submission",
       domainFormat = SdesSubmission.format,
-      indexes = Seq(),
+      indexes = Seq(IndexModel(descending("confirmedAt"), IndexOptions().name("confirmedAtIdx"))),
       replaceIndexes = false
     ) {
 

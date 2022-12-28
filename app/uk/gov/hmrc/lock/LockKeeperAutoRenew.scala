@@ -17,7 +17,7 @@
 package uk.gov.hmrc.lock
 
 import org.slf4j.{ Logger, LoggerFactory }
-import uk.gov.hmrc.mongo.lock.LockRepository
+import uk.gov.hmrc.mongo.lock.MongoLockRepository
 
 import java.util.UUID
 import java.util.concurrent.{ Executors, ScheduledExecutorService, TimeUnit }
@@ -28,7 +28,7 @@ import scala.util.{ Failure, Success, Try }
 trait LockKeeperAutoRenew {
   val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  val repo: LockRepository
+  val repo: MongoLockRepository
   val id: String
   val duration: Duration
   lazy val owner: String = UUID.randomUUID().toString
