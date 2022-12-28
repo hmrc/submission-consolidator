@@ -16,6 +16,8 @@
 
 package consolidator
 
+import akka.actor.{ActorSystem, ClassicActorSystemProvider}
+import akka.stream.{Materializer, SystemMaterializer}
 import collector.repositories.FormRepository
 import collector.{APIFormStubs, ITSpec}
 import com.github.tomakehurst.wiremock.client.WireMock._
@@ -24,10 +26,17 @@ import org.mongodb.scala.Document
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.slf4j.{Logger, LoggerFactory}
+import play.api.inject.bind
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.{Application, Configuration}
+import uk.gov.hmrc.objectstore.client.RetentionPeriod.OneWeek
+import uk.gov.hmrc.objectstore.client.config.ObjectStoreClientConfig
+import uk.gov.hmrc.objectstore.client.play.PlayObjectStoreClient
+import uk.gov.hmrc.objectstore.client.play.test.stub
 
+import java.util.UUID.randomUUID
 import scala.concurrent.Await.ready
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 class ScheduledConsolidatorSpec extends ITSpec with Eventually {
@@ -59,16 +68,25 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
                         |
                         |  services {
                         |
-                        |    file-upload {
+                        |    object-store {
                         |        host = localhost
                         |        port = $wiremockPort
                         |    }
                         |
-                        |    file-upload-frontend {
-                        |        host = localhost
-                        |        port = $wiremockPort
+                        |    sdes {
+                        |      host = localhost
+                        |      port = $wiremockPort
+                        |      base-path = "/sdes-stub"
+                        |      api-key = "client-id"
+                        |      information-type = "1670499847785"
+                        |      recipient-or-sender = "477099564866"
+                        |      file-location-url = "http://localhost:8464/object-store/object/"
                         |    }
                         |  }
+                        | }
+                        | object-store {
+                        |    default-retention-period = "6-months"
+                        |    zip-directory = "sdes"
                         | }
                         |""".stripMargin
     val config =
@@ -78,8 +96,21 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
           .withFallback(baseConfig.underlying)
       )
 
+    val baseUrl = "objectStoreUrl"
+    val owner = "owner"
+    val token = s"token-${randomUUID().toString}"
+    val objectStoreConfig = ObjectStoreClientConfig(baseUrl, owner, token, OneWeek)
+
+    implicit val system = ActorSystem()
+
+    implicit def matFromSystem(implicit provider: ClassicActorSystemProvider): Materializer =
+      SystemMaterializer(provider.classicSystem).materializer
+
+    lazy val objectStoreStub = new stub.StubPlayObjectStoreClient(objectStoreConfig)
+
     GuiceApplicationBuilder()
       .configure(config)
+      .bindings(bind(classOf[PlayObjectStoreClient]).to(objectStoreStub))
       .build()
   }
 
@@ -93,7 +124,7 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
 
   "consolidator" when {
     "forms are available for a configured project" should {
-      "run consolidator job to consolidate the forms into a single file and submit the data to DMS using file-upload" in {
+      "run consolidator job to consolidate the forms into a single file and submit the data to DMS using object-store" in {
 
         wiremockStubs()
         wsClient
@@ -101,14 +132,6 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
           .withHttpHeaders("Content-Type" -> "application/json")
           .post(APIFormStubs.validForm)
           .futureValue
-
-        eventually {
-          verify(postRequestedFor(urlEqualTo("/file-upload/envelopes")))
-          verify(postRequestedFor(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/xmlDocument")))
-          verify(postRequestedFor(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/pdf")))
-          verify(postRequestedFor(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/report-0")))
-          verify(postRequestedFor(urlEqualTo("/file-routing/requests")))
-        }
       }
     }
   }

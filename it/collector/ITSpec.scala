@@ -26,9 +26,11 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatestplus.play.guice.GuiceOneServerPerSuite
 import play.api.Configuration
-import play.api.http.HeaderNames.LOCATION
 import play.api.libs.ws.WSClient
+import uk.gov.hmrc.objectstore.client.Path.File
+import uk.gov.hmrc.objectstore.client.{Md5Hash, ObjectSummaryWithMd5}
 
+import java.time.Instant
 import scala.util.Random
 
 trait ITSpec
@@ -53,44 +55,14 @@ trait ITSpec
   val wireMockServer = new WireMockServer(options().port(wiremockPort))
 
   def wiremockStubs() = {
+    val objectSummary = ObjectSummaryWithMd5(File("test.txt"), 10L, Md5Hash("md5"), Instant.now())
+
     stubFor(
-      post(urlEqualTo("/file-upload/envelopes"))
+      post(urlEqualTo("object-store/object-store/ops/zip"))
         .willReturn(
           aResponse()
             .withStatus(201)
-            .withHeader(LOCATION, "envelopes/some-envelope-id")
-        )
-    )
-
-    stubFor(
-      post(urlEqualTo("/file-routing/requests"))
-        .willReturn(
-          aResponse()
-            .withStatus(201)
-        )
-    )
-
-    stubFor(
-      post(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/report-0"))
-        .willReturn(
-          aResponse()
-            .withStatus(200)
-        )
-    )
-
-    stubFor(
-      post(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/xmlDocument"))
-        .willReturn(
-          aResponse()
-            .withStatus(200)
-        )
-    )
-
-    stubFor(
-      post(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/pdf"))
-        .willReturn(
-          aResponse()
-            .withStatus(200)
+            .withBody(objectSummary.toString)
         )
     )
   }
