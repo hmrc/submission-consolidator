@@ -16,50 +16,41 @@
 
 package consolidator.repositories
 
-import javax.inject.{ Inject, Singleton }
+import org.mongodb.scala.bson.{ BsonArray, BsonDocument, Document }
+import org.mongodb.scala.model.Aggregates.{ replaceRoot, unwind }
+import org.mongodb.scala.model.Filters.{ and, equal, exists }
+import org.mongodb.scala.model.Indexes.ascending
+import org.mongodb.scala.model.Projections.computed
+import org.mongodb.scala.model._
 import org.slf4j.{ Logger, LoggerFactory }
-import play.api.libs.json.{ JsString, Json }
-import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.api.indexes.{ Index, IndexType }
-import reactivemongo.bson.BSONObjectID
-import reactivemongo.play.json.ImplicitBSONHandlers
-import uk.gov.hmrc.mongo.ReactiveRepository
-import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
+import uk.gov.hmrc.mongo.MongoComponent
+import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 
+import javax.inject.{ Inject, Singleton }
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class ConsolidatorJobDataRepository @Inject() (mongoComponent: ReactiveMongoComponent)
-    extends ReactiveRepository[ConsolidatorJobData, BSONObjectID](
+class ConsolidatorJobDataRepository @Inject() (mongo: MongoComponent)(implicit ec: ExecutionContext)
+    extends PlayMongoRepository[ConsolidatorJobData](
+      mongoComponent = mongo,
       collectionName = "consolidator_job_datas",
-      mongo = mongoComponent.mongoConnector.db,
-      domainFormat = ConsolidatorJobData.formats,
-      idFormat = ReactiveMongoFormats.objectIdFormats
+      domainFormat = ConsolidatorJobData.format,
+      indexes = Seq(
+        IndexModel(ascending("projectId"), IndexOptions().name("jobIdIdx")),
+        IndexModel(ascending("lastObjectId"), IndexOptions().name("lastObjectIdIdx")),
+        IndexModel(ascending("endTimestamp"), IndexOptions().name("endTimestampIdx"))
+      ),
+      replaceIndexes = false
     ) {
-  import ImplicitBSONHandlers._
 
-  override val logger: Logger = LoggerFactory.getLogger(getClass)
-
-  override def indexes: Seq[Index] =
-    Seq(
-      Index(
-        key = Seq("projectId" -> IndexType.Ascending),
-        name = Some("jobIdIdx")
-      ),
-      Index(
-        key = Seq("lastObjectId" -> IndexType.Ascending),
-        name = Some("lastObjectIdIdx")
-      ),
-      Index(
-        key = Seq("endTimestamp" -> IndexType.Ascending),
-        name = Some("endTimestampIdx")
-      )
-    )
+  val logger: Logger = LoggerFactory.getLogger(getClass)
 
   def add(
     consolidatorJobData: ConsolidatorJobData
   )(implicit ec: ExecutionContext): Future[Either[ConsolidatorJobDataError, Unit]] =
-    insert(consolidatorJobData)
+    collection
+      .insertOne(consolidatorJobData)
+      .toFuture()
       .map(_ => Right(()))
       .recover { case e =>
         Left(GenericConsolidatorJobDataError(e.getMessage))
@@ -74,38 +65,36 @@ class ConsolidatorJobDataRepository @Inject() (mongoComponent: ReactiveMongoComp
   def findRecentLastObjectId(
     projectId: String
   )(implicit ec: ExecutionContext): Future[Either[ConsolidatorJobDataError, Option[ConsolidatorJobData]]] = {
-    import collection.BatchCommands.AggregationFramework._
 
     // considers records that have lastObjectId defined i.e successful job execution
-    val matchQueryStage = Match(Json.obj("projectId" -> projectId, "lastObjectId" -> Json.obj("$exists" -> true)))
-
+    val filter = Aggregates.filter(and(equal("projectId", projectId), exists("lastObjectId")))
     // get the max endTimestamp
-    val groupStage = Group(Json.obj())(
-      "maxEndTimestamp" -> Max(JsString("$endTimestamp")),
-      "docs"            -> Push(JsString("$$ROOT"))
+    val group = Aggregates.group(
+      "",
+      Accumulators.max("maxEndTimestamp", "$endTimestamp"),
+      Accumulators.push("docs", "$$ROOT")
     )
-
     // project record with max endTimestamp value
-    val projectStage = Project(
-      Json.obj(
-        "maxDoc" -> Filter(
-          JsString("$docs"),
-          "doc",
-          Json.obj(
-            "$eq" -> Json.arr("$$doc.endTimestamp", "$maxEndTimestamp")
+    val project = Aggregates.project(
+      computed(
+        "maxDoc",
+        BsonDocument(
+          "$filter" -> Document(
+            "input" -> "$docs",
+            "as"    -> "doc",
+            "cond"  -> Document("$eq" -> BsonArray("$$doc.endTimestamp", "$maxEndTimestamp"))
           )
         )
       )
     )
 
-    val unwindStage = UnwindField("maxDoc")
+    val unwindStage = unwind("$maxDoc")
+    val replaceRootStage = replaceRoot("$maxDoc")
 
-    val replaceRootStage = ReplaceRootField("maxDoc")
+    val pipeline = List(filter, group, project, unwindStage, replaceRootStage)
 
     collection
-      .aggregateWith[ConsolidatorJobData]()(_ =>
-        matchQueryStage -> List(groupStage, projectStage, unwindStage, replaceRootStage)
-      )
+      .aggregate[ConsolidatorJobData](pipeline)
       .headOption
       .map(Right(_))
       .recover { case e =>

@@ -48,7 +48,7 @@ class SdesCallbackController @Inject() (
     )
 
     for {
-      maybeSdesSubmission <- sdesService.findByCorrelationId(correlationID)
+      maybeSdesSubmission <- sdesService.find(correlationID)
       _ <- maybeSdesSubmission match {
              case Some(sdesSubmission) =>
                val updatedSdesSubmission = sdesSubmission.copy(

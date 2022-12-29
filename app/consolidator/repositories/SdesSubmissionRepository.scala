@@ -16,38 +16,39 @@
 
 package consolidator.repositories
 
-import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.api.indexes.{ Index, IndexType }
-import reactivemongo.bson.BSONObjectID
-import uk.gov.hmrc.mongo.ReactiveRepository
-import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
+import org.mongodb.scala.model.Filters.equal
+import org.mongodb.scala.model.Indexes.descending
+import org.mongodb.scala.model.{ IndexModel, IndexOptions }
+import org.mongodb.scala.result.DeleteResult
+import uk.gov.hmrc.mongo.MongoComponent
+import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 
 import javax.inject.{ Inject, Singleton }
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class SdesSubmissionRepository @Inject() (mongoComponent: ReactiveMongoComponent)
-    extends ReactiveRepository[SdesSubmission, BSONObjectID](
+class SdesSubmissionRepository @Inject() (mongo: MongoComponent)(implicit ec: ExecutionContext)
+    extends PlayMongoRepository[SdesSubmission](
+      mongoComponent = mongo,
       collectionName = "sdes_submission",
-      mongo = mongoComponent.mongoConnector.db,
-      domainFormat = SdesSubmission.formats,
-      idFormat = ReactiveMongoFormats.objectIdFormats
+      domainFormat = SdesSubmission.format,
+      indexes = Seq(IndexModel(descending("confirmedAt"), IndexOptions().name("confirmedAtIdx"))),
+      replaceIndexes = false
     ) {
-  override def indexes: Seq[Index] =
-    Seq(
-      Index(
-        key = Seq("confirmedAt" -> IndexType.Ascending),
-        name = Some("confirmedAtIdx")
-      )
-    )
 
-  def upsert(sdesSubmission: SdesSubmission)(implicit ec: ExecutionContext): Future[Either[SdesSubmissionError, Unit]] =
-    insert(sdesSubmission)
+  def upsert(sdesSubmission: SdesSubmission): Future[Either[SdesSubmissionError, Unit]] =
+    collection
+      .insertOne(sdesSubmission)
+      .toFuture()
       .map(_ => Right(()))
       .recover { case e =>
         Left(GenericSdesSubmissionError(e.getMessage))
       }
 
-  def findByCorrelationId(correlationId: String)(implicit ec: ExecutionContext): Future[Option[SdesSubmission]] =
-    find("correlationId" -> correlationId).map(res => res.headOption)
+  def find(id: String): Future[Option[SdesSubmission]] =
+    collection.find(equal("_id", id)).headOption()
+
+  def delete(id: String): Future[DeleteResult] =
+    collection.deleteOne(equal("_id", id)).toFuture()
+
 }

@@ -16,11 +16,13 @@
 
 package collector.repositories
 
-import java.time.Instant
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
 import com.softwaremill.diffx.scalatest.DiffMatcher
 import com.typesafe.config.ConfigFactory
+import org.bson.types.ObjectId
+import org.mongodb.scala.Document
+import org.mongodb.scala.model.Filters
 import org.scalacheck.Gen
 import org.scalacheck.rng.Seed
 import org.scalatest.concurrent.ScalaFutures
@@ -30,10 +32,10 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import play.api.Configuration
-import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.bson.BSONObjectID
-import uk.gov.hmrc.mongo.MongoConnector
+import uk.gov.hmrc.mongo.MongoComponent
 
+import java.time.Instant
+import java.util.Date
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -50,7 +52,7 @@ class FormRepositorySpec
     init()
 
   override def beforeEach(): Unit =
-    formRepository.removeAll().futureValue
+    formRepository.collection.deleteMany(Document()).toFuture()
 
   private def init() = {
     initMongoDExecutable()
@@ -65,12 +67,14 @@ class FormRepositorySpec
     val projectId = "some-project-id"
     val currentTimeInMillis = System.currentTimeMillis()
     val untilTime = Instant.ofEpochMilli(currentTimeInMillis + 1000) // 1 second after current time
-    val afterObjectId = BSONObjectID.fromTime(currentTimeInMillis - 1000, false) // 1 second before current time
+    val afterObjectId = ObjectId.getSmallestWithDate(
+      Date.from(Instant.ofEpochMilli(currentTimeInMillis - 1000))
+    ) // 1 second before current time
     lazy val forms = (1 to 3)
       .map(seed =>
         genForm
           .pureApply(Gen.Parameters.default, Seed(seed.toLong))
-          .copy(projectId = projectId, id = BSONObjectID.fromTime(currentTimeInMillis, false))
+          .copy(projectId = projectId)
       )
       .toList
     forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
@@ -81,7 +85,7 @@ class FormRepositorySpec
       forAll(genForm) { form =>
         val future: Future[Option[Form]] = for {
           _      <- formRepository.addForm(form)
-          dbForm <- formRepository.findById(form.id)
+          dbForm <- formRepository.collection.find(Filters.equal("_id", form._id)).headOption()
         } yield dbForm
         whenReady(future) { dbForm =>
           dbForm shouldBe Some(form)
@@ -105,13 +109,9 @@ class FormRepositorySpec
       val form = genForm.pureApply(Gen.Parameters.default, Seed(1))
       assert(formRepository.addForm(form).futureValue.isRight)
 
-      val future = formRepository.addForm(form.copy(id = form.id))
+      val future = formRepository.addForm(form.copy(_id = form._id, submissionRef = "test"))
       whenReady(future) { addFormResult =>
-        addFormResult shouldBe Left(
-          MongoGenericError(
-            s"DatabaseException['E11000 duplicate key error collection: submission-consolidator.forms index: _id_ dup key: { : ObjectId('${form.id.stringify}') }' (code = 11000)]"
-          )
-        )
+        addFormResult.left.get.getMessage contains "E11000 duplicate key error collection"
       }
     }
 
@@ -124,7 +124,7 @@ class FormRepositorySpec
       whenReady(future) { addFormResult =>
         addFormResult.isLeft shouldBe true
         addFormResult.left.get shouldBe a[MongoUnavailable]
-        addFormResult.left.get.getMessage contains "MongoError['No primary node is available!"
+        addFormResult.left.get.getMessage contains "MongoUnavailable"
         init()
       }
     }
@@ -167,27 +167,11 @@ class FormRepositorySpec
         result.right.get shouldBe forms.flatMap(_.formData).map(_.id).distinct.sorted
       }
     }
-
-    "return error when aggregation fails" in new FormsTestFixture {
-      stopMongoD()
-      val future: Future[Either[FormError, List[String]]] =
-        formRepository.distinctFormDataIds(projectId, Some(afterObjectId))
-      whenReady(future) { result =>
-        result.isLeft shouldBe true
-        result.left.get shouldBe a[MongoGenericError]
-        result.left.get.getMessage contains "MongoError['No primary node is available!"
-        init()
-      }
-    }
   }
 
   private def buildFormRepository(mongoHost: String, mongoPort: Int) = {
-    val connector =
-      MongoConnector(s"mongodb://$mongoHost:$mongoPort/submission-consolidator")
-    val reactiveMongoComponent = new ReactiveMongoComponent {
-      override def mongoConnector: MongoConnector =
-        connector
-    }
+    val uri = s"mongodb://$mongoHost:$mongoPort/submission-consolidator"
+    val mongo = MongoComponent(uri)
 
     val config =
       Configuration(ConfigFactory.parseString("""
@@ -195,6 +179,6 @@ class FormRepositorySpec
                                                 |     timeToLiveInSeconds = 100
                                                 |     }
                                                 |""".stripMargin))
-    new FormRepository(reactiveMongoComponent, config)
+    new FormRepository(mongo, config)
   }
 }

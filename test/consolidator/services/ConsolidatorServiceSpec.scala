@@ -16,18 +16,16 @@
 
 package consolidator.services
 
-import java.nio.file.{ Files, Path, Paths }
-import java.time.temporal.ChronoUnit
-import java.time.{ Instant, ZoneId }
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
 import collector.repositories.{ DataGenerators, Form, FormField, FormRepository }
 import common.Time
+import consolidator.TestHelper.excelFileRows
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository, GenericConsolidatorJobDataError }
 import consolidator.scheduler.{ FileUpload, UntilTime }
-import consolidator.TestHelper.excelFileRows
-import ConsolidationFormat.ConsolidationFormat
+import consolidator.services.ConsolidationFormat.ConsolidationFormat
 import consolidator.services.sink.{ FormCSVFilePartWriter, FormJsonLineFilePartWriter }
+import org.bson.types.ObjectId
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.BeforeAndAfterAll
@@ -36,8 +34,11 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{ Millis, Seconds, Span }
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.Configuration
-import reactivemongo.bson.BSONObjectID
 
+import java.nio.file.{ Files, Path, Paths }
+import java.time.temporal.ChronoUnit
+import java.time.{ Instant, ZoneId }
+import java.util.Date
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -180,7 +181,7 @@ class ConsolidatorServiceSpec
 
         whenReady(future) { consolidationResult =>
           consolidationResult.isDefined shouldBe true
-          consolidationResult.get.lastObjectId shouldBe forms.last.id
+          consolidationResult.get.lastObjectId shouldBe forms.last._id
           consolidationResult.get.count shouldBe noOfForms
 
           val files = consolidationResult.get.reportFiles
@@ -208,7 +209,7 @@ class ConsolidatorServiceSpec
 
         whenReady(future) { consolidationResult =>
           consolidationResult.isDefined shouldBe true
-          consolidationResult.get.lastObjectId shouldBe forms.last.id
+          consolidationResult.get.lastObjectId shouldBe forms.last._id
           consolidationResult.get.count shouldBe noOfForms
           val files = consolidationResult.get.reportFiles
           files.size shouldBe 2
@@ -229,7 +230,7 @@ class ConsolidatorServiceSpec
           projectId,
           now,
           now,
-          Some(BSONObjectID.generate()),
+          Some(ObjectId.get()),
           None,
           Some("previous-envelope-id")
         )
@@ -241,7 +242,7 @@ class ConsolidatorServiceSpec
 
         whenReady(future) { consolidationResult =>
           consolidationResult.isDefined shouldBe true
-          consolidationResult.get.lastObjectId shouldBe forms.last.id
+          consolidationResult.get.lastObjectId shouldBe forms.last._id
           consolidationResult.get.count shouldBe noOfForms
 
           val files = consolidationResult.get.reportFiles
@@ -275,7 +276,7 @@ class ConsolidatorServiceSpec
 
         whenReady(future) { consolidationResult =>
           consolidationResult.isDefined shouldBe true
-          consolidationResult.get.lastObjectId shouldBe forms.last.id
+          consolidationResult.get.lastObjectId shouldBe forms.last._id
           consolidationResult.get.count shouldBe noOfForms
 
           val files = consolidationResult.get.reportFiles
@@ -289,7 +290,7 @@ class ConsolidatorServiceSpec
           mockFormRepository.formsSource(
             projectId,
             _batchSize,
-            Some(BSONObjectID.fromTime(startInstant.toEpochMilli)),
+            Option(ObjectId.getSmallestWithDate(Date.from(startInstant))),
             endInstant
           ) wasCalled once
         }
@@ -305,7 +306,7 @@ class ConsolidatorServiceSpec
 
         whenReady(future) { consolidationResult =>
           consolidationResult.isDefined shouldBe true
-          consolidationResult.get.lastObjectId shouldBe forms.last.id
+          consolidationResult.get.lastObjectId shouldBe forms.last._id
           consolidationResult.get.count shouldBe noOfForms
 
           val files = consolidationResult.get.reportFiles
@@ -330,7 +331,7 @@ class ConsolidatorServiceSpec
 
         whenReady(future) { consolidationResult =>
           consolidationResult.isDefined shouldBe true
-          consolidationResult.get.lastObjectId shouldBe forms.last.id
+          consolidationResult.get.lastObjectId shouldBe forms.last._id
           consolidationResult.get.count shouldBe noOfForms
 
           val files = consolidationResult.get.reportFiles

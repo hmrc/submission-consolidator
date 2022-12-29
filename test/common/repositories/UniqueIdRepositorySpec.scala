@@ -18,14 +18,14 @@ package common.repositories
 
 import collector.repositories.EmbeddedMongoDBSupport
 import common.repositories.UniqueIdRepository.UniqueId
+import org.bson.types.ObjectId
+import org.mongodb.scala.Document
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{ Millis, Seconds, Span }
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
-import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.bson.BSONObjectID
-import uk.gov.hmrc.mongo.MongoConnector
+import uk.gov.hmrc.mongo.MongoComponent
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -44,7 +44,7 @@ class UniqueIdRepositorySpec
     stopMongoD()
 
   override def beforeEach(): Unit =
-    repository.removeAll().futureValue
+    repository.collection.deleteMany(Document()).toFuture()
 
   private def init() = {
     initMongoDExecutable()
@@ -60,7 +60,7 @@ class UniqueIdRepositorySpec
 
         whenReady(future) { result =>
           result shouldBe Some(uniqueId)
-          repository.findAll().futureValue shouldBe List(uniqueId)
+          repository.collection.find().toFuture().futureValue shouldBe List(uniqueId)
         }
       }
     }
@@ -68,14 +68,14 @@ class UniqueIdRepositorySpec
     "value to be inserted already exists, retries" in {
       val existingUniqueId = UniqueId("TEST_EXISTING_VALUE")
       val newUniqueId = UniqueId("TEST_NEW_VALUE")
-      repository.insert(existingUniqueId).futureValue
+      repository.collection.insertOne(existingUniqueId).toFuture()
       var attempt = 0
       val future = repository.insertWithRetries(
         () =>
           attempt match {
             case 0 =>
               attempt += 1
-              existingUniqueId.copy(id = BSONObjectID.generate())
+              existingUniqueId.copy(_id = ObjectId.get())
             case _ =>
               newUniqueId
           },
@@ -83,19 +83,18 @@ class UniqueIdRepositorySpec
       )
 
       whenReady(future) { result =>
-        result shouldBe Some(newUniqueId)
-        repository.findAll().futureValue shouldBe List(existingUniqueId, newUniqueId)
+        result.map(_.value) shouldBe Some(newUniqueId.value)
+        repository.collection.find().toFuture().futureValue.map(_.value) shouldBe List(
+          existingUniqueId.value,
+          newUniqueId.value
+        )
       }
     }
   }
 
   def buildRepository(mongoHost: String, mongoPort: Int) = {
-    val connector =
-      MongoConnector(s"mongodb://$mongoHost:$mongoPort/submission-consolidator")
-    val reactiveMongoComponent = new ReactiveMongoComponent {
-      override def mongoConnector: MongoConnector =
-        connector
-    }
-    new UniqueIdRepository(reactiveMongoComponent)
+    val url = s"mongodb://$mongoHost:$mongoPort/submission-consolidator"
+    val mongo = MongoComponent(url)
+    new UniqueIdRepository(mongo)
   }
 }

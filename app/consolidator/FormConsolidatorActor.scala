@@ -16,14 +16,6 @@
 
 package consolidator
 
-import java.nio.file.Files.createDirectories
-import java.nio.file.{ Path, Paths }
-import java.text.SimpleDateFormat
-import java.time.Instant
-import java.time.Instant.ofEpochMilli
-import java.util.Date
-import java.util.concurrent.TimeUnit
-
 import akka.actor.{ Actor, Props }
 import cats.data.NonEmptyList
 import cats.effect.IO
@@ -34,10 +26,18 @@ import common.MetricsClient
 import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
 import consolidator.services.ConsolidatorService.ConsolidationResult
-import consolidator.services.{ ConsolidatorService, DeleteDirService, FormConsolidatorParams, ScheduledFormConsolidatorParams, SubmissionService }
+import consolidator.services._
 import org.slf4j.{ Logger, LoggerFactory }
-import uk.gov.hmrc.lock.{ LockKeeperAutoRenew, LockRepository }
+import uk.gov.hmrc.lock.LockKeeperAutoRenew
+import uk.gov.hmrc.mongo.lock.MongoLockRepository
 
+import java.nio.file.Files.createDirectories
+import java.nio.file.{ Path, Paths }
+import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.Instant.ofEpochMilli
+import java.util.Date
+import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
@@ -47,7 +47,7 @@ class FormConsolidatorActor(
   consolidatorService: ConsolidatorService,
   fileUploaderService: SubmissionService,
   consolidatorJobDataRepository: ConsolidatorJobDataRepository,
-  lockRepository: LockRepository,
+  lockRepository: MongoLockRepository,
   metricsClient: MetricsClient,
   deleteDirService: DeleteDirService
 ) extends Actor with IOUtils {
@@ -90,9 +90,9 @@ class FormConsolidatorActor(
       }
 
       val lock = new LockKeeperAutoRenew {
-        override val repo: LockRepository = lockRepository
+        override val repo: MongoLockRepository = lockRepository
         override val id: String = params.projectId
-        override val duration: org.joda.time.Duration = org.joda.time.Duration.standardMinutes(5)
+        override val duration: Duration = Duration.create(5, TimeUnit.MINUTES)
       }
 
       lock
@@ -170,7 +170,7 @@ object FormConsolidatorActor {
     consolidatorService: ConsolidatorService,
     fileUploaderService: SubmissionService,
     consolidatorJobDataRepository: ConsolidatorJobDataRepository,
-    lockRepository: LockRepository,
+    lockRepository: MongoLockRepository,
     metricsClient: MetricsClient,
     deleteDirService: DeleteDirService
   ): Props =

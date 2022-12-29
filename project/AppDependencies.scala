@@ -5,10 +5,9 @@ object AppDependencies {
 
   val compile = Seq(
     "uk.gov.hmrc"                %% "bootstrap-backend-play-28"   % "5.19.0",
-    "org.reactivemongo"          %% "reactivemongo-akkastream"    % "0.20.9",
+    "uk.gov.hmrc.mongo"          %% "hmrc-mongo-play-28"          % "0.68.0",
     "com.enragedginger"          %% "akka-quartz-scheduler"       % "1.9.1-akka-2.6.x",
     "org.typelevel"              %% "cats-effect"                 % "2.2.0-RC3",
-    "uk.gov.hmrc"                %% "mongo-lock"                  % "7.1.0-play-28",
     "org.apache.commons"          % "commons-text"                % "1.9",
     "org.xhtmlrenderer"           % "flying-saucer-pdf"           % "9.1.20",
     "org.apache.poi"              % "poi-ooxml"                   % "4.1.2",
@@ -22,7 +21,7 @@ object AppDependencies {
     "org.scalatest"          %% "scalatest"                 % "3.1.4"   % Test,
     "org.scalacheck"         %% "scalacheck"                % "1.14.3"  % Test,
     "org.scalatestplus"      %% "scalacheck-1-14"           % "3.1.0.0" % Test,
-    "de.flapdoodle.embed"     % "de.flapdoodle.embed.mongo" % "2.2.0"   % Test,
+    "de.flapdoodle.embed"     % "de.flapdoodle.embed.mongo" % "3.5.3"   % Test,
     "com.typesafe.play"      %% "play-test"                 % current   % Test,
     "org.mockito"            %% "mockito-scala"             % "1.16.42" % Test,
     "org.mockito"            %% "mockito-scala-scalatest"   % "1.16.23" % Test,

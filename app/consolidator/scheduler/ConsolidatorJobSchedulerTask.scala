@@ -21,13 +21,13 @@ import common.MetricsClient
 import consolidator.FormConsolidatorActor
 import consolidator.repositories.ConsolidatorJobDataRepository
 import consolidator.services.{ ConsolidatorService, DeleteDirService, SubmissionService }
-import javax.inject.Inject
 import org.slf4j.{ Logger, LoggerFactory }
 import play.api.inject.ApplicationLifecycle
-import play.modules.reactivemongo.ReactiveMongoComponent
-import uk.gov.hmrc.lock.LockMongoRepository
+import uk.gov.hmrc.mongo.{ CurrentTimestampSupport, MongoComponent }
+import uk.gov.hmrc.mongo.lock.MongoLockRepository
 
-import scala.concurrent.Future
+import javax.inject.Inject
+import scala.concurrent.{ ExecutionContext, Future }
 
 class ConsolidatorJobSchedulerTask @Inject() (
   jobScheduler: ConsolidatorJobScheduler,
@@ -35,10 +35,10 @@ class ConsolidatorJobSchedulerTask @Inject() (
   fileUploaderService: SubmissionService,
   deleteDirService: DeleteDirService,
   consolidatorJobDataRepository: ConsolidatorJobDataRepository,
-  mongoComponent: ReactiveMongoComponent,
+  mongoComponent: MongoComponent,
   metricsClient: MetricsClient,
   applicationLifecycle: ApplicationLifecycle
-)(implicit system: ActorSystem) {
+)(implicit system: ActorSystem, ex: ExecutionContext) {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
   logger.info("Scheduling consolidator jobs")
@@ -48,7 +48,7 @@ class ConsolidatorJobSchedulerTask @Inject() (
       consolidatorService,
       fileUploaderService,
       consolidatorJobDataRepository,
-      LockMongoRepository(mongoComponent.mongoConnector.db),
+      new MongoLockRepository(mongoComponent, new CurrentTimestampSupport()),
       metricsClient,
       deleteDirService
     )

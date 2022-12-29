@@ -16,22 +16,30 @@
 
 package consolidator
 
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-
-import collector.{APIFormStubs, ITSpec}
+import akka.actor.{ActorSystem, ClassicActorSystemProvider}
+import akka.stream.{Materializer, SystemMaterializer}
 import collector.repositories.FormRepository
+import collector.{APIFormStubs, ITSpec}
 import com.github.tomakehurst.wiremock.client.WireMock.{configureFor, postRequestedFor, urlEqualTo, verify}
 import com.typesafe.config.ConfigFactory
+import org.mongodb.scala.bson.collection.immutable.Document
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.slf4j.{Logger, LoggerFactory}
-import play.api.{Application, Configuration}
+import play.api.inject.bind
 import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.{Application, Configuration}
+import uk.gov.hmrc.objectstore.client.RetentionPeriod.OneWeek
+import uk.gov.hmrc.objectstore.client.config.ObjectStoreClientConfig
+import uk.gov.hmrc.objectstore.client.play.PlayObjectStoreClient
+import uk.gov.hmrc.objectstore.client.play.test.stub
 
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.UUID.randomUUID
 import scala.concurrent.Await.ready
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 class ManualConsolidatorSpec extends ITSpec with Eventually {
 
@@ -42,7 +50,7 @@ class ManualConsolidatorSpec extends ITSpec with Eventually {
   private val DATE_FORMAT = DateTimeFormatter.ISO_DATE
 
   override def beforeEach(): Unit =
-    ready(app.injector.instanceOf[FormRepository].removeAll(), 5.seconds)
+    ready(app.injector.instanceOf[FormRepository].collection.deleteMany(Document()).toFuture(), 5.seconds)
 
   override def beforeAll(): Unit = {
     wireMockServer.start()
@@ -71,14 +79,19 @@ class ManualConsolidatorSpec extends ITSpec with Eventually {
                             |
                             |  services {
                             |
-                            |    file-upload {
+                            |    object-store {
                             |        host = localhost
                             |        port = $wiremockPort
                             |    }
                             |
-                            |    file-upload-frontend {
-                            |        host = localhost
-                            |        port = $wiremockPort
+                            |    sdes {
+                            |      host = localhost
+                            |      port = $wiremockPort
+                            |      base-path = "/sdes-stub"
+                            |      api-key = "client-id"
+                            |      information-type = "1670499847785"
+                            |      recipient-or-sender = "477099564866"
+                            |      file-location-url = "http://localhost:8464/object-store/object/"
                             |    }
                             |  }
                             | }
@@ -90,8 +103,21 @@ class ManualConsolidatorSpec extends ITSpec with Eventually {
           .withFallback(baseConfig.underlying)
       )
 
+    val osBaseUrl = s"http://localhost:$wiremockPort/object-store"
+    val owner = "owner"
+    val token = s"token-${randomUUID().toString}"
+    val objectStoreConfig = ObjectStoreClientConfig(osBaseUrl, owner, token, OneWeek)
+
+    implicit val system = ActorSystem()
+
+    implicit def matFromSystem(implicit provider: ClassicActorSystemProvider): Materializer =
+      SystemMaterializer(provider.classicSystem).materializer
+
+    lazy val objectStoreStub = new stub.StubPlayObjectStoreClient(objectStoreConfig)
+
     GuiceApplicationBuilder()
       .configure(config)
+      .bindings(bind(classOf[PlayObjectStoreClient]).to(objectStoreStub))
       .build()
   }
 
@@ -105,17 +131,15 @@ class ManualConsolidatorSpec extends ITSpec with Eventually {
           .post(APIFormStubs.validForm)
           .futureValue
 
-        val future = wsClient
+        val future =wsClient
           .url(baseUrl+s"/consolidate/some-project-id-job/${LocalDate.now().format(DATE_FORMAT)}/${LocalDate.now().format(DATE_FORMAT)}")
           .withHttpHeaders("Content-Type" -> "application/json")
           .post(APIFormStubs.formEmptySubmissionRef)
 
+
         whenReady(future) { _ =>
-          verify(postRequestedFor(urlEqualTo("/file-upload/envelopes")))
-          verify(postRequestedFor(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/xmlDocument")))
-          verify(postRequestedFor(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/pdf")))
-          verify(postRequestedFor(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/report-0")))
-          verify(postRequestedFor(urlEqualTo("/file-routing/requests")))
+          verify(postRequestedFor(urlEqualTo("/sdes-stub/notification/fileready")))
+          verify(postRequestedFor(urlEqualTo("/object-store/object-store/ops/zip")))
         }
       }
     }
