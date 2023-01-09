@@ -18,10 +18,12 @@ package consolidator.services
 
 import akka.util.ByteString
 import cats.data.NonEmptyList
+import cats.effect.IO
 import common.UniqueReferenceGenerator.UniqueRef
 import common.{ ContentType, Time, UniqueReferenceGenerator }
 import consolidator.TestHelper.{ createFileInDir, createTmpDir }
 import consolidator.connectors.ObjectStoreConnector
+import consolidator.proxies.ObjectStoreConfig
 import consolidator.scheduler.{ FileUpload, UntilTime }
 import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
 import org.mockito.ArgumentMatchersSugar
@@ -60,6 +62,8 @@ class SubmissionServiceSpec
     val mockObjectStoreConnector = mock[ObjectStoreConnector](withSettings.lenient())
     val mockUniqueReferenceGenerator = mock[UniqueReferenceGenerator](withSettings.lenient())
     val mockSdesService = mock[SdesService](withSettings.lenient())
+    val mockFileUploadService = mock[FileUploadService](withSettings.lenient())
+    val objectStoreConfig = mock[ObjectStoreConfig](withSettings.lenient())
 
     val someSubmissionRef = "some-unique-id"
     val now = Instant.now()
@@ -72,9 +76,17 @@ class SubmissionServiceSpec
     mockObjectStoreConnector.upload(*, *, *, *[ContentType]) shouldReturn Future.successful(Right(()))
     mockObjectStoreConnector.zipFiles(*) shouldReturn Future.successful(Right(objectSummary))
     mockSdesService.notifySDES(*, *, *[ObjectSummaryWithMd5]) shouldReturn Future.successful(Right(()))
+    mockFileUploadService.processReportFiles(*, *, *, *) shouldReturn IO.pure("124")
+    objectStoreConfig.enableObjectStore shouldReturn true
 
     val submissionService =
-      new SubmissionService(mockUniqueReferenceGenerator, mockObjectStoreConnector, mockSdesService) {
+      new SubmissionService(
+        mockUniqueReferenceGenerator,
+        mockObjectStoreConnector,
+        mockSdesService,
+        mockFileUploadService,
+        objectStoreConfig
+      ) {
         override lazy val maxReportAttachmentsSize = maxReportAttachmentsSizeOverride
       }
   }

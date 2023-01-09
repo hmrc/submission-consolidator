@@ -26,6 +26,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatestplus.play.guice.GuiceOneServerPerSuite
 import play.api.Configuration
+import play.api.http.HeaderNames.LOCATION
 import play.api.libs.json.Json
 import play.api.libs.ws.WSClient
 
@@ -75,6 +76,47 @@ trait ITSpec
 
     stubFor(
       post(urlEqualTo(s"/sdes-stub/notification/fileready"))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+        )
+    )
+
+    stubFor(
+      post(urlEqualTo("/file-upload/envelopes"))
+        .willReturn(
+          aResponse()
+            .withStatus(201)
+            .withHeader(LOCATION, "envelopes/some-envelope-id")
+        )
+    )
+
+    stubFor(
+      post(urlEqualTo("/file-routing/requests"))
+        .willReturn(
+          aResponse()
+            .withStatus(201)
+        )
+    )
+
+    stubFor(
+      post(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/report-0"))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+        )
+    )
+
+    stubFor(
+      post(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/xmlDocument"))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+        )
+    )
+
+    stubFor(
+      post(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/pdf"))
         .willReturn(
           aResponse()
             .withStatus(200)
