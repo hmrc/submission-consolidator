@@ -85,6 +85,7 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
                         |  }
                         | }
                         | object-store {
+                        |    enable = true
                         |    default-retention-period = "6-months"
                         |    zip-directory = "sdes"
                         | }

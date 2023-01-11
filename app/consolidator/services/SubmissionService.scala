@@ -25,6 +25,7 @@ import common.UniqueReferenceGenerator.UniqueRef
 import common.{ ContentType, Time, UniqueReferenceGenerator }
 import consolidator.IOUtils
 import consolidator.connectors.ObjectStoreConnector
+import consolidator.proxies.ObjectStoreConfig
 import org.slf4j.{ Logger, LoggerFactory }
 import uk.gov.hmrc.objectstore.client.ObjectSummaryWithMd5
 
@@ -39,7 +40,9 @@ import scala.concurrent.ExecutionContext
 class SubmissionService @Inject() (
   uniqueReferenceGenerator: UniqueReferenceGenerator,
   objectStoreConnector: ObjectStoreConnector,
-  sdesService: SdesService
+  sdesService: SdesService,
+  fileUploadService: FileUploadService,
+  objectStoreConfig: ObjectStoreConfig
 )(implicit ec: ExecutionContext)
     extends IOUtils with FileUploadSettings {
 
@@ -122,17 +125,22 @@ class SubmissionService @Inject() (
       def notifySDES(envelopeId: String, submissionRef: String, objWithSummary: ObjectSummaryWithMd5) =
         liftIO(sdesService.notifySDES(envelopeId, submissionRef, objWithSummary))
 
-      val envelopeId = UniqueIdGenerator.uuidStringGenerator.generate
+      if (!objectStoreConfig.enableObjectStore) {
+        fileUploadService.processReportFiles(reportFiles, params, SUBMISSION_REF_LENGTH, zonedDateTime)
+      } else {
 
-      for {
-        submissionRef <- generateSubmissionRef
-        fileNamePrefix = s"${submissionRef.ref}-${DATE_FORMAT.format(zonedDateTime)}"
-        _             <- uploadMetadata(envelopeId, submissionRef, fileNamePrefix)
-        _             <- uploadIForm(envelopeId, fileNamePrefix)
-        _             <- uploadReports(envelopeId)
-        objectSummary <- zipFiles(envelopeId)
-        _             <- notifySDES(envelopeId, submissionRef.ref, objectSummary)
-      } yield envelopeId
+        val envelopeId = UniqueIdGenerator.uuidStringGenerator.generate
+
+        for {
+          submissionRef <- generateSubmissionRef
+          fileNamePrefix = s"${submissionRef.ref}-${DATE_FORMAT.format(zonedDateTime)}"
+          _             <- uploadMetadata(envelopeId, submissionRef, fileNamePrefix)
+          _             <- uploadIForm(envelopeId, fileNamePrefix)
+          _             <- uploadReports(envelopeId)
+          objectSummary <- zipFiles(envelopeId)
+          _             <- notifySDES(envelopeId, submissionRef.ref, objectSummary)
+        } yield envelopeId
+      }
     }).parSequence
   }
 
