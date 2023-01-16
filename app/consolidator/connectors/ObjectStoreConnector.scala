@@ -46,7 +46,7 @@ class ObjectStoreConnector @Inject() (
   private val zipExtension = ".zip"
 
   private def directory(folderName: String): Path.Directory =
-    Path.Directory(s"submission-consolidator/$folderName")
+    Path.Directory(s"envelopes/$folderName")
 
   implicit val hc = HeaderCarrier()
 
@@ -55,7 +55,8 @@ class ObjectStoreConnector @Inject() (
     fileName: String,
     content: ByteString,
     contentType: ContentType
-  ): Future[Either[ObjectStoreError, Unit]] =
+  ): Future[Either[ObjectStoreError, Unit]] = {
+    logger.info(s"Uploading file [envelopeId=$envelopeId, fileName=$fileName, contentType=$contentType]")
     objectStoreClient
       .putObject(
         path = directory(envelopeId).file(fileName),
@@ -73,6 +74,7 @@ class ObjectStoreConnector @Inject() (
           logger.error(s"An error was encountered saving the document.", e)
           Left(GenericObjectStoreError(errorMsg))
       }
+  }
 
   def zipFiles(envelopeId: String): Future[Either[ObjectStoreError, ObjectSummaryWithMd5]] =
     objectStoreClient
