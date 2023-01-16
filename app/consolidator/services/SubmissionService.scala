@@ -102,7 +102,7 @@ class SubmissionService @Inject() (
           liftIO(
             objectStoreConnector.upload(
               envelopeId,
-              file.getName.substring(0, file.getName.lastIndexOf(".")),
+              file.getName,
               ByteString(Files.readAllBytes(file.toPath)),
               params.format.contentType
             )
@@ -130,6 +130,7 @@ class SubmissionService @Inject() (
       } else {
 
         val envelopeId = UniqueIdGenerator.uuidStringGenerator.generate
+        logger.info("Creating envelope " + envelopeId)
 
         for {
           submissionRef <- generateSubmissionRef

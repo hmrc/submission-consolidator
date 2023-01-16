@@ -106,7 +106,7 @@ class SubmissionServiceSpec
       reportFiles.foreach { f =>
         mockObjectStoreConnector.upload(
           any[String],
-          f.getName.split("\\.").head,
+          f.getName,
           ByteString(Files.readAllBytes(f.toPath)),
           ContentType.`text/plain`
         ) wasCalled once
@@ -139,7 +139,7 @@ class SubmissionServiceSpec
       reportFiles.foreach { f =>
         mockObjectStoreConnector.upload(
           any[String],
-          f.getName.split("\\.").head,
+          f.getName,
           ByteString(Files.readAllBytes(f.toPath)),
           ContentType.`text/plain`
         ) wasCalled once
