@@ -35,7 +35,7 @@ class ConsolidatorJobSchedulerSpec
     extends TestKit(ActorSystem("JobSchedulerSpec")) with AnyWordSpecLike with IdiomaticMockito with BeforeAndAfterAll
     with Matchers with ImplicitSender {
 
-  override def afterAll: Unit =
+  override def afterAll(): Unit =
     TestKit.shutdownActorSystem(system)
 
   "scheduleJobs" should {

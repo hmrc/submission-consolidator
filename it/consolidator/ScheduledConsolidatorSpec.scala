@@ -16,19 +16,19 @@
 
 package consolidator
 
-import akka.actor.{ActorSystem, ClassicActorSystemProvider}
-import akka.stream.{Materializer, SystemMaterializer}
+import akka.actor.{ ActorSystem, ClassicActorSystemProvider }
+import akka.stream.{ Materializer, SystemMaterializer }
 import collector.repositories.FormRepository
-import collector.{APIFormStubs, ITSpec}
+import collector.{ APIFormStubs, ITSpec }
 import com.github.tomakehurst.wiremock.client.WireMock._
 import com.typesafe.config.ConfigFactory
 import org.mongodb.scala.Document
 import org.scalatest.concurrent.Eventually
-import org.scalatest.time.{Millis, Seconds, Span}
-import org.slf4j.{Logger, LoggerFactory}
+import org.scalatest.time.{ Millis, Seconds, Span }
+import org.slf4j.{ Logger, LoggerFactory }
 import play.api.inject.bind
 import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.{Application, Configuration}
+import play.api.{ Application, Configuration }
 import uk.gov.hmrc.objectstore.client.RetentionPeriod.OneWeek
 import uk.gov.hmrc.objectstore.client.config.ObjectStoreClientConfig
 import uk.gov.hmrc.objectstore.client.play.PlayObjectStoreClient
@@ -50,46 +50,46 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
 
   override def fakeApplication(): Application = {
     val configOverride = s"""
-                        | consolidator-jobs = [
-                        |    {
-                        |        id = "some-project-id-job"
-                        |        params = {
-                        |            projectId = "some-project-id"
-                        |            classificationType = "some-classification-type"
-                        |            businessArea = "some-business-area"
-                        |            untilTime = "now"
-                        |        }
-                        |        # run every 2 seconds
-                        |        cron = "*/2 * * ? * *"
-                        |    }
-                        | ]
-                        |
-                        | microservice {
-                        |
-                        |  services {
-                        |
-                        |    object-store {
-                        |        host = localhost
-                        |        port = $wiremockPort
-                        |    }
-                        |
-                        |    sdes {
-                        |      host = localhost
-                        |      port = $wiremockPort
-                        |      base-path = "/sdes-stub"
-                        |      api-key = "client-id"
-                        |      information-type = "1670499847785"
-                        |      recipient-or-sender = "477099564866"
-                        |      file-location-url = "http://localhost:8464/object-store/object/"
-                        |    }
-                        |  }
-                        | }
-                        | object-store {
-                        |    enable = true
-                        |    default-retention-period = "6-months"
-                        |    zip-directory = "sdes"
-                        | }
-                        |""".stripMargin
+                            | consolidator-jobs = [
+                            |    {
+                            |        id = "some-project-id-job"
+                            |        params = {
+                            |            projectId = "some-project-id"
+                            |            classificationType = "some-classification-type"
+                            |            businessArea = "some-business-area"
+                            |            untilTime = "now"
+                            |        }
+                            |        # run every 2 seconds
+                            |        cron = "*/2 * * ? * *"
+                            |    }
+                            | ]
+                            |
+                            | microservice {
+                            |
+                            |  services {
+                            |
+                            |    object-store {
+                            |        host = localhost
+                            |        port = $wiremockPort
+                            |    }
+                            |
+                            |    sdes {
+                            |      host = localhost
+                            |      port = $wiremockPort
+                            |      base-path = "/sdes-stub"
+                            |      api-key = "client-id"
+                            |      information-type = "1670499847785"
+                            |      recipient-or-sender = "477099564866"
+                            |      file-location-url = "http://localhost:8464/object-store/object/"
+                            |    }
+                            |  }
+                            | }
+                            | object-store {
+                            |    enable = true
+                            |    default-retention-period = "6-months"
+                            |    zip-directory = "sdes"
+                            | }
+                            |""".stripMargin
     val config =
       Configuration(
         ConfigFactory

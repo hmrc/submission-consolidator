@@ -90,6 +90,7 @@ class ConsolidatorService @Inject() (
                 new FormCSVFilePartWriter(outputDir, "report", reportPerFileSizeInBytes, formDataIds)
               case ConsolidationFormat.xlsx =>
                 new FormExcelFilePartWriter(outputDir, "report", reportPerFileSizeInBytes, formDataIds)
+              case _ => throw new Exception("test")
             })
           )
         )
@@ -112,6 +113,7 @@ class ConsolidatorService @Inject() (
         IO.pure(
           Option(ObjectId.getSmallestWithDate(Date.from(u.startInstant)))
         )
+      case _ => throw new Exception("test")
     }
 
   private def formDataIds(
@@ -123,6 +125,7 @@ class ConsolidatorService @Inject() (
       case ConsolidationFormat.csv | ConsolidationFormat.`xlsx` =>
         liftIO(formRepository.distinctFormDataIds(projectId, afterObjectId))
       case ConsolidationFormat.jsonl => IO.pure(List.empty)
+      case _                         => throw new Exception("test")
     }
 }
 

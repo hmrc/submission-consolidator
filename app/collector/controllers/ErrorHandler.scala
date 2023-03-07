@@ -49,6 +49,7 @@ trait ErrorHandler {
             APIError(code, message)
           )
         )
+      case _ => throw new Exception("test")
     }
 
   private def mapToAPIFieldErrors(errors: Seq[(JsPath, Seq[JsonValidationError])]) =

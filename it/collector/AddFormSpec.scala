@@ -19,10 +19,10 @@ package collector
 import collector.repositories.FormRepository
 import com.typesafe.config.ConfigFactory
 import org.mongodb.scala.bson.collection.immutable.Document
-import org.scalatest.time.{Millis, Seconds, Span}
-import org.slf4j.{Logger, LoggerFactory}
+import org.scalatest.time.{ Millis, Seconds, Span }
+import org.slf4j.{ Logger, LoggerFactory }
 import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.{Application, Configuration}
+import play.api.{ Application, Configuration }
 
 import scala.concurrent.Await.ready
 import scala.concurrent.duration._

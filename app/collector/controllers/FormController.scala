@@ -41,7 +41,7 @@ class FormController @Inject() (
       apiFormResult.fold(
         errors => {
           logger.error(s"Request body validation failed [errors=${JsError.toJson(errors)}}")
-          Future.successful(handleError(RequestValidationError(errors)))
+          Future.successful(handleError(RequestValidationError(errors.map(e => (e._1, e._2.toSeq)).toSeq)))
         },
         valid =>
           formRepository

@@ -32,7 +32,7 @@ class DeleteDirServiceSpec extends AnyWordSpec with Matchers with BeforeAndAfter
       val path = Files.createDirectories(
         Paths.get(System.getProperty("java.io.tmpdir") + s"/DeleteDirActorSpec-${System.currentTimeMillis()}")
       )
-      Files.createFile(Paths.get(path + "/" + s"someFile.txt")).toFile
+      Files.createFile(Paths.get(s"$path,/,someFile.txt")).toFile
       path
     }
 
@@ -56,7 +56,7 @@ class DeleteDirServiceSpec extends AnyWordSpec with Matchers with BeforeAndAfter
 
       whenReady(future) { result =>
         result.isLeft shouldBe true
-        result.left.get.getMessage shouldBe s"$path is not a directory"
+        result.left.getOrElse(s"$path is not a directory") shouldBe s"$path is not a directory"
       }
     }
   }

@@ -57,8 +57,8 @@ class FileUploadService @Inject() (
       consolidator.proxies.Metadata("gform"),
       Constraints(
         reportFiles.size + 2, // +2 for metadata xml and iform pdf
-        (maxSizeBytes / BYTES_IN_1_MB) + "MB",
-        (maxPerFileBytes / BYTES_IN_1_MB) + "MB",
+        s"($maxSizeBytes / $BYTES_IN_1_MB), MB",
+        s"($maxPerFileBytes / $BYTES_IN_1_MB),MB",
         List(
           "text/plain",
           "text/csv",

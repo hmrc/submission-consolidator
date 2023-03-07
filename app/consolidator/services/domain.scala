@@ -56,6 +56,7 @@ case class ScheduledFormConsolidatorParams(
           .withSecond(59)
           .withNano(0)
           .toInstant
+      case _ => throw new Exception("test")
     }
 }
 

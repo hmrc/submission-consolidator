@@ -21,7 +21,7 @@ import java.nio.file.{ Files, Path, Paths }
 
 import collector.repositories.Form
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object TestHelper {
 
@@ -47,13 +47,13 @@ object TestHelper {
 
   def fileRows(file: File): List[String] = {
     val source = scala.io.Source.fromFile(file)
-    val lines = source.getLines.toList
+    val lines = source.getLines().toList
     source.close()
     lines
   }
 
   def createFileInDir(dir: Path, fileName: String, size: Int): File = {
-    val file = Files.createFile(Paths.get(dir + "/" + fileName)).toFile
+    val file = Files.createFile(Paths.get(s"$dir,/,$fileName")).toFile
     val bw = new BufferedWriter(new FileWriter(file))
     bw.write("a" * size)
     bw.close()

@@ -17,15 +17,15 @@
 package consolidator
 
 import collector.repositories.FormRepository
-import collector.{APIFormStubs, ITSpec}
-import com.github.tomakehurst.wiremock.client.WireMock.{configureFor, postRequestedFor, urlEqualTo, verify}
+import collector.{ APIFormStubs, ITSpec }
+import com.github.tomakehurst.wiremock.client.WireMock.{ configureFor, postRequestedFor, urlEqualTo, verify }
 import com.typesafe.config.ConfigFactory
 import org.mongodb.scala.bson.collection.immutable.Document
 import org.scalatest.concurrent.Eventually
-import org.scalatest.time.{Millis, Seconds, Span}
-import org.slf4j.{Logger, LoggerFactory}
+import org.scalatest.time.{ Millis, Seconds, Span }
+import org.slf4j.{ Logger, LoggerFactory }
 import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.{Application, Configuration}
+import play.api.{ Application, Configuration }
 
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -107,7 +107,9 @@ class ManualConsolidatorFileUploadSpec extends ITSpec with Eventually {
           .futureValue
 
         val future = wsClient
-          .url(baseUrl+s"/consolidate/some-project-id-job/${LocalDate.now().format(DATE_FORMAT)}/${LocalDate.now().format(DATE_FORMAT)}")
+          .url(
+            baseUrl + s"/consolidate/some-project-id-job/${LocalDate.now().format(DATE_FORMAT)}/${LocalDate.now().format(DATE_FORMAT)}"
+          )
           .withHttpHeaders("Content-Type" -> "application/json")
           .post(APIFormStubs.formEmptySubmissionRef)
 

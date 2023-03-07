@@ -9,6 +9,7 @@ object AppDependencies {
     "com.enragedginger"          %% "akka-quartz-scheduler"       % "1.9.1-akka-2.6.x",
     "org.typelevel"              %% "cats-effect"                 % "2.2.0-RC3",
     "org.apache.commons"          % "commons-text"                % "1.10.0",
+    "org.apache.commons"          % "commons-io"                % "1.3.2",
     "org.xhtmlrenderer"           % "flying-saucer-pdf"           % "9.1.20",
     "org.apache.poi"              % "poi-ooxml"                   % "4.1.2",
     "org.julienrf"               %% "play-json-derived-codecs"    % "10.0.2",

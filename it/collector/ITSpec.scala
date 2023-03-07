@@ -17,13 +17,13 @@
 package collector
 
 import com.github.tomakehurst.wiremock.WireMockServer
-import com.github.tomakehurst.wiremock.client.WireMock.{aResponse, post, stubFor, urlEqualTo}
+import com.github.tomakehurst.wiremock.client.WireMock.{ aResponse, post, stubFor, urlEqualTo }
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 import com.typesafe.config.ConfigFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
 import org.scalatestplus.play.guice.GuiceOneServerPerSuite
 import play.api.Configuration
 import play.api.http.HeaderNames.LOCATION
@@ -33,18 +33,21 @@ import play.api.libs.ws.WSClient
 import scala.util.Random
 
 trait ITSpec
-    extends AnyWordSpecLike with GuiceOneServerPerSuite with Matchers with BeforeAndAfterAll
-    with BeforeAndAfterEach with ScalaFutures {
+    extends AnyWordSpecLike with GuiceOneServerPerSuite with Matchers with BeforeAndAfterAll with BeforeAndAfterEach
+    with ScalaFutures {
 
   private val mongoDbName: String = "test-" + this.getClass.getSimpleName
 
-  lazy val baseConfig: Configuration = Configuration(ConfigFactory.parseString(
-    s"""| auditing {
-        |   enabled = false
-        | }
-        | mongodb {
-        |   uri = "mongodb://localhost:27017/$mongoDbName"
-        | }""".stripMargin).withFallback(ConfigFactory.load()))
+  lazy val baseConfig: Configuration = Configuration(
+    ConfigFactory
+      .parseString(s"""| auditing {
+                       |   enabled = false
+                       | }
+                       | mongodb {
+                       |   uri = "mongodb://localhost:27017/$mongoDbName"
+                       | }""".stripMargin)
+      .withFallback(ConfigFactory.load())
+  )
 
   lazy val baseUrl: String =
     s"http://localhost:$port/submission-consolidator"
@@ -54,16 +57,14 @@ trait ITSpec
   val wireMockServer = new WireMockServer(options().port(wiremockPort))
 
   def wiremockStubs() = {
-    val objectSummaryJson = Json.parse(
-        """
-          | {
-          |   "location" : "test.txt",
-          |   "contentLength": 10,
-          |   "contentMD5": "md5",
-          |   "lastModified": "2020-01-01T00:00:00Z"
-          | }
-          |""".stripMargin)
-
+    val objectSummaryJson = Json.parse("""
+                                         | {
+                                         |   "location" : "test.txt",
+                                         |   "contentLength": 10,
+                                         |   "contentMD5": "md5",
+                                         |   "lastModified": "2020-01-01T00:00:00Z"
+                                         | }
+                                         |""".stripMargin)
 
     stubFor(
       post(urlEqualTo(s"/object-store/object-store/ops/zip"))

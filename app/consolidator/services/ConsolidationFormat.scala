@@ -32,6 +32,7 @@ object ConsolidationFormat extends Enumeration {
         case ConsolidationFormat.csv   => ContentType.`text/csv`
         case ConsolidationFormat.jsonl => ContentType.`text/plain`
         case ConsolidationFormat.xlsx  => ContentType.`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+        case _                         => throw new Exception("test")
       }
   }
 }
