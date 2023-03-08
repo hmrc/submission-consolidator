@@ -24,8 +24,10 @@ import collector.common.ApplicationError
 import collector.controllers.ErrorCode._
 import collector.repositories.{ DuplicateSubmissionRef, MongoGenericError, MongoUnavailable }
 
+import scala.annotation.nowarn
+
 trait ErrorHandler {
-  def handleError(applicationError: ApplicationError): Result =
+  @nowarn def handleError(applicationError: ApplicationError): Result =
     applicationError match {
       case RequestValidationError(errors, message) =>
         BadRequest(
@@ -49,7 +51,6 @@ trait ErrorHandler {
             APIError(code, message)
           )
         )
-      case _ => throw new Exception("test")
     }
 
   private def mapToAPIFieldErrors(errors: Seq[(JsPath, Seq[JsonValidationError])]) =
