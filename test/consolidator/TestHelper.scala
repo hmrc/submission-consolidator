@@ -18,7 +18,6 @@ package consolidator
 
 import java.io.{ BufferedWriter, File, FileInputStream, FileWriter }
 import java.nio.file.{ Files, Path, Paths }
-
 import collector.repositories.Form
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import scala.jdk.CollectionConverters._
@@ -53,7 +52,7 @@ object TestHelper {
   }
 
   def createFileInDir(dir: Path, fileName: String, size: Int): File = {
-    val file = Files.createFile(Paths.get(s"$dir,/,$fileName")).toFile
+    val file = Files.createFile(Paths.get(s"$dir/$fileName")).toFile
     val bw = new BufferedWriter(new FileWriter(file))
     bw.write("a" * size)
     bw.close()

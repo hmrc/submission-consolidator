@@ -17,12 +17,12 @@
 package consolidator.services
 
 import java.nio.file.{ Files, Path, Paths }
-
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scala.concurrent.ExecutionContext.Implicits.global
+
 
 class DeleteDirServiceSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll with ScalaFutures {
 
@@ -32,7 +32,7 @@ class DeleteDirServiceSpec extends AnyWordSpec with Matchers with BeforeAndAfter
       val path = Files.createDirectories(
         Paths.get(System.getProperty("java.io.tmpdir") + s"/DeleteDirActorSpec-${System.currentTimeMillis()}")
       )
-      Files.createFile(Paths.get(s"$path,/,someFile.txt")).toFile
+      Files.createFile(Paths.get(s"$path/someFile.txt")).toFile
       path
     }
 
@@ -56,7 +56,10 @@ class DeleteDirServiceSpec extends AnyWordSpec with Matchers with BeforeAndAfter
 
       whenReady(future) { result =>
         result.isLeft shouldBe true
-        result.left.getOrElse(s"$path is not a directory") shouldBe s"$path is not a directory"
+        //result.left.get.getMessage shouldBe s"$path is not a directory"
+        //result.swap.getOrElse(()) shouldBe s"$path is not a directory"
+        //result.left.getOrElse(s"$path is not a directory") shouldBe s"$path is not a directory"
+        result.toOption.getOrElse(None) shouldBe s"$path is not a directory"
       }
     }
   }
