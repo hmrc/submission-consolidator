@@ -23,7 +23,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scala.concurrent.ExecutionContext.Implicits.global
 
-
 class DeleteDirServiceSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll with ScalaFutures {
 
   trait TestFixture {
@@ -56,10 +55,7 @@ class DeleteDirServiceSpec extends AnyWordSpec with Matchers with BeforeAndAfter
 
       whenReady(future) { result =>
         result.isLeft shouldBe true
-        //result.left.get.getMessage shouldBe s"$path is not a directory"
-        //result.swap.getOrElse(()) shouldBe s"$path is not a directory"
-        //result.left.getOrElse(s"$path is not a directory") shouldBe s"$path is not a directory"
-        result.toOption.getOrElse(None) shouldBe s"$path is not a directory"
+        result.toOption.getOrElse(s"$path is not a directory") shouldBe s"$path is not a directory"
       }
     }
   }
