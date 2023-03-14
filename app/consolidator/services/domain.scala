@@ -25,6 +25,7 @@ import consolidator.services.ConsolidationFormat.ConsolidationFormat
 
 import java.time.{ Instant, ZoneId }
 import java.util.UUID
+import scala.annotation.nowarn
 
 trait FormConsolidatorParams {
 
@@ -44,7 +45,7 @@ case class ScheduledFormConsolidatorParams(
   untilTime: UntilTime
 ) extends FormConsolidatorParams {
 
-  override def getUntilInstant(currentInstant: Instant) =
+  @nowarn override def getUntilInstant(currentInstant: Instant) =
     untilTime match {
       case UntilTime.now => currentInstant.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant
       case UntilTime.`previous_day` =>

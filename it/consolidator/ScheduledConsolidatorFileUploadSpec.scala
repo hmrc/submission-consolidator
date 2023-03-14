@@ -17,15 +17,15 @@
 package consolidator
 
 import collector.repositories.FormRepository
-import collector.{APIFormStubs, ITSpec}
-import com.github.tomakehurst.wiremock.client.WireMock.{configureFor, postRequestedFor, urlEqualTo, verify}
+import collector.{ APIFormStubs, ITSpec }
+import com.github.tomakehurst.wiremock.client.WireMock.{ configureFor, postRequestedFor, urlEqualTo, verify }
 import com.typesafe.config.ConfigFactory
 import org.mongodb.scala.Document
 import org.scalatest.concurrent.Eventually
-import org.scalatest.time.{Millis, Seconds, Span}
-import org.slf4j.{Logger, LoggerFactory}
+import org.scalatest.time.{ Millis, Seconds, Span }
+import org.slf4j.{ Logger, LoggerFactory }
 import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.{Application, Configuration}
+import play.api.{ Application, Configuration }
 
 import scala.concurrent.Await.ready
 import scala.concurrent.duration._

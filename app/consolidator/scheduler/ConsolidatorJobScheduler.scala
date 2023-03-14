@@ -23,7 +23,7 @@ import javax.inject.{ Inject, Singleton }
 import play.api.Configuration
 import play.api.libs.json.Json.parse
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 @Singleton
 class ConsolidatorJobScheduler @Inject() (config: Configuration) {

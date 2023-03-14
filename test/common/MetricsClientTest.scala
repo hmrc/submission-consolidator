@@ -59,7 +59,7 @@ class MetricsClientTest extends AnyFunSpec with IdiomaticMockito with ArgumentMa
     it("should register a metric and call mark()") {
       new TestFixture {
         mockMetricRegistry.meter(*) shouldReturn mockMeter
-        mockMeter.mark() shouldDoNothing ()
+        mockMeter.mark().shouldDoNothing()
 
         metricsClient.markMeter(metricName)
 
@@ -74,7 +74,7 @@ class MetricsClientTest extends AnyFunSpec with IdiomaticMockito with ArgumentMa
     it("should register a metric and call mark(eventCount)") {
       new TestFixture {
         mockMetricRegistry.meter(*) shouldReturn mockMeter
-        mockMeter.mark(*) shouldDoNothing ()
+        mockMeter.mark(*).shouldDoNothing()
 
         metricsClient.markMeter(metricName, 1)
 

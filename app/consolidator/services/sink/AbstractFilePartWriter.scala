@@ -20,7 +20,7 @@ import java.io.File
 import java.nio.channels.FileChannel
 import java.nio.file.{ Path, Paths }
 import java.nio.file.StandardOpenOption.{ CREATE_NEW, SYNC, TRUNCATE_EXISTING, WRITE }
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait AbstractFilePartWriter[T] extends FilePartWriter[T] {
   protected var currentFile: Option[FileChannel] = None

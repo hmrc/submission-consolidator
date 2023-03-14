@@ -21,7 +21,7 @@ import java.net.URLDecoder
 import com.typesafe.config.{ ConfigList, ConfigObject, ConfigValue, ConfigValueFactory, ConfigValueType }
 import play.api.Configuration
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 trait URLBasedConfigDecoder {
 
   private val urlEncPrefix = "urlenc:"

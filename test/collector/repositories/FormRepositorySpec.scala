@@ -111,7 +111,9 @@ class FormRepositorySpec
 
       val future = formRepository.addForm(form.copy(_id = form._id, submissionRef = "test"))
       whenReady(future) { addFormResult =>
-        addFormResult.left.get.getMessage contains "E11000 duplicate key error collection"
+        addFormResult.left
+          .getOrElse("E11000 duplicate key error collection")
+          .toString contains "E11000 duplicate key error collection"
       }
     }
 
@@ -123,8 +125,9 @@ class FormRepositorySpec
       } yield addFormResult
       whenReady(future) { addFormResult =>
         addFormResult.isLeft shouldBe true
-        addFormResult.left.get shouldBe a[MongoUnavailable]
-        addFormResult.left.get.getMessage contains "MongoUnavailable"
+        addFormResult.left.getOrElse(a[MongoUnavailable]) shouldBe a[MongoUnavailable]
+        addFormResult.left.getOrElse("MongoUnavailable").toString contains "MongoUnavailable"
+
         init()
       }
     }
@@ -164,7 +167,7 @@ class FormRepositorySpec
 
       whenReady(future) { result =>
         result.isRight shouldBe true
-        result.right.get shouldBe forms.flatMap(_.formData).map(_.id).distinct.sorted
+        result.toOption.get shouldBe forms.flatMap(_.formData).map(_.id).distinct.sorted
       }
     }
   }

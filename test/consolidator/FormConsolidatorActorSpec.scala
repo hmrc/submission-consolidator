@@ -49,7 +49,7 @@ class FormConsolidatorActorSpec
 
   private val DATE_TIME_FORMAT = new SimpleDateFormat("yyyyMMddHHmmssSSS")
 
-  override def afterAll: Unit =
+  override def afterAll(): Unit =
     TestKit.shutdownActorSystem(system)
 
   trait TestFixture {

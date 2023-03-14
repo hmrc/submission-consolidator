@@ -18,6 +18,7 @@ package consolidator.services
 
 import common.ContentType
 import play.api.libs.json.{ Format, Json }
+import scala.annotation.nowarn
 
 object ConsolidationFormat extends Enumeration {
   type ConsolidationFormat = Value
@@ -27,7 +28,7 @@ object ConsolidationFormat extends Enumeration {
 
   implicit class ConsolidationFormatOps(consolidationFormat: ConsolidationFormat) {
 
-    def contentType: ContentType =
+    @nowarn def contentType: ContentType =
       consolidationFormat match {
         case ConsolidationFormat.csv   => ContentType.`text/csv`
         case ConsolidationFormat.jsonl => ContentType.`text/plain`

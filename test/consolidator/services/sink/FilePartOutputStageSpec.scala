@@ -36,7 +36,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{ Millis, Seconds, Span }
 import org.scalatest.wordspec.AnyWordSpec
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class FilePartOutputStageSpec
     extends AnyWordSpec with DataGenerators with ScalaFutures with Matchers with DiffMatcher with ArgumentMatchersSugar
@@ -87,7 +87,7 @@ class FilePartOutputStageSpec
     "handle and report failure when file part writer fails" in new TestFixture {
       val mockFilePartWriter = mock[FilePartWriter[Record]]
       mockFilePartWriter.openChannel() throws new RuntimeException("failed to open channel")
-      mockFilePartWriter.closeChannel() doesNothing ()
+      mockFilePartWriter.closeChannel().doesNothing()
       val future = recordsSource
         .runWith(Sink.fromGraph(new FilePartOutputStage[Record]()(mockFilePartWriter)))
 

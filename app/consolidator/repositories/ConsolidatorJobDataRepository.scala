@@ -95,7 +95,7 @@ class ConsolidatorJobDataRepository @Inject() (mongo: MongoComponent)(implicit e
 
     collection
       .aggregate[ConsolidatorJobData](pipeline)
-      .headOption
+      .headOption()
       .map(Right(_))
       .recover { case e =>
         logger.error(s"findMostRecentLastObjectId failed [projectId=$projectId]", e)

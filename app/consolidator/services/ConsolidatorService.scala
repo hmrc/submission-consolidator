@@ -35,6 +35,7 @@ import javax.inject.{ Inject, Singleton }
 import play.api.Configuration
 
 import java.util.Date
+import scala.annotation.nowarn
 import scala.concurrent.ExecutionContext
 
 @Singleton
@@ -70,7 +71,7 @@ class ConsolidatorService @Inject() (
     } yield filePartOutputStageResult
       .map(f => ConsolidationResult(f.lastValue._id, f.count, f.reportFiles.toList))
 
-  private def writeFormsToFiles(
+  @nowarn private def writeFormsToFiles(
     projectId: String,
     afterObjectId: Option[ObjectId],
     untilInstant: Instant,
@@ -101,7 +102,7 @@ class ConsolidatorService @Inject() (
         }
     )
 
-  private def getAfterObjectId(params: FormConsolidatorParams) =
+  @nowarn private def getAfterObjectId(params: FormConsolidatorParams) =
     params match {
       case _: ScheduledFormConsolidatorParams =>
         for {
@@ -114,7 +115,7 @@ class ConsolidatorService @Inject() (
         )
     }
 
-  private def formDataIds(
+  @nowarn private def formDataIds(
     projectId: String,
     afterObjectId: Option[ObjectId],
     format: ConsolidationFormat

@@ -53,12 +53,14 @@ class FileUploadService @Inject() (
   ) = {
     implicit val now: Instant = time.now()
 
+    val maxSize = maxSizeBytes / BYTES_IN_1_MB
+    val maxSizePerItem = maxPerFileBytes / BYTES_IN_1_MB
     val createEnvelopeRequest = CreateEnvelopeRequest(
       consolidator.proxies.Metadata("gform"),
       Constraints(
         reportFiles.size + 2, // +2 for metadata xml and iform pdf
-        (maxSizeBytes / BYTES_IN_1_MB) + "MB",
-        (maxPerFileBytes / BYTES_IN_1_MB) + "MB",
+        s"${maxSize}MB",
+        s"${maxSizePerItem}MB",
         List(
           "text/plain",
           "text/csv",
