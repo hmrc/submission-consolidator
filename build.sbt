@@ -20,7 +20,6 @@ lazy val microservice = Project(appName, file("."))
     scalacOptions ++= Seq(
       "-Xfatal-warnings",
       "-Xlint:-missing-interpolator,-byname-implicit,_",
-      //"-Yno-adapted-args",
       "-Ywarn-numeric-widen",
       //"-Ywarn-value-discard",
       //"-Ywarn-dead-code",
