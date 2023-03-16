@@ -38,6 +38,8 @@ import java.time.Instant
 import java.util.Date
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import cats.Traverse
+import cats.implicits._
 
 class FormRepositorySpec
     extends AnyWordSpec with ScalaCheckDrivenPropertyChecks with Matchers with DataGenerators
@@ -77,7 +79,8 @@ class FormRepositorySpec
           .copy(projectId = projectId)
       )
       .toList
-    forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
+    val results = forms.map(form => formRepository.addForm(form))
+    Traverse[List].sequence(results).futureValue.foreach { case r => assert(r.isRight) }
   }
 
   "addForm" should {
