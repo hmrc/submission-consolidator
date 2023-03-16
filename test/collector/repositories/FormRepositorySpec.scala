@@ -68,9 +68,9 @@ class FormRepositorySpec
   trait FormsTestFixture {
     val projectId = "some-project-id"
     val currentTimeInMillis = System.currentTimeMillis()
-    val untilTime = Instant.ofEpochMilli(currentTimeInMillis + 3000) // 1 second after current time
+    val untilTime = Instant.ofEpochMilli(currentTimeInMillis + 30000) // 1 second after current time
     val afterObjectId = ObjectId.getSmallestWithDate(
-      Date.from(Instant.ofEpochMilli(currentTimeInMillis - 3000))
+      Date.from(Instant.ofEpochMilli(currentTimeInMillis - 1000))
     ) // 1 second before current time
     lazy val forms = (1 to 3)
       .map(seed =>
