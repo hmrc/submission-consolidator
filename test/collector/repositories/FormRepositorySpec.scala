@@ -52,7 +52,7 @@ class FormRepositorySpec
     init()
 
   override def beforeEach(): Unit =
-    formRepository.collection.deleteMany(Document()).toFuture()
+    formRepository.collection.deleteMany(Document()).toFuture().futureValue
 
   private def init() = {
     initMongoDExecutable()
