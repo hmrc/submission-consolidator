@@ -44,7 +44,7 @@ class UniqueIdRepositorySpec
     stopMongoD()
 
   override def beforeEach(): Unit =
-    repository.collection.deleteMany(Document()).toFuture()
+    repository.collection.deleteMany(Document()).toFuture().value
 
   private def init() = {
     initMongoDExecutable()
@@ -68,7 +68,7 @@ class UniqueIdRepositorySpec
     "value to be inserted already exists, retries" in {
       val existingUniqueId = UniqueId("TEST_EXISTING_VALUE")
       val newUniqueId = UniqueId("TEST_NEW_VALUE")
-      repository.collection.insertOne(existingUniqueId).toFuture()
+      repository.collection.insertOne(existingUniqueId).toFuture().value
       var attempt = 0
       val future = repository.insertWithRetries(
         () =>

@@ -46,7 +46,7 @@ class ConsolidatorJobDataRepositorySpec
     stopMongoD()
 
   override def beforeEach(): Unit =
-    repository.collection.deleteMany(Document()).toFuture()
+    repository.collection.deleteMany(Document()).toFuture().value
 
   private def init() = {
     initMongoDExecutable()
@@ -91,7 +91,7 @@ class ConsolidatorJobDataRepositorySpec
 
       "return None, when no records exist" in {
 
-        assert(repository.collection.find().headOption().futureValue.isEmpty)
+        assert(repository.collection.find().headOption().value.isEmpty)
 
         val future = repository.findRecentLastObjectId("some-project-id")
 
