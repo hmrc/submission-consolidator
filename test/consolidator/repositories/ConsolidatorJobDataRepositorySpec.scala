@@ -80,8 +80,8 @@ class ConsolidatorJobDataRepositorySpec
           repository.collection
             .find(Filters.equal("_id", consolidatorJobData._id))
             .headOption()
-            .futureValue shouldBe Some(
-            consolidatorJobData
+            .futureValue.map(c => (c._id, c.lastObjectId, c.projectId)) shouldBe Some(
+            (consolidatorJobData._id, consolidatorJobData.lastObjectId, consolidatorJobData.projectId)
           )
         }
       }
@@ -128,7 +128,7 @@ class ConsolidatorJobDataRepositorySpec
         val future = repository.findRecentLastObjectId(projectId)
 
         whenReady(future) { result =>
-          result shouldBe Right(Some(consolidatorJobDatas.maxBy(_.endTimestamp)))
+          result.map(_.map(_._id)) shouldBe Right(Some(consolidatorJobDatas.maxBy(_.endTimestamp)._id))
         }
       }
 
@@ -150,7 +150,7 @@ class ConsolidatorJobDataRepositorySpec
         val future = repository.findRecentLastObjectId(projectId)
 
         whenReady(future) { result =>
-          result shouldBe Right(Some(consolidatorJobDatas.filter(_.lastObjectId.isDefined).maxBy(_.endTimestamp)))
+          result.map(_.map(_._id)) shouldBe Right(Some(consolidatorJobDatas.filter(_.lastObjectId.isDefined).maxBy(_.endTimestamp)._id))
         }
       }
     }
