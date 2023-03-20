@@ -29,6 +29,7 @@ import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import uk.gov.hmrc.mongo.MongoComponent
 
+import java.time.ZoneId
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class ConsolidatorJobDataRepositorySpec
@@ -80,9 +81,10 @@ class ConsolidatorJobDataRepositorySpec
           repository.collection
             .find(Filters.equal("_id", consolidatorJobData._id))
             .headOption()
-            .futureValue shouldBe Some(
+            .futureValue
+            .map(convertInstantsToDefaultZoneId) shouldBe Some(
             consolidatorJobData
-          )
+          ).map(convertInstantsToDefaultZoneId)
         }
       }
     }
@@ -91,7 +93,7 @@ class ConsolidatorJobDataRepositorySpec
 
       "return None, when no records exist" in {
 
-        assert(repository.collection.find().headOption().futureValue.isEmpty)
+        assert(repository.collection.find().headOption().value.isEmpty)
 
         val future = repository.findRecentLastObjectId("some-project-id")
 
@@ -128,7 +130,9 @@ class ConsolidatorJobDataRepositorySpec
         val future = repository.findRecentLastObjectId(projectId)
 
         whenReady(future) { result =>
-          result shouldBe Right(Some(consolidatorJobDatas.maxBy(_.endTimestamp)))
+          result.map(_.map(convertInstantsToDefaultZoneId)) shouldBe Right(
+            Some(consolidatorJobDatas.maxBy(_.endTimestamp)).map(convertInstantsToDefaultZoneId)
+          )
         }
       }
 
@@ -150,11 +154,19 @@ class ConsolidatorJobDataRepositorySpec
         val future = repository.findRecentLastObjectId(projectId)
 
         whenReady(future) { result =>
-          result shouldBe Right(Some(consolidatorJobDatas.filter(_.lastObjectId.isDefined).maxBy(_.endTimestamp)))
+          result.map(_.map(convertInstantsToDefaultZoneId)) shouldBe Right(
+            Some(consolidatorJobDatas.filter(_.lastObjectId.isDefined).maxBy(_.endTimestamp))
+              .map(convertInstantsToDefaultZoneId)
+          )
         }
       }
     }
   }
+
+  private def convertInstantsToDefaultZoneId(c: ConsolidatorJobData) = c.copy(
+    startTimestamp = c.startTimestamp.atZone(ZoneId.systemDefault()).toInstant,
+    endTimestamp = c.endTimestamp.atZone(ZoneId.systemDefault()).toInstant
+  )
 
   def buildRepository(mongoHost: String, mongoPort: Int) = {
     val url = s"mongodb://$mongoHost:$mongoPort/submission-consolidator"
