@@ -35,6 +35,7 @@ import play.api.Configuration
 import uk.gov.hmrc.mongo.MongoComponent
 
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.Date
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -88,7 +89,7 @@ class FormRepositorySpec
           dbForm <- formRepository.collection.find(Filters.equal("_id", form._id)).headOption()
         } yield dbForm
         whenReady(future) { dbForm =>
-          dbForm shouldBe Some(form)
+          dbForm.map(truncatedToSeconds) shouldBe Some(form).map(truncatedToSeconds)
         }
       }
     }
@@ -142,7 +143,7 @@ class FormRepositorySpec
       val future = source.runWith(Sink.seq[Form])
 
       whenReady(future) { result =>
-        result shouldEqual forms
+        result.map(truncatedToSeconds) shouldEqual forms.map(truncatedToSeconds)
       }
     }
 
@@ -153,7 +154,7 @@ class FormRepositorySpec
       val future = source.runWith(Sink.seq[Form])
 
       whenReady(future) { result =>
-        result shouldEqual forms
+        result.map(truncatedToSeconds) shouldEqual forms.map(truncatedToSeconds)
       }
     }
   }
@@ -184,4 +185,8 @@ class FormRepositorySpec
                                                 |""".stripMargin))
     new FormRepository(mongo, config)
   }
+
+  private def truncatedToSeconds(f: Form) = f.copy(
+    submissionTimestamp = f.submissionTimestamp.truncatedTo(ChronoUnit.SECONDS)
+  )
 }

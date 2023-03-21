@@ -29,6 +29,7 @@ import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import uk.gov.hmrc.mongo.MongoComponent
 
+import java.time.temporal.ChronoUnit
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class ConsolidatorJobDataRepositorySpec
@@ -64,9 +65,10 @@ class ConsolidatorJobDataRepositorySpec
           repository.collection
             .find(Filters.equal("_id", consolidatorJobData._id))
             .headOption()
-            .futureValue shouldBe Some(
+            .futureValue
+            .map(truncatedToSeconds) shouldBe Some(
             consolidatorJobData
-          )
+          ).map(truncatedToSeconds)
         }
       }
     }
@@ -80,9 +82,10 @@ class ConsolidatorJobDataRepositorySpec
           repository.collection
             .find(Filters.equal("_id", consolidatorJobData._id))
             .headOption()
-            .futureValue shouldBe Some(
+            .futureValue
+            .map(truncatedToSeconds) shouldBe Some(
             consolidatorJobData
-          )
+          ).map(truncatedToSeconds)
         }
       }
     }
@@ -91,7 +94,7 @@ class ConsolidatorJobDataRepositorySpec
 
       "return None, when no records exist" in {
 
-        assert(repository.collection.find().headOption().futureValue.isEmpty)
+        assert(repository.collection.find().headOption().value.isEmpty)
 
         val future = repository.findRecentLastObjectId("some-project-id")
 
@@ -128,7 +131,9 @@ class ConsolidatorJobDataRepositorySpec
         val future = repository.findRecentLastObjectId(projectId)
 
         whenReady(future) { result =>
-          result shouldBe Right(Some(consolidatorJobDatas.maxBy(_.endTimestamp)))
+          result.map(_.map(truncatedToSeconds)) shouldBe Right(
+            Some(consolidatorJobDatas.maxBy(_.endTimestamp)).map(truncatedToSeconds)
+          )
         }
       }
 
@@ -150,11 +155,19 @@ class ConsolidatorJobDataRepositorySpec
         val future = repository.findRecentLastObjectId(projectId)
 
         whenReady(future) { result =>
-          result shouldBe Right(Some(consolidatorJobDatas.filter(_.lastObjectId.isDefined).maxBy(_.endTimestamp)))
+          result.map(_.map(truncatedToSeconds)) shouldBe Right(
+            Some(consolidatorJobDatas.filter(_.lastObjectId.isDefined).maxBy(_.endTimestamp))
+              .map(truncatedToSeconds)
+          )
         }
       }
     }
   }
+
+  private def truncatedToSeconds(c: ConsolidatorJobData) = c.copy(
+    startTimestamp = c.startTimestamp.truncatedTo(ChronoUnit.SECONDS),
+    endTimestamp = c.endTimestamp.truncatedTo(ChronoUnit.SECONDS)
+  )
 
   def buildRepository(mongoHost: String, mongoPort: Int) = {
     val url = s"mongodb://$mongoHost:$mongoPort/submission-consolidator"

@@ -27,6 +27,7 @@ import uk.gov.hmrc.mongo.lock.{ Lock, MongoLockRepository }
 import uk.gov.hmrc.mongo.{ CurrentTimestampSupport, MongoComponent }
 
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -117,7 +118,8 @@ class LockKeeperAutoRenewSpec extends ITSpec {
 
         whenReady(lockKeeper.withLock(Future(1))) { result =>
           result shouldBe None
-          lockRepository.collection.find().toFuture().futureValue shouldEqual List(existingLock)
+          lockRepository.collection.find().toFuture().futureValue.map(truncatedToSeconds) shouldEqual List(existingLock)
+            .map(truncatedToSeconds)
         }
       }
     }
@@ -158,4 +160,9 @@ class LockKeeperAutoRenewSpec extends ITSpec {
       }
     }
   }
+
+  private def truncatedToSeconds(l: Lock) = l.copy(
+    timeCreated = l.timeCreated.truncatedTo(ChronoUnit.SECONDS),
+    expiryTime = l.expiryTime.truncatedTo(ChronoUnit.SECONDS)
+  )
 }

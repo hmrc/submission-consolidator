@@ -68,26 +68,28 @@ class UniqueIdRepositorySpec
     "value to be inserted already exists, retries" in {
       val existingUniqueId = UniqueId("TEST_EXISTING_VALUE")
       val newUniqueId = UniqueId("TEST_NEW_VALUE")
-      repository.collection.insertOne(existingUniqueId).toFuture()
+      val futureFirstInsert = repository.collection.insertOne(existingUniqueId).toFuture()
       var attempt = 0
-      val future = repository.insertWithRetries(
-        () =>
-          attempt match {
-            case 0 =>
-              attempt += 1
-              existingUniqueId.copy(_id = ObjectId.get())
-            case _ =>
-              newUniqueId
-          },
-        2
-      )
-
-      whenReady(future) { result =>
-        result.map(_.value) shouldBe Some(newUniqueId.value)
-        repository.collection.find().toFuture().futureValue.map(_.value) shouldBe List(
-          existingUniqueId.value,
-          newUniqueId.value
+      whenReady(futureFirstInsert) { _ =>
+        val future = repository.insertWithRetries(
+          () =>
+            attempt match {
+              case 0 =>
+                attempt += 1
+                existingUniqueId.copy(_id = ObjectId.get())
+              case _ =>
+                newUniqueId
+            },
+          2
         )
+
+        whenReady(future) { result =>
+          result.map(_.value) shouldBe Some(newUniqueId.value)
+          repository.collection.find().toFuture().futureValue.map(_.value) shouldBe List(
+            existingUniqueId.value,
+            newUniqueId.value
+          )
+        }
       }
     }
   }
