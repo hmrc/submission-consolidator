@@ -16,11 +16,16 @@
 
 package consolidator.services
 
-import consolidator.connectors.SdesConnector
+import cats.implicits._
+import consolidator.connectors.{ ObjectStoreConnector, SdesConnector }
 import consolidator.proxies._
-import consolidator.repositories.{ SdesSubmission, SdesSubmissionRepository }
+import consolidator.repositories.{ ConsolidatorJobDataRepository, CorrelationId, NotificationStatus, SdesReportData, SdesReportsPageData, SdesSubmission, SdesSubmissionRepository }
+import org.mongodb.scala.model.Filters
+import org.mongodb.scala.model.Filters.{ equal, exists }
+import org.mongodb.scala.result.DeleteResult
 import uk.gov.hmrc.objectstore.client.ObjectSummaryWithMd5
 
+import java.time.{ Instant, LocalDateTime }
 import java.util.Base64
 import javax.inject.{ Inject, Singleton }
 import scala.concurrent.{ ExecutionContext, Future }
@@ -34,7 +39,9 @@ import scala.concurrent.{ ExecutionContext, Future }
 class SdesService @Inject() (
   sdesConnector: SdesConnector,
   sdesConfig: SdesConfig,
-  sdesSubmissionRepository: SdesSubmissionRepository
+  sdesSubmissionRepository: SdesSubmissionRepository,
+  consolidatorJobDataRepository: ConsolidatorJobDataRepository,
+  objectStoreConnector: ObjectStoreConnector
 )(implicit ec: ExecutionContext) {
 
   def notifySDES(
@@ -42,7 +49,7 @@ class SdesService @Inject() (
     submissionRef: String,
     objWithSummary: ObjectSummaryWithMd5
   ): Future[Either[Exception, Unit]] = {
-    val sdesSubmission = SdesSubmission.createSdesSubmission(envelopeId, submissionRef)
+    val sdesSubmission = SdesSubmission.createSdesSubmission(envelopeId, submissionRef, objWithSummary.contentLength)
     val notifyRequest = createNotifyRequest(objWithSummary, sdesSubmission._id)
     for {
       res <- sdesConnector.notifySDES(notifyRequest)
@@ -50,7 +57,36 @@ class SdesService @Inject() (
     } yield res
   }
 
-  private def createNotifyRequest(objSummary: ObjectSummaryWithMd5, correlationId: String): SdesNotifyRequest =
+  def find(correlationId: CorrelationId): Future[Option[SdesSubmission]] =
+    sdesSubmissionRepository.find(correlationId.value)
+
+  def notifySDESById(correlationId: CorrelationId): Future[Unit] =
+    for {
+      sdesSubmission <- find(correlationId)
+      _ <- sdesSubmission match {
+             case Some(submission) =>
+               for {
+                 objSummary <- objectStoreConnector.zipFiles(submission.envelopeId)
+                 _ <- objSummary.fold(
+                        error =>
+                          Future.failed(
+                            new RuntimeException(s"Correlation id [$correlationId] $error")
+                          ),
+                        { objSummary =>
+                          val notifyRequest = createNotifyRequest(objSummary, submission._id)
+                          sdesConnector.notifySDES(notifyRequest)
+                          save(submission.copy(lastUpdated = Some(Instant.now())))
+                        }
+                      )
+               } yield ()
+             case None =>
+               Future.failed(
+                 new RuntimeException(s"Correlation id [$correlationId] not found in mongo collection")
+               )
+           }
+    } yield ()
+
+  private def createNotifyRequest(objSummary: ObjectSummaryWithMd5, correlationId: CorrelationId): SdesNotifyRequest =
     SdesNotifyRequest(
       sdesConfig.informationType,
       FileMetaData(
@@ -61,15 +97,54 @@ class SdesService @Inject() (
         objSummary.contentLength,
         List()
       ),
-      FileAudit(correlationId)
+      FileAudit(correlationId.value)
     )
 
   def save(sdesSubmission: SdesSubmission)(implicit ec: ExecutionContext): Future[Unit] =
     for {
-      _ <- sdesSubmissionRepository.delete(sdesSubmission._id)
+      _ <- sdesSubmissionRepository.delete(sdesSubmission._id.value)
       _ <- sdesSubmissionRepository.upsert(sdesSubmission)
     } yield ()
 
-  def find(id: String): Future[Option[SdesSubmission]] =
-    sdesSubmissionRepository.find(id)
+  def deleteSdesSubmission(correlationId: CorrelationId): Future[DeleteResult] =
+    sdesSubmissionRepository
+      .delete(correlationId.value)
+
+  def search(
+    page: Int,
+    pageSize: Int,
+    processed: Option[Boolean],
+    status: Option[NotificationStatus],
+    showBeforeAt: Option[Boolean]
+  ): Future[SdesReportsPageData] = {
+    val queryByProcessed =
+      processed.fold(exists("_id"))(p => Filters.and(equal("isProcessed", p)))
+
+    val queryByStatus =
+      status.fold(queryByProcessed)(s => Filters.and(equal("status", NotificationStatus.fromName(s)), queryByProcessed))
+
+    val query = if (showBeforeAt.getOrElse(false)) {
+      Filters.and(queryByStatus, Filters.lt("createdAt", LocalDateTime.now().minusHours(10)))
+    } else {
+      queryByStatus
+    }
+
+    val queryNotProcessed = Filters.and(equal("isProcessed", false), query)
+
+    val orderBy = equal("createdAt", -1)
+    val skip = page * pageSize
+    for {
+      sdesSubmissions <- sdesSubmissionRepository.page(query, orderBy, skip, pageSize)
+      sdesSubmissionData <- sdesSubmissions.traverse(sdesSubmission =>
+                              for {
+                                jobData <- consolidatorJobDataRepository.findByEnvelopeId(sdesSubmission.envelopeId)
+                              } yield SdesReportData.createSdesReportData(sdesSubmission, jobData)
+                            )
+      count    <- sdesSubmissionRepository.count(queryNotProcessed)
+      countAll <- sdesSubmissionRepository.count(query)
+    } yield SdesReportsPageData(sdesSubmissionData, count, countAll)
+  }
+
+  def zipFiles(envelopeId: String): Future[Either[ObjectStoreError, ObjectSummaryWithMd5]] =
+    objectStoreConnector.zipFiles(envelopeId)
 }

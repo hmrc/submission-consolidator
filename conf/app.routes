@@ -3,3 +3,7 @@
 POST    /form                                                 collector.controllers.FormController.addForm()
 POST    /consolidate/:consolidatorJobId/:startDate/:endDate   consolidator.controllers.ManualConsolidationController.consolidateAndSubmit(consolidatorJobId,startDate,endDate)
 POST    /sdes/callback                                        consolidator.controllers.SdesCallbackController.callback()
+GET     /sdes/search/:page/:pageSize                          consolidator.controllers.SdesController.search(page: Int, pageSize: Int, processed: Option[Boolean], status: Option[NotificationStatus], showBeforeAt: Option[Boolean])
+GET     /sdes/:correlationId                                  consolidator.controllers.SdesController.find(correlationId: CorrelationId)
+POST    /sdes/notify/:correlationId                           consolidator.controllers.SdesController.notifySDES(correlationId: CorrelationId)
+DELETE  /sdes/:correlationId                                  consolidator.controllers.SdesController.remove(correlationId: CorrelationId)

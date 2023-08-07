@@ -16,9 +16,9 @@
 
 package consolidator.services
 
-import consolidator.connectors.SdesConnector
+import consolidator.connectors.{ ObjectStoreConnector, SdesConnector }
 import consolidator.proxies.{ SdesConfig, SdesNotifyRequest }
-import consolidator.repositories.{ SdesSubmission, SdesSubmissionRepository }
+import consolidator.repositories.{ ConsolidatorJobDataRepository, SdesSubmission, SdesSubmissionRepository }
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.matchers.should.Matchers
@@ -36,13 +36,21 @@ class SdesServiceSpec extends AnyWordSpec with IdiomaticMockito with ArgumentMat
     val mockSdesConnector = mock[SdesConnector](withSettings.lenient())
     val mockSdesConfig = mock[SdesConfig](withSettings.lenient())
     val mockSdesSubmissionRepository = mock[SdesSubmissionRepository](withSettings.lenient())
+    val mockConsolidatorJobDataRepository = mock[ConsolidatorJobDataRepository](withSettings.lenient())
 
     val objectSummary = ObjectSummaryWithMd5(File("test.txt"), 10L, Md5Hash("md5"), Instant.now())
 
-    val sdesSubmission = SdesSubmission.createSdesSubmission("envelope-id", "submission-ref")
+    val sdesSubmission = SdesSubmission.createSdesSubmission("envelope-id", "submission-ref", 10L)
+    val mockObjectStoreConnector = mock[ObjectStoreConnector](withSettings.lenient())
 
     val sdesService =
-      new SdesService(mockSdesConnector, mockSdesConfig, mockSdesSubmissionRepository)
+      new SdesService(
+        mockSdesConnector,
+        mockSdesConfig,
+        mockSdesSubmissionRepository,
+        mockConsolidatorJobDataRepository,
+        mockObjectStoreConnector
+      )
   }
 
   "notifySDES" should {

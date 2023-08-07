@@ -52,22 +52,33 @@ case class GenericConsolidatorJobDataError(message: String) extends Consolidator
 abstract class SdesSubmissionError(message: String) extends ApplicationError(message)
 case class GenericSdesSubmissionError(message: String) extends SdesSubmissionError(message)
 
+final case class CorrelationId(value: String) extends AnyVal
+
+object CorrelationId {
+  implicit val format: Format[CorrelationId] =
+    Format(_.validate[String].map(CorrelationId(_)), id => JsString(id.value))
+}
+
 case class SdesSubmission(
   envelopeId: String,
   submissionRef: String,
   submittedAt: Instant = Instant.now,
   isProcessed: Boolean = false,
   status: NotificationStatus,
+  contentLength: Long,
   failureReason: Option[String] = None,
   confirmedAt: Option[Instant] = None,
-  _id: String = UniqueIdGenerator.uuidStringGenerator.generate
+  createdAt: Instant = Instant.now,
+  lastUpdated: Option[Instant] = None,
+  _id: CorrelationId = CorrelationId(UniqueIdGenerator.uuidStringGenerator.generate)
 )
 
 object SdesSubmission {
-  def createSdesSubmission(envelopeId: String, submissionRef: String) =
+  def createSdesSubmission(envelopeId: String, submissionRef: String, contentLength: Long) =
     SdesSubmission(
       envelopeId,
       submissionRef,
+      contentLength = contentLength,
       status = FileReady
     )
 
@@ -114,4 +125,62 @@ object NotificationStatus {
       }
   }
 
+  def fromName(notificationStatus: NotificationStatus): String = notificationStatus match {
+    case FileReady             => "FileReady"
+    case FileReceived          => "FileReceived"
+    case FileProcessingFailure => "FileProcessingFailure"
+    case FileProcessed         => "FileProcessed"
+  }
+
+}
+
+case class SdesReportsPageData(sdesSubmissions: List[SdesReportData], count: Long, countAll: Long)
+
+object SdesReportsPageData {
+  implicit val format: OFormat[SdesReportsPageData] = derived.oformat()
+}
+
+case class SdesReportData(
+  consolidatorJobId: String,
+  startTimestamp: Instant,
+  endTimestamp: Instant,
+  correlationId: CorrelationId,
+  envelopeId: String,
+  submissionRef: String,
+  submittedAt: Instant,
+  status: NotificationStatus,
+  failureReason: String,
+  lastUpdated: Option[Instant]
+)
+object SdesReportData {
+
+  def createSdesReportData(sdesSubmission: SdesSubmission, jobData: ConsolidatorJobData) =
+    SdesReportData(
+      jobData._id.toString,
+      jobData.startTimestamp,
+      jobData.endTimestamp,
+      sdesSubmission._id,
+      sdesSubmission.envelopeId,
+      sdesSubmission.submissionRef,
+      sdesSubmission.submittedAt,
+      sdesSubmission.status,
+      sdesSubmission.failureReason.getOrElse(""),
+      sdesSubmission.lastUpdated
+    )
+
+  def fromSdesSubmission(sdesSubmission: SdesSubmission) =
+    SdesReportData(
+      "",
+      Instant.now(),
+      Instant.now(),
+      sdesSubmission._id,
+      sdesSubmission.envelopeId,
+      sdesSubmission.submissionRef,
+      sdesSubmission.submittedAt,
+      sdesSubmission.status,
+      sdesSubmission.failureReason.getOrElse(""),
+      sdesSubmission.lastUpdated
+    )
+  implicit val oidFormat: Format[ObjectId] = MongoFormats.objectIdFormat
+  implicit val format: OFormat[SdesReportData] = derived.oformat()
 }
