@@ -125,10 +125,7 @@ class SubmissionService @Inject() (
       def notifySDES(envelopeId: String, submissionRef: String, objWithSummary: ObjectSummaryWithMd5) =
         liftIO(sdesService.notifySDES(envelopeId, submissionRef, objWithSummary))
 
-      if (!objectStoreConfig.enableObjectStore) {
-        fileUploadService.processReportFiles(reportFiles, params, SUBMISSION_REF_LENGTH, zonedDateTime)
-      } else {
-
+      if (objectStoreConfig.enableObjectStore) {
         val envelopeId = UniqueIdGenerator.uuidStringGenerator.generate
         logger.info("Creating envelope " + envelopeId)
 
@@ -141,6 +138,8 @@ class SubmissionService @Inject() (
           objectSummary <- zipFiles(envelopeId)
           _             <- notifySDES(envelopeId, submissionRef.ref, objectSummary)
         } yield envelopeId
+      } else {
+        fileUploadService.processReportFiles(reportFiles, params, SUBMISSION_REF_LENGTH, zonedDateTime)
       }
     }).parSequence
   }

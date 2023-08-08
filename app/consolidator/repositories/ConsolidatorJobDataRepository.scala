@@ -38,9 +38,10 @@ class ConsolidatorJobDataRepository @Inject() (mongo: MongoComponent)(implicit e
       indexes = Seq(
         IndexModel(ascending("projectId"), IndexOptions().name("jobIdIdx")),
         IndexModel(ascending("lastObjectId"), IndexOptions().name("lastObjectIdIdx")),
-        IndexModel(ascending("endTimestamp"), IndexOptions().name("endTimestampIdx"))
+        IndexModel(ascending("endTimestamp"), IndexOptions().name("endTimestampIdx")),
+        IndexModel(ascending("envelopeId"), IndexOptions().name("envelopeId"))
       ),
-      replaceIndexes = false
+      replaceIndexes = true
     ) {
 
   val logger: Logger = LoggerFactory.getLogger(getClass)
@@ -102,4 +103,7 @@ class ConsolidatorJobDataRepository @Inject() (mongo: MongoComponent)(implicit e
         Left(GenericConsolidatorJobDataError(e.getMessage))
       }
   }
+
+  def findByEnvelopeId(envelopeId: String) =
+    collection.find(equal("envelopeId", envelopeId)).first().toFuture()
 }

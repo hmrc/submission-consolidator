@@ -20,6 +20,7 @@ import cats.syntax.eq._
 import collector.controllers.ErrorHandler
 import consolidator.connectors.ObjectStoreConnector
 import consolidator.proxies.CallBackNotification
+import consolidator.repositories.CorrelationId
 import consolidator.repositories.NotificationStatus.FileProcessed
 import consolidator.services.SdesService
 import org.slf4j.{ Logger, LoggerFactory }
@@ -48,7 +49,7 @@ class SdesCallbackController @Inject() (
     )
 
     for {
-      maybeSdesSubmission <- sdesService.find(correlationID)
+      maybeSdesSubmission <- sdesService.find(CorrelationId(correlationID))
       _ <- maybeSdesSubmission match {
              case Some(sdesSubmission) =>
                val updatedSdesSubmission = sdesSubmission.copy(

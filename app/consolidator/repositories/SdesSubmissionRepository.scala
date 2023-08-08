@@ -16,8 +16,9 @@
 
 package consolidator.repositories
 
+import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters.equal
-import org.mongodb.scala.model.Indexes.descending
+import org.mongodb.scala.model.Indexes.{ ascending, descending }
 import org.mongodb.scala.model.{ IndexModel, IndexOptions }
 import org.mongodb.scala.result.DeleteResult
 import uk.gov.hmrc.mongo.MongoComponent
@@ -32,7 +33,11 @@ class SdesSubmissionRepository @Inject() (mongo: MongoComponent)(implicit ec: Ex
       mongoComponent = mongo,
       collectionName = "sdes_submission",
       domainFormat = SdesSubmission.format,
-      indexes = Seq(IndexModel(descending("confirmedAt"), IndexOptions().name("confirmedAtIdx"))),
+      indexes = Seq(
+        IndexModel(ascending("status"), IndexOptions().name("statusIdx")),
+        IndexModel(descending("createdAt"), IndexOptions().name("createdAtIdx")),
+        IndexModel(descending("isProcessed"), IndexOptions().name("isProcessedIdx"))
+      ),
       replaceIndexes = false
     ) {
 
@@ -50,5 +55,22 @@ class SdesSubmissionRepository @Inject() (mongo: MongoComponent)(implicit ec: Ex
 
   def delete(id: String): Future[DeleteResult] =
     collection.deleteOne(equal("_id", id)).toFuture()
+
+  def page(
+    selector: Bson,
+    orderBy: Bson,
+    skip: Int,
+    limit: Int
+  ): Future[List[SdesSubmission]] =
+    collection
+      .find(selector)
+      .sort(orderBy)
+      .skip(skip)
+      .limit(limit)
+      .toFuture()
+      .map(_.toList)
+
+  def count(selector: Bson): Future[Long] =
+    collection.countDocuments(selector).toFuture()
 
 }
