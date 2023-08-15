@@ -105,5 +105,5 @@ class ConsolidatorJobDataRepository @Inject() (mongo: MongoComponent)(implicit e
   }
 
   def findByEnvelopeId(envelopeId: String) =
-    collection.find(equal("envelopeId", envelopeId)).first().toFuture()
+    collection.find(equal("envelopeId", envelopeId)).first().headOption()
 }

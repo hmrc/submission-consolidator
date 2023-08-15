@@ -124,12 +124,13 @@ class SdesService @Inject() (
       status.fold(queryByProcessed)(s => Filters.and(equal("status", NotificationStatus.fromName(s)), queryByProcessed))
 
     val query = if (showBeforeAt.getOrElse(false)) {
-      Filters.and(queryByStatus, Filters.lt("createdAt", LocalDateTime.now().minusHours(10)))
+      Filters.and(
+        queryByStatus,
+        Filters.and(equal("isProcessed", false), Filters.lt("createdAt", LocalDateTime.now().minusHours(10)))
+      )
     } else {
       queryByStatus
     }
-
-    val queryNotProcessed = Filters.and(equal("isProcessed", false), query)
 
     val orderBy = equal("createdAt", -1)
     val skip = page * pageSize
@@ -140,9 +141,8 @@ class SdesService @Inject() (
                                 jobData <- consolidatorJobDataRepository.findByEnvelopeId(sdesSubmission.envelopeId)
                               } yield SdesReportData.createSdesReportData(sdesSubmission, jobData)
                             )
-      count    <- sdesSubmissionRepository.count(queryNotProcessed)
-      countAll <- sdesSubmissionRepository.count(query)
-    } yield SdesReportsPageData(sdesSubmissionData, count, countAll)
+      count <- sdesSubmissionRepository.count(query)
+    } yield SdesReportsPageData(sdesSubmissionData, count)
   }
 
   def zipFiles(envelopeId: String): Future[Either[ObjectStoreError, ObjectSummaryWithMd5]] =
