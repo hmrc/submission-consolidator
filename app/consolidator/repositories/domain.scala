@@ -134,16 +134,16 @@ object NotificationStatus {
 
 }
 
-case class SdesReportsPageData(sdesSubmissions: List[SdesReportData], count: Long, countAll: Long)
+case class SdesReportsPageData(sdesSubmissions: List[SdesReportData], count: Long)
 
 object SdesReportsPageData {
   implicit val format: OFormat[SdesReportsPageData] = derived.oformat()
 }
 
 case class SdesReportData(
-  consolidatorJobId: String,
-  startTimestamp: Instant,
-  endTimestamp: Instant,
+  consolidatorJobId: Option[String],
+  startTimestamp: Option[Instant],
+  endTimestamp: Option[Instant],
   correlationId: CorrelationId,
   envelopeId: String,
   submissionRef: String,
@@ -154,11 +154,11 @@ case class SdesReportData(
 )
 object SdesReportData {
 
-  def createSdesReportData(sdesSubmission: SdesSubmission, jobData: ConsolidatorJobData) =
+  def createSdesReportData(sdesSubmission: SdesSubmission, jobData: Option[ConsolidatorJobData]) =
     SdesReportData(
-      jobData._id.toString,
-      jobData.startTimestamp,
-      jobData.endTimestamp,
+      jobData.map(_._id.toString),
+      jobData.map(_.startTimestamp),
+      jobData.map(_.endTimestamp),
       sdesSubmission._id,
       sdesSubmission.envelopeId,
       sdesSubmission.submissionRef,
@@ -170,9 +170,9 @@ object SdesReportData {
 
   def fromSdesSubmission(sdesSubmission: SdesSubmission) =
     SdesReportData(
-      "",
-      Instant.now(),
-      Instant.now(),
+      None,
+      None,
+      None,
       sdesSubmission._id,
       sdesSubmission.envelopeId,
       sdesSubmission.submissionRef,
