@@ -53,7 +53,7 @@ class FormRepository @Inject() (mongo: MongoComponent, config: Configuration)(im
             .expireAfter(config.get[Long]("mongodb.timeToLiveInSeconds"), TimeUnit.SECONDS)
         )
       ),
-      replaceIndexes = false
+      replaceIndexes = true
     ) {
   val logger: Logger = LoggerFactory.getLogger(getClass)
 
