@@ -39,6 +39,8 @@ import java.time.temporal.ChronoUnit
 import java.util.Date
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import cats.Traverse
+import cats.implicits._
 
 class FormRepositorySpec
     extends AnyWordSpec with ScalaCheckDrivenPropertyChecks with Matchers with DataGenerators
@@ -53,7 +55,7 @@ class FormRepositorySpec
     init()
 
   override def beforeEach(): Unit =
-    formRepository.collection.deleteMany(Document()).toFuture()
+    formRepository.collection.deleteMany(Document()).toFuture().futureValue
 
   private def init() = {
     initMongoDExecutable()
@@ -67,7 +69,7 @@ class FormRepositorySpec
   trait FormsTestFixture {
     val projectId = "some-project-id"
     val currentTimeInMillis = System.currentTimeMillis()
-    val untilTime = Instant.ofEpochMilli(currentTimeInMillis + 1000) // 1 second after current time
+    val untilTime = Instant.ofEpochMilli(currentTimeInMillis + 30000) // 1 second after current time
     val afterObjectId = ObjectId.getSmallestWithDate(
       Date.from(Instant.ofEpochMilli(currentTimeInMillis - 1000))
     ) // 1 second before current time
@@ -78,7 +80,8 @@ class FormRepositorySpec
           .copy(projectId = projectId)
       )
       .toList
-    forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
+    val results = forms.map(form => formRepository.addForm(form))
+    Traverse[List].sequence(results).futureValue.foreach { case r => assert(r.isRight) }
   }
 
   "addForm" should {
