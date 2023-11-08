@@ -94,7 +94,9 @@ class ConsolidatorJobDataRepositorySpec
 
       "return None, when no records exist" in {
 
-        assert(repository.collection.find().headOption().value.isEmpty)
+        whenReady(repository.collection.find().headOption()) { result =>
+          assert(result.isEmpty)
+        }
 
         val future = repository.findRecentLastObjectId("some-project-id")
 

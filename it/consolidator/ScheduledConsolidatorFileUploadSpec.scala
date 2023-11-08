@@ -18,7 +18,7 @@ package consolidator
 
 import collector.repositories.FormRepository
 import collector.{ APIFormStubs, ITSpec }
-import com.github.tomakehurst.wiremock.client.WireMock.{ configureFor, postRequestedFor, urlEqualTo, verify }
+import com.github.tomakehurst.wiremock.client.WireMock._
 import com.typesafe.config.ConfigFactory
 import org.mongodb.scala.Document
 import org.scalatest.concurrent.Eventually
