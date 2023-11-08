@@ -16,7 +16,6 @@
 
 package common.repositories
 
-import collector.repositories.EmbeddedMongoDBSupport
 import common.repositories.UniqueIdRepository.UniqueId
 import org.bson.types.ObjectId
 import org.mongodb.scala.Document
@@ -25,32 +24,19 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{ Millis, Seconds, Span }
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
-import uk.gov.hmrc.mongo.MongoComponent
+import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class UniqueIdRepositorySpec
-    extends AnyWordSpec with Matchers with EmbeddedMongoDBSupport with BeforeAndAfterAll with BeforeAndAfterEach
-    with ScalaFutures {
+    extends AnyWordSpec with Matchers with BeforeAndAfterAll with BeforeAndAfterEach with ScalaFutures
+    with DefaultPlayMongoRepositorySupport[UniqueId] {
 
   override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
-
-  var repository: UniqueIdRepository = _
-
-  override def beforeAll(): Unit =
-    init()
-
-  override def afterAll(): Unit =
-    stopMongoD()
+  override protected def repository: UniqueIdRepository = new UniqueIdRepository(mongoComponent)
 
   override def beforeEach(): Unit =
     repository.collection.deleteMany(Document()).toFuture()
-
-  private def init() = {
-    initMongoDExecutable()
-    startMongoD()
-    repository = buildRepository(mongoHost, mongoPort)
-  }
 
   "insertWithRetries" when {
     "inserted value is unique" should {
@@ -92,11 +78,5 @@ class UniqueIdRepositorySpec
         }
       }
     }
-  }
-
-  def buildRepository(mongoHost: String, mongoPort: Int) = {
-    val url = s"mongodb://$mongoHost:$mongoPort/submission-consolidator"
-    val mongo = MongoComponent(url)
-    new UniqueIdRepository(mongo)
   }
 }

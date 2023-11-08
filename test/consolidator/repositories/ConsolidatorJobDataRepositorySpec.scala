@@ -16,7 +16,7 @@
 
 package consolidator.repositories
 
-import collector.repositories.{ DataGenerators, EmbeddedMongoDBSupport }
+import collector.repositories.DataGenerators
 import org.mongodb.scala.Document
 import org.mongodb.scala.model.Filters
 import org.scalacheck.Gen
@@ -27,33 +27,21 @@ import org.scalatest.time.{ Millis, Seconds, Span }
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import uk.gov.hmrc.mongo.MongoComponent
+import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 
 import java.time.temporal.ChronoUnit
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class ConsolidatorJobDataRepositorySpec
-    extends AnyWordSpec with Matchers with EmbeddedMongoDBSupport with BeforeAndAfterAll with BeforeAndAfterEach
-    with ScalaFutures with DataGenerators with ScalaCheckDrivenPropertyChecks {
+    extends AnyWordSpec with Matchers with DefaultPlayMongoRepositorySupport[ConsolidatorJobData] with BeforeAndAfterAll
+    with BeforeAndAfterEach with ScalaFutures with DataGenerators with ScalaCheckDrivenPropertyChecks {
 
   override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
 
-  var repository: ConsolidatorJobDataRepository = _
-
-  override def beforeAll(): Unit =
-    init()
-
-  override def afterAll(): Unit =
-    stopMongoD()
+  var repository: ConsolidatorJobDataRepository = new ConsolidatorJobDataRepository(mongoComponent)
 
   override def beforeEach(): Unit =
-    repository.collection.deleteMany(Document()).toFuture()
-
-  private def init() = {
-    initMongoDExecutable()
-    startMongoD()
-    repository = buildRepository(mongoHost, mongoPort)
-  }
+    repository.collection.deleteMany(Document()).toFuture().futureValue
 
   "add" should {
     "persist consolidator job data with last object id" in {
@@ -66,9 +54,9 @@ class ConsolidatorJobDataRepositorySpec
             .find(Filters.equal("_id", consolidatorJobData._id))
             .headOption()
             .futureValue
-            .map(truncatedToSeconds) shouldBe Some(
+            .map(truncatedTimeToDay) shouldBe Some(
             consolidatorJobData
-          ).map(truncatedToSeconds)
+          ).map(truncatedTimeToDay)
         }
       }
     }
@@ -83,9 +71,9 @@ class ConsolidatorJobDataRepositorySpec
             .find(Filters.equal("_id", consolidatorJobData._id))
             .headOption()
             .futureValue
-            .map(truncatedToSeconds) shouldBe Some(
+            .map(truncatedTimeToDay) shouldBe Some(
             consolidatorJobData
-          ).map(truncatedToSeconds)
+          ).map(truncatedTimeToDay)
         }
       }
     }
@@ -94,7 +82,9 @@ class ConsolidatorJobDataRepositorySpec
 
       "return None, when no records exist" in {
 
-        assert(repository.collection.find().headOption().value.isEmpty)
+        whenReady(repository.collection.find().headOption()) { result =>
+          assert(result.isEmpty)
+        }
 
         val future = repository.findRecentLastObjectId("some-project-id")
 
@@ -131,8 +121,8 @@ class ConsolidatorJobDataRepositorySpec
         val future = repository.findRecentLastObjectId(projectId)
 
         whenReady(future) { result =>
-          result.map(_.map(truncatedToSeconds)) shouldBe Right(
-            Some(consolidatorJobDatas.maxBy(_.endTimestamp)).map(truncatedToSeconds)
+          result.map(_.map(truncatedTimeToDay)) shouldBe Right(
+            Some(consolidatorJobDatas.maxBy(_.endTimestamp)).map(truncatedTimeToDay)
           )
         }
       }
@@ -155,23 +145,17 @@ class ConsolidatorJobDataRepositorySpec
         val future = repository.findRecentLastObjectId(projectId)
 
         whenReady(future) { result =>
-          result.map(_.map(truncatedToSeconds)) shouldBe Right(
+          result.map(_.map(truncatedTimeToDay)) shouldBe Right(
             Some(consolidatorJobDatas.filter(_.lastObjectId.isDefined).maxBy(_.endTimestamp))
-              .map(truncatedToSeconds)
+              .map(truncatedTimeToDay)
           )
         }
       }
     }
   }
 
-  private def truncatedToSeconds(c: ConsolidatorJobData) = c.copy(
+  private def truncatedTimeToDay(c: ConsolidatorJobData) = c.copy(
     startTimestamp = c.startTimestamp.truncatedTo(ChronoUnit.SECONDS),
     endTimestamp = c.endTimestamp.truncatedTo(ChronoUnit.SECONDS)
   )
-
-  def buildRepository(mongoHost: String, mongoPort: Int) = {
-    val url = s"mongodb://$mongoHost:$mongoPort/submission-consolidator"
-    val reactiveMongoComponent = MongoComponent(url)
-    new ConsolidatorJobDataRepository(reactiveMongoComponent)
-  }
 }

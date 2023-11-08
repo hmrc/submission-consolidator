@@ -37,8 +37,7 @@ class SdesSubmissionRepository @Inject() (mongo: MongoComponent)(implicit ec: Ex
         IndexModel(ascending("status"), IndexOptions().name("statusIdx")),
         IndexModel(descending("createdAt"), IndexOptions().name("createdAtIdx")),
         IndexModel(descending("isProcessed"), IndexOptions().name("isProcessedIdx"))
-      ),
-      replaceIndexes = false
+      )
     ) {
 
   def upsert(sdesSubmission: SdesSubmission): Future[Either[SdesSubmissionError, Unit]] =
