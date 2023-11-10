@@ -23,6 +23,7 @@ import consolidator.repositories.{ ConsolidatorJobDataRepository, CorrelationId,
 import org.mongodb.scala.model.Filters
 import org.mongodb.scala.model.Filters.{ equal, exists }
 import org.mongodb.scala.result.DeleteResult
+import org.slf4j.{ Logger, LoggerFactory }
 import uk.gov.hmrc.objectstore.client.ObjectSummaryWithMd5
 
 import java.time.{ Instant, LocalDateTime }
@@ -44,6 +45,8 @@ class SdesService @Inject() (
   objectStoreConnector: ObjectStoreConnector
 )(implicit ec: ExecutionContext) {
 
+  val logger: Logger = LoggerFactory.getLogger(getClass)
+
   def notifySDES(
     envelopeId: String,
     submissionRef: String,
@@ -52,8 +55,11 @@ class SdesService @Inject() (
     val sdesSubmission = SdesSubmission.createSdesSubmission(envelopeId, submissionRef, objWithSummary.contentLength)
     val notifyRequest = createNotifyRequest(objWithSummary, sdesSubmission._id)
     for {
-      res <- sdesConnector.notifySDES(notifyRequest)
-      _   <- sdesSubmissionRepository.upsert(sdesSubmission)
+      res <- sdesConnector.notifySDES(notifyRequest).recoverWith { case e =>
+               logger.error("Failed to notify SDES for file-ready: ", e)
+               Future.failed(e)
+             }
+      _ <- sdesSubmissionRepository.upsert(sdesSubmission)
     } yield res
   }
 

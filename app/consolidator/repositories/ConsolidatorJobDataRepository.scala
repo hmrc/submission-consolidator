@@ -40,8 +40,7 @@ class ConsolidatorJobDataRepository @Inject() (mongo: MongoComponent)(implicit e
         IndexModel(ascending("lastObjectId"), IndexOptions().name("lastObjectIdIdx")),
         IndexModel(ascending("endTimestamp"), IndexOptions().name("endTimestampIdx")),
         IndexModel(ascending("envelopeId"), IndexOptions().name("envelopeId"))
-      ),
-      replaceIndexes = true
+      )
     ) {
 
   val logger: Logger = LoggerFactory.getLogger(getClass)

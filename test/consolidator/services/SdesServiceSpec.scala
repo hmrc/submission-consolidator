@@ -21,6 +21,7 @@ import consolidator.proxies.{ SdesConfig, SdesNotifyRequest }
 import consolidator.repositories.{ ConsolidatorJobDataRepository, SdesSubmission, SdesSubmissionRepository }
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.objectstore.client.Path.File
@@ -30,7 +31,8 @@ import java.time.Instant
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class SdesServiceSpec extends AnyWordSpec with IdiomaticMockito with ArgumentMatchersSugar with Matchers {
+class SdesServiceSpec
+    extends AnyWordSpec with IdiomaticMockito with ArgumentMatchersSugar with Matchers with ScalaFutures {
 
   trait TestFixture {
     val mockSdesConnector = mock[SdesConnector](withSettings.lenient())
@@ -66,10 +68,12 @@ class SdesServiceSpec extends AnyWordSpec with IdiomaticMockito with ArgumentMat
         "x-client-id" -> "test"
       )
 
-      sdesService.notifySDES("envelope-id", "submission-ref", objectSummary)
+      val future = sdesService.notifySDES("envelope-id", "submission-ref", objectSummary)
 
-      mockSdesConnector.notifySDES(any[SdesNotifyRequest]) wasCalled once
-      mockSdesSubmissionRepository.upsert(any[SdesSubmission]) wasCalled once
+      whenReady(future) { _ =>
+        mockSdesConnector.notifySDES(any[SdesNotifyRequest]) wasCalled once
+        mockSdesSubmissionRepository.upsert(any[SdesSubmission]) wasCalled once
+      }
     }
   }
 

@@ -36,8 +36,7 @@ class UniqueIdRepository @Inject() (mongo: MongoComponent)(implicit ec: Executio
       mongoComponent = mongo,
       collectionName = "unique_ids",
       domainFormat = UniqueId.format,
-      indexes = Seq(IndexModel(ascending("value"), IndexOptions().name("valueUniqueIdx").unique(true))),
-      replaceIndexes = false
+      indexes = Seq(IndexModel(ascending("value"), IndexOptions().name("valueUniqueIdx").unique(true)))
     ) {
 
   val logger: Logger = LoggerFactory.getLogger(getClass)

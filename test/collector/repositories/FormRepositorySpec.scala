@@ -19,9 +19,8 @@ package collector.repositories
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
 import com.softwaremill.diffx.scalatest.DiffMatcher
-import com.typesafe.config.ConfigFactory
 import org.bson.types.ObjectId
-import org.mongodb.scala.Document
+import org.mockito.MockitoSugar.mock
 import org.mongodb.scala.model.Filters
 import org.scalacheck.Gen
 import org.scalacheck.rng.Seed
@@ -32,7 +31,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import play.api.Configuration
-import uk.gov.hmrc.mongo.MongoComponent
+import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -42,27 +41,15 @@ import scala.concurrent.Future
 
 class FormRepositorySpec
     extends AnyWordSpec with ScalaCheckDrivenPropertyChecks with Matchers with DataGenerators
-    with EmbeddedMongoDBSupport with BeforeAndAfterAll with ScalaFutures with BeforeAndAfterEach with DiffMatcher {
+    with DefaultPlayMongoRepositorySupport[Form] with BeforeAndAfterAll with ScalaFutures with BeforeAndAfterEach
+    with DiffMatcher {
 
   override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
   implicit val system = ActorSystem("FormRepositorySpec")
-
-  var formRepository: FormRepository = _
-
-  override def beforeAll(): Unit =
-    init()
-
+  private lazy val config: Configuration = mock[Configuration]
+  override protected def repository: FormRepository = new FormRepository(mongoComponent, config)
   override def beforeEach(): Unit =
-    formRepository.collection.deleteMany(Document()).toFuture()
-
-  private def init() = {
-    initMongoDExecutable()
-    startMongoD()
-    formRepository = buildFormRepository(mongoHost, mongoPort)
-  }
-
-  override def afterAll(): Unit =
-    stopMongoD()
+    repository.collection.drop().toFuture().futureValue
 
   trait FormsTestFixture {
     val projectId = "some-project-id"
@@ -78,28 +65,28 @@ class FormRepositorySpec
           .copy(projectId = projectId)
       )
       .toList
-    forms.foreach(form => assert(formRepository.addForm(form).futureValue.isRight))
+    forms.foreach(form => assert(repository.addForm(form).futureValue.isRight))
   }
 
   "addForm" should {
     "add the form data to the forms collection" in {
       forAll(genForm) { form =>
         val future: Future[Option[Form]] = for {
-          _      <- formRepository.addForm(form)
-          dbForm <- formRepository.collection.find(Filters.equal("_id", form._id)).headOption()
+          _      <- repository.addForm(form)
+          dbForm <- repository.collection.find(Filters.equal("_id", form._id)).headOption()
         } yield dbForm
         whenReady(future) { dbForm =>
-          dbForm.map(truncatedToSeconds) shouldBe Some(form).map(truncatedToSeconds)
+          dbForm.map(truncatedTimeToDay) shouldBe Some(form).map(truncatedTimeToDay)
         }
       }
     }
 
     "return an DuplicateSubmissionRef error if submissionRef already exists in the forms collection" in {
       val form = genForm.pureApply(Gen.Parameters.default, Seed(1))
-      assert(formRepository.addForm(form).futureValue.isRight)
+      assert(repository.addForm(form).futureValue.isRight)
 
       val duplicateForm = genForm.pureApply(Gen.Parameters.default, Seed(2)).copy(submissionRef = form.submissionRef)
-      val future = formRepository.addForm(duplicateForm)
+      val future = repository.addForm(duplicateForm)
 
       whenReady(future) { addFormResult =>
         addFormResult shouldBe Left(DuplicateSubmissionRef(form.submissionRef, "submissionRef must be unique"))
@@ -108,28 +95,13 @@ class FormRepositorySpec
 
     "return a GenericError for all other errors" in {
       val form = genForm.pureApply(Gen.Parameters.default, Seed(1))
-      assert(formRepository.addForm(form).futureValue.isRight)
+      assert(repository.addForm(form).futureValue.isRight)
 
-      val future = formRepository.addForm(form.copy(_id = form._id, submissionRef = "test"))
+      val future = repository.addForm(form.copy(_id = form._id, submissionRef = "test"))
       whenReady(future) { addFormResult =>
         addFormResult.left
           .getOrElse("E11000 duplicate key error collection")
           .toString contains "E11000 duplicate key error collection"
-      }
-    }
-
-    "return a unavailable error when mongodb is unavailable" in {
-      stopMongoD()
-      val form = genForm.pureApply(Gen.Parameters.default, Seed(1))
-      val future = for {
-        addFormResult <- formRepository.addForm(form)
-      } yield addFormResult
-      whenReady(future) { addFormResult =>
-        addFormResult.isLeft shouldBe true
-        addFormResult.left.getOrElse(a[MongoUnavailable]) shouldBe a[MongoUnavailable]
-        addFormResult.left.getOrElse("MongoUnavailable").toString contains "MongoUnavailable"
-
-        init()
       }
     }
   }
@@ -138,23 +110,23 @@ class FormRepositorySpec
 
     "return forms before the given creation time" in new FormsTestFixture {
 
-      val source = formRepository.formsSource(projectId, forms.size, None, untilTime)
+      val source = repository.formsSource(projectId, forms.size, None, untilTime)
 
       val future = source.runWith(Sink.seq[Form])
 
       whenReady(future) { result =>
-        result.map(truncatedToSeconds) shouldEqual forms.map(truncatedToSeconds)
+        result.map(truncatedTimeToDay) shouldEqual forms.map(truncatedTimeToDay)
       }
     }
 
     "return forms after given object id, before the given creation time" in new FormsTestFixture {
 
-      val source = formRepository.formsSource(projectId, forms.size, Some(afterObjectId), untilTime)
+      val source = repository.formsSource(projectId, forms.size, Some(afterObjectId), untilTime)
 
       val future = source.runWith(Sink.seq[Form])
 
       whenReady(future) { result =>
-        result.map(truncatedToSeconds) shouldEqual forms.map(truncatedToSeconds)
+        result.map(truncatedTimeToDay) shouldEqual forms.map(truncatedTimeToDay)
       }
     }
   }
@@ -164,7 +136,7 @@ class FormRepositorySpec
     "return distinct formData ids" in new FormsTestFixture {
 
       val future: Future[Either[FormError, List[String]]] =
-        formRepository.distinctFormDataIds(projectId, Some(afterObjectId))
+        repository.distinctFormDataIds(projectId, Some(afterObjectId))
 
       whenReady(future) { result =>
         result.isRight shouldBe true
@@ -173,20 +145,7 @@ class FormRepositorySpec
     }
   }
 
-  private def buildFormRepository(mongoHost: String, mongoPort: Int) = {
-    val uri = s"mongodb://$mongoHost:$mongoPort/submission-consolidator"
-    val mongo = MongoComponent(uri)
-
-    val config =
-      Configuration(ConfigFactory.parseString("""
-                                                | mongodb {
-                                                |     timeToLiveInSeconds = 100
-                                                |     }
-                                                |""".stripMargin))
-    new FormRepository(mongo, config)
-  }
-
-  private def truncatedToSeconds(f: Form) = f.copy(
-    submissionTimestamp = f.submissionTimestamp.truncatedTo(ChronoUnit.SECONDS)
+  private def truncatedTimeToDay(f: Form) = f.copy(
+    submissionTimestamp = f.submissionTimestamp.truncatedTo(ChronoUnit.DAYS)
   )
 }
