@@ -58,8 +58,8 @@ class SdesController @Inject() (
     }
   }
 
-  def remove(correlationId: CorrelationId) = Action.async { _ =>
-    sdesService.deleteSdesSubmission(correlationId).map { _ =>
+  def updateAsManualConfirmed(correlationId: CorrelationId) = Action.async { _ =>
+    sdesService.updateAsManualConfirmed(correlationId).map { _ =>
       NoContent
     }
   }
