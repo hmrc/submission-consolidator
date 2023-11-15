@@ -22,7 +22,6 @@ import consolidator.proxies._
 import consolidator.repositories.{ ConsolidatorJobDataRepository, CorrelationId, NotificationStatus, SdesReportData, SdesReportsPageData, SdesSubmission, SdesSubmissionRepository }
 import org.mongodb.scala.model.Filters
 import org.mongodb.scala.model.Filters.{ equal, exists }
-import org.mongodb.scala.result.DeleteResult
 import org.slf4j.{ Logger, LoggerFactory }
 import uk.gov.hmrc.objectstore.client.ObjectSummaryWithMd5
 
@@ -112,9 +111,23 @@ class SdesService @Inject() (
       _ <- sdesSubmissionRepository.upsert(sdesSubmission)
     } yield ()
 
-  def deleteSdesSubmission(correlationId: CorrelationId): Future[DeleteResult] =
-    sdesSubmissionRepository
-      .delete(correlationId.value)
+  def updateAsManualConfirmed(correlationId: CorrelationId): Future[Unit] =
+    for {
+      sdesSubmission <-
+        sdesSubmissionRepository
+          .find(correlationId.value)
+          .map(_.getOrElse(throw new NoSuchElementException(s"$correlationId not found in mongo collection")))
+      _ <-
+        save(
+          sdesSubmission.copy(
+            status = NotificationStatus.FileProcessedManualConfirmed,
+            lastUpdated = Some(Instant.now),
+            isProcessed = true,
+            confirmedAt = Some(Instant.now)
+          )
+        ).as(logger.info(show"SdesService.updateAsManualConfirmed(${correlationId.value}) - updated manually)"))
+
+    } yield ()
 
   def search(
     page: Int,

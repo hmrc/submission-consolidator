@@ -94,31 +94,37 @@ object SdesSubmission {
 sealed trait NotificationStatus extends Product with Serializable
 
 object NotificationStatus {
+  case object FileReady
+      extends NotificationStatus //Indicates that the file specified in the notification is available to download from SDES
 
-  case object FileReady extends NotificationStatus
+  case object FileReceived extends NotificationStatus //Indicates that the specified has been stored in SDES
 
-  case object FileReceived extends NotificationStatus
+  case object FileProcessingFailure extends NotificationStatus //The file specified has failed processing
 
-  case object FileProcessingFailure extends NotificationStatus
+  case object FileProcessed
+      extends NotificationStatus //The file has passed all integrity checks and have been delivered to the recipient system in HMRC
 
-  case object FileProcessed extends NotificationStatus
+  case object FileProcessedManualConfirmed
+      extends NotificationStatus //The file has confirmed manually by an administrator
 
   implicit val catsEq: Eq[NotificationStatus] = Eq.fromUniversalEquals
 
   implicit val format: Format[NotificationStatus] = new Format[NotificationStatus] {
     override def writes(o: NotificationStatus): JsValue = o match {
-      case FileReady             => JsString("FileReady")
-      case FileReceived          => JsString("FileReceived")
-      case FileProcessingFailure => JsString("FileProcessingFailure")
-      case FileProcessed         => JsString("FileProcessed")
+      case FileReady                    => JsString("FileReady")
+      case FileReceived                 => JsString("FileReceived")
+      case FileProcessingFailure        => JsString("FileProcessingFailure")
+      case FileProcessed                => JsString("FileProcessed")
+      case FileProcessedManualConfirmed => JsString("FileProcessedManualConfirmed")
     }
 
     override def reads(json: JsValue): JsResult[NotificationStatus] =
       json match {
-        case JsString("FileReady")             => JsSuccess(FileReady)
-        case JsString("FileReceived")          => JsSuccess(FileReceived)
-        case JsString("FileProcessingFailure") => JsSuccess(FileProcessingFailure)
-        case JsString("FileProcessed")         => JsSuccess(FileProcessed)
+        case JsString("FileReady")                    => JsSuccess(FileReady)
+        case JsString("FileReceived")                 => JsSuccess(FileReceived)
+        case JsString("FileProcessingFailure")        => JsSuccess(FileProcessingFailure)
+        case JsString("FileProcessed")                => JsSuccess(FileProcessed)
+        case JsString("FileProcessedManualConfirmed") => JsSuccess(FileProcessedManualConfirmed)
         case JsString(err) =>
           JsError(s"only for valid FileReady, FileReceived, FileProcessingFailure or FileProcessed.$err is not allowed")
         case _ => JsError("Failure")
@@ -126,10 +132,11 @@ object NotificationStatus {
   }
 
   def fromName(notificationStatus: NotificationStatus): String = notificationStatus match {
-    case FileReady             => "FileReady"
-    case FileReceived          => "FileReceived"
-    case FileProcessingFailure => "FileProcessingFailure"
-    case FileProcessed         => "FileProcessed"
+    case FileReady                    => "FileReady"
+    case FileReceived                 => "FileReceived"
+    case FileProcessingFailure        => "FileProcessingFailure"
+    case FileProcessed                => "FileProcessed"
+    case FileProcessedManualConfirmed => "FileProcessedManualConfirmed"
   }
 
 }

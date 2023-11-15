@@ -6,4 +6,4 @@ POST    /sdes/callback                                        consolidator.contr
 GET     /sdes/search/:page/:pageSize                          consolidator.controllers.SdesController.search(page: Int, pageSize: Int, processed: Option[Boolean], status: Option[NotificationStatus], showBeforeAt: Option[Boolean])
 GET     /sdes/:correlationId                                  consolidator.controllers.SdesController.find(correlationId: CorrelationId)
 POST    /sdes/notify/:correlationId                           consolidator.controllers.SdesController.notifySDES(correlationId: CorrelationId)
-DELETE  /sdes/:correlationId                                  consolidator.controllers.SdesController.remove(correlationId: CorrelationId)
+PUT     /sdes/:correlationId                                  consolidator.controllers.SdesController.updateAsManualConfirmed(correlationId: CorrelationId)
