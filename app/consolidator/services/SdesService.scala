@@ -53,13 +53,17 @@ class SdesService @Inject() (
   ): Future[Either[Exception, Unit]] = {
     val sdesSubmission = SdesSubmission.createSdesSubmission(envelopeId, submissionRef, objWithSummary.contentLength)
     val notifyRequest = createNotifyRequest(objWithSummary, sdesSubmission._id)
-    for {
-      res <- sdesConnector.notifySDES(notifyRequest).recoverWith { case e =>
-               logger.error("Failed to notify SDES for file-ready: ", e)
-               Future.failed(e)
-             }
-      _ <- sdesSubmissionRepository.upsert(sdesSubmission)
-    } yield res
+    sdesConnector
+      .notifySDES(notifyRequest)
+      .flatMap(
+        _.fold(
+          e => {
+            logger.error("Failed to notify SDES for file-ready: ", e)
+            Future.failed(e)
+          },
+          _ => save(sdesSubmission).map(_ => Right(()))
+        )
+      )
   }
 
   def find(correlationId: CorrelationId): Future[Option[SdesSubmission]] =

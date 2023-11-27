@@ -16,6 +16,7 @@
 
 package consolidator.services
 
+import com.mongodb.client.result.DeleteResult
 import consolidator.connectors.{ ObjectStoreConnector, SdesConnector }
 import consolidator.proxies.{ SdesConfig, SdesNotifyRequest }
 import consolidator.repositories.{ ConsolidatorJobDataRepository, SdesSubmission, SdesSubmissionRepository }
@@ -59,6 +60,7 @@ class SdesServiceSpec
     "notify SDES and insert the submission data" in new TestFixture {
 
       mockSdesConnector.notifySDES(*[SdesNotifyRequest]) shouldReturn Future.successful(Right(()))
+      mockSdesSubmissionRepository.delete(*) shouldReturn Future.successful(DeleteResult.acknowledged(1))
       mockSdesSubmissionRepository.upsert(*[SdesSubmission]) shouldReturn Future.successful(Right(()))
       mockSdesConfig.informationType shouldReturn "informationType"
       mockSdesConfig.fileLocationUrl shouldReturn "/url"
