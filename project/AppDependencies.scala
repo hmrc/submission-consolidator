@@ -16,7 +16,7 @@ object AppDependencies {
     "org.apache.poi"              % "poi-ooxml"                   % "5.2.3",
     "org.julienrf"               %% "play-json-derived-codecs"    % "10.0.2",
     "com.chuusai"                %% "shapeless"                   % "2.3.3",
-    "uk.gov.hmrc.objectstore"    %% "object-store-client-play-28" % "1.0.0",
+    "uk.gov.hmrc.objectstore"    %% "object-store-client-play-28" % "1.4.0",
   )
 
   val test = Seq(
@@ -28,7 +28,7 @@ object AppDependencies {
     "com.typesafe.play"      %% "play-test"                 % current           % Test,
     "org.mockito"            %% "mockito-scala"             % "1.16.42"         % Test,
     "org.mockito"            %% "mockito-scala-scalatest"   % "1.16.23"         % Test,
-    "com.typesafe.akka"      %% "akka-testkit"              % "2.6.20"          % Test,
+    "com.typesafe.akka"      %% "akka-testkit"              % "2.6.21"          % Test,
     "com.softwaremill.diffx" %% "diffx-scalatest"           % "0.5.6"           % Test,
     "com.vladsch.flexmark"    % "flexmark-all"              % "0.35.10"         % "test, it",
     "org.scalatestplus.play" %% "scalatestplus-play"        % "5.1.0"           % "test, it",
