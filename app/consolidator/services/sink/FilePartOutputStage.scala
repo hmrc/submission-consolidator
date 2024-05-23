@@ -18,8 +18,8 @@ package consolidator.services.sink
 
 import java.io.File
 
-import akka.stream.stage.{ GraphStageLogic, GraphStageWithMaterializedValue, InHandler }
-import akka.stream.{ AbruptStageTerminationException, Attributes, Inlet, SinkShape }
+import org.apache.pekko.stream.stage.{ GraphStageLogic, GraphStageWithMaterializedValue, InHandler }
+import org.apache.pekko.stream.{ AbruptStageTerminationException, Attributes, Inlet, SinkShape }
 import consolidator.services.sink.FilePartOutputStage.{ FilePartOutputStageResult, IOOperationIncompleteException }
 
 import scala.concurrent.{ Future, Promise }

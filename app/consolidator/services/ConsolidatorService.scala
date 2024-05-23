@@ -19,8 +19,8 @@ package consolidator.services
 import java.io.File
 import java.nio.file.Path
 import java.time.Instant
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.Sink
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.scaladsl.Sink
 import cats.effect.{ ContextShift, IO }
 import collector.repositories.{ Form, FormRepository }
 import common.Time

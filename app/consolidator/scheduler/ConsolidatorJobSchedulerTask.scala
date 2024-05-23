@@ -16,7 +16,7 @@
 
 package consolidator.scheduler
 
-import akka.actor.{ ActorSystem, Props }
+import org.apache.pekko.actor.{ ActorSystem, Props }
 import common.MetricsClient
 import consolidator.FormConsolidatorActor
 import consolidator.repositories.ConsolidatorJobDataRepository

@@ -16,12 +16,12 @@
 
 package consolidator
 
-import akka.actor.{ Actor, Props }
+import org.apache.pekko.actor.{ Actor, Props }
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.implicits._
 import com.codahale.metrics.MetricRegistry.name
-import com.typesafe.akka.extension.quartz.MessageWithFireTime
+import org.apache.pekko.extension.quartz.MessageWithFireTime
 import common.MetricsClient
 import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }

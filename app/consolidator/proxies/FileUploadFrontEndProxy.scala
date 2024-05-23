@@ -18,7 +18,7 @@ package consolidator.proxies
 
 import java.io.File
 
-import akka.util.ByteString
+import org.apache.pekko.util.ByteString
 import common.{ ContentType, WSHttpClient }
 import javax.inject.{ Inject, Singleton }
 import org.slf4j.{ Logger, LoggerFactory }

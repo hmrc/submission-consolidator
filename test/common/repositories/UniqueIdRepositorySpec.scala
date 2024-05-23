@@ -32,8 +32,8 @@ class UniqueIdRepositorySpec
     extends AnyWordSpec with Matchers with BeforeAndAfterAll with BeforeAndAfterEach with ScalaFutures
     with DefaultPlayMongoRepositorySupport[UniqueId] {
 
-  override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
-  override protected def repository: UniqueIdRepository = new UniqueIdRepository(mongoComponent)
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
+  override protected val repository: UniqueIdRepository = new UniqueIdRepository(mongoComponent)
 
   override def beforeEach(): Unit =
     repository.collection.deleteMany(Document()).toFuture()

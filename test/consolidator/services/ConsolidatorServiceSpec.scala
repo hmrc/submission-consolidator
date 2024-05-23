@@ -16,8 +16,8 @@
 
 package consolidator.services
 
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.Source
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.scaladsl.Source
 import collector.repositories.{ DataGenerators, Form, FormField, FormRepository }
 import common.Time
 import consolidator.TestHelper.excelFileRows
@@ -27,6 +27,7 @@ import consolidator.services.ConsolidationFormat.ConsolidationFormat
 import consolidator.services.sink.{ FormCSVFilePartWriter, FormJsonLineFilePartWriter }
 import org.bson.types.ObjectId
 import org.mockito.ArgumentMatchersSugar
+import org.mockito.quality.Strictness
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
@@ -46,13 +47,13 @@ class ConsolidatorServiceSpec
     extends AnyWordSpec with Matchers with BeforeAndAfterAll with IdiomaticMockito with ArgumentMatchersSugar
     with DataGenerators with ScalaFutures {
 
-  override implicit val patienceConfig = PatienceConfig(Span(15, Seconds), Span(1, Millis))
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(15, Seconds), Span(1, Millis))
   implicit val actorSystem: ActorSystem = ActorSystem("ConsolidatorServiceSpec")
 
   trait TestFixture {
-    val mockFormRepository: FormRepository = mock[FormRepository](withSettings.lenient())
+    val mockFormRepository: FormRepository = mock[FormRepository](withSettings.strictness(Strictness.LENIENT))
     val mockConsolidatorJobDataRepository: ConsolidatorJobDataRepository =
-      mock[ConsolidatorJobDataRepository](withSettings.lenient())
+      mock[ConsolidatorJobDataRepository](withSettings.strictness(Strictness.LENIENT))
     lazy val _batchSize = 100
     lazy val _reportPerFileSizeInBytes: Long = 4 * 1024 * 1024
     lazy val reportDir: Path = Files.createDirectories(

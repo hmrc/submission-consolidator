@@ -16,7 +16,7 @@
 
 package collector.repositories
 
-import akka.stream.scaladsl.Source
+import org.apache.pekko.stream.scaladsl.Source
 import org.bson.types.ObjectId
 import org.mongodb.scala.bson.BsonValue
 import org.mongodb.scala.model.Aggregates.{ group, sort, unwind }
@@ -54,6 +54,12 @@ class FormRepository @Inject() (mongo: MongoComponent, config: Configuration)(im
         )
       )
     ) {
+//  override lazy val requiresTtlIndex: Boolean = false
+  println("FOO " + initialised)
+  println("BAR " + this.mongo.database.name)
+
+  println(config.get[Long]("mongodb.timeToLiveInSeconds"))
+
   val logger: Logger = LoggerFactory.getLogger(getClass)
 
   def addForm(

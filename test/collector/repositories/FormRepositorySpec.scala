@@ -16,11 +16,15 @@
 
 package collector.repositories
 
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.Sink
 import com.softwaremill.diffx.scalatest.DiffMatcher
+import com.typesafe.config.ConfigFactory
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.scaladsl.Sink
 import org.bson.types.ObjectId
-import org.mockito.MockitoSugar.mock
+import play.api.test.Helpers.{ await, defaultAwaitTimeout }
+
+//import org.mockito.Mockito.when
+//import org.mockito.MockitoSugar.mock
 import org.mongodb.scala.model.Filters
 import org.scalacheck.Gen
 import org.scalacheck.rng.Seed
@@ -44,10 +48,18 @@ class FormRepositorySpec
     with DefaultPlayMongoRepositorySupport[Form] with BeforeAndAfterAll with ScalaFutures with BeforeAndAfterEach
     with DiffMatcher {
 
-  override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
-  implicit val system = ActorSystem("FormRepositorySpec")
-  private lazy val config: Configuration = mock[Configuration]
-  override protected def repository: FormRepository = new FormRepository(mongoComponent, config)
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
+  implicit val system: ActorSystem = ActorSystem("FormRepositorySpec")
+//  private lazy val config: Configuration = mock[Configuration]
+  val config =
+    Configuration(
+      ConfigFactory
+        .parseString("""
+                       | mongodb.timeToLiveInSeconds = 15552000
+                       |""".stripMargin)
+    )
+
+  override protected val repository: FormRepository = new FormRepository(mongoComponent, config)
   override def beforeEach(): Unit =
     repository.collection.drop().toFuture().futureValue
 
@@ -83,10 +95,14 @@ class FormRepositorySpec
 
     "return an DuplicateSubmissionRef error if submissionRef already exists in the forms collection" in {
       val form = genForm.pureApply(Gen.Parameters.default, Seed(1))
-      assert(repository.addForm(form).futureValue.isRight)
+      val value1 = await(repository.addForm(form))
+      assert(value1.isRight)
 
       val duplicateForm = genForm.pureApply(Gen.Parameters.default, Seed(2)).copy(submissionRef = form.submissionRef)
       val future = repository.addForm(duplicateForm)
+
+      println("form " + form)
+      println("duplicateForm " + duplicateForm)
 
       whenReady(future) { addFormResult =>
         addFormResult shouldBe Left(DuplicateSubmissionRef(form.submissionRef, "submissionRef must be unique"))

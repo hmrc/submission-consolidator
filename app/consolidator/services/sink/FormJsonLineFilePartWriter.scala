@@ -19,7 +19,7 @@ package consolidator.services.sink
 import java.nio.file.Path
 import java.time.Instant
 
-import akka.util.ByteString
+import org.apache.pekko.util.ByteString
 import collector.repositories.Form.DATE_TIME_FORMATTER
 import collector.repositories.{ Form, FormField }
 import play.api.libs.json.{ JsString, Writes, __ }

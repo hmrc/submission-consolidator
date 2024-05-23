@@ -18,9 +18,9 @@ package consolidator.scheduler
 
 import java.util.Date
 
-import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
-import akka.testkit.{ ImplicitSender, TestKit, TestProbe }
-import com.typesafe.akka.extension.quartz.MessageWithFireTime
+import org.apache.pekko.actor.{ Actor, ActorRef, ActorSystem, Props }
+import org.apache.pekko.testkit.{ ImplicitSender, TestKit, TestProbe }
+import org.apache.pekko.extension.quartz.MessageWithFireTime
 import com.typesafe.config.ConfigFactory
 import consolidator.services.{ ConsolidationFormat, ScheduledFormConsolidatorParams }
 import org.mockito.scalatest.IdiomaticMockito

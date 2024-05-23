@@ -42,7 +42,8 @@ case class Form(
 
 object Form {
 
-  val DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneId.of("UTC"))
+  val DATE_TIME_FORMATTER: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneId.of("UTC"))
 
   implicit val format: OFormat[Form] = {
     implicit val instantFormat: Format[Instant] = MongoJavatimeFormats.instantFormat

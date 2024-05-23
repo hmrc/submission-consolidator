@@ -16,7 +16,7 @@
 
 package consolidator.services
 
-import akka.util.ByteString
+import org.apache.pekko.util.ByteString
 import common.UniqueReferenceGenerator.UniqueRef
 import common.{ ContentType, Time, UniqueReferenceGenerator }
 import consolidator.TestHelper.{ createFileInDir, createTmpDir }
@@ -25,6 +25,7 @@ import consolidator.scheduler.{ FileUpload, UntilTime }
 import consolidator.services.FileUploadService.FileIds
 import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
 import org.mockito.ArgumentMatchersSugar
+import org.mockito.quality.Strictness
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -53,9 +54,9 @@ class FileUploadServiceSpec
       FileUpload("some-classification", "some-business-area"),
       UntilTime.now
     )
-    val mockFileUploadProxy = mock[FileUploadProxy](withSettings.lenient())
-    val mockFileUploadFrontendProxy = mock[FileUploadFrontEndProxy](withSettings.lenient())
-    val mockUniqueReferenceGenerator = mock[UniqueReferenceGenerator](withSettings.lenient())
+    val mockFileUploadProxy = mock[FileUploadProxy](withSettings.strictness(Strictness.LENIENT))
+    val mockFileUploadFrontendProxy = mock[FileUploadFrontEndProxy](withSettings.strictness(Strictness.LENIENT))
+    val mockUniqueReferenceGenerator = mock[UniqueReferenceGenerator](withSettings.strictness(Strictness.LENIENT))
 
     val expectedEnvelopedId = "some-envelope-id"
     val someSubmissionRef = "some-unique-id"

@@ -33,7 +33,7 @@ import scala.concurrent.Future
 class UniqueReferenceGeneratorSpec
     extends AnyWordSpec with Matchers with IdiomaticMockito with ArgumentMatchersSugar with ScalaFutures {
 
-  override implicit val patienceConfig = PatienceConfig(Span(5, Seconds), Span(1, Millis))
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(5, Seconds), Span(1, Millis))
 
   trait TestFixture {
     val uniqueIdRepository = mock[UniqueIdRepository]

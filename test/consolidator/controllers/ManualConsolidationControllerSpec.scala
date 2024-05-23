@@ -16,10 +16,10 @@
 
 package consolidator.controllers
 
-import akka.actor.{ Actor, ActorSystem, Props }
-import akka.http.scaladsl.model.StatusCodes
-import akka.testkit.{ ImplicitSender, TestKit }
-import com.typesafe.akka.`extension`.quartz.MessageWithFireTime
+import org.apache.pekko.actor.{ Actor, ActorSystem, Props }
+import org.apache.pekko.http.scaladsl.model.StatusCodes
+import org.apache.pekko.testkit.{ ImplicitSender, TestKit }
+import org.apache.pekko.`extension`.quartz.MessageWithFireTime
 import com.typesafe.config.ConfigFactory
 import consolidator.FormConsolidatorActor.OK
 import org.mockito.ArgumentMatchersSugar
@@ -37,7 +37,7 @@ class ManualConsolidationControllerSpec
     extends TestKit(ActorSystem("ConsolidationControllerSpec")) with AnyWordSpecLike with Matchers
     with BeforeAndAfterAll with IdiomaticMockito with ArgumentMatchersSugar with ImplicitSender with ScalaFutures {
 
-  override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
 
   val config =
     Configuration(ConfigFactory.parseString("""

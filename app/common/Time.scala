@@ -23,7 +23,7 @@ trait Time[T] {
 }
 
 object Time {
-  implicit val instantTime = new Time[Instant] {
+  implicit val instantTime: Time[Instant] = new Time[Instant] {
     override def now(): Instant = Instant.now()
   }
 }

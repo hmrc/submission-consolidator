@@ -16,8 +16,8 @@
 
 package consolidator
 
-import akka.actor.{ ActorSystem, ClassicActorSystemProvider }
-import akka.stream.{ Materializer, SystemMaterializer }
+import org.apache.pekko.actor.{ ActorSystem, ClassicActorSystemProvider }
+import org.apache.pekko.stream.{ Materializer, SystemMaterializer }
 import collector.repositories.FormRepository
 import collector.{ APIFormStubs, ITSpec }
 import com.github.tomakehurst.wiremock.client.WireMock._

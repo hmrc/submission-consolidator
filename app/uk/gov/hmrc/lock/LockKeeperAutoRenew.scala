@@ -39,7 +39,7 @@ trait LockKeeperAutoRenew {
     repo
       .takeLock(id, owner, duration)
       .flatMap {
-        case true =>
+        case Some(_) =>
           val renewalScheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
           val period = duration.toMillis - 3000
           if (period > 0) {
@@ -47,6 +47,7 @@ trait LockKeeperAutoRenew {
               () => {
                 repo.refreshExpiry(id, owner, duration).recover { case e =>
                   logger.warn("Failed to renew lock via renewal renewalTimer", e)
+                  false
                 }
                 ()
               },
@@ -70,7 +71,7 @@ trait LockKeeperAutoRenew {
                 }
               }
           }
-        case false =>
+        case None =>
           Future.successful(None)
       }
   }

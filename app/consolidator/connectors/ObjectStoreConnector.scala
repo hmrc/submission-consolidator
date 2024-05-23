@@ -30,8 +30,8 @@ import scala.concurrent.{ ExecutionContext, Future }
 import uk.gov.hmrc.objectstore.client.Path
 import uk.gov.hmrc.objectstore.client.play.Implicits._
 import uk.gov.hmrc.objectstore.client.play._
-import akka.actor.ActorSystem
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.util.ByteString
 
 @Singleton()
 class ObjectStoreConnector @Inject() (
@@ -48,7 +48,7 @@ class ObjectStoreConnector @Inject() (
   private def directory(folderName: String): Path.Directory =
     Path.Directory(s"envelopes/$folderName")
 
-  implicit val hc = HeaderCarrier()
+  implicit val hc: HeaderCarrier = HeaderCarrier()
 
   def upload(
     envelopeId: String,

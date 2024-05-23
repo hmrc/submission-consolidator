@@ -16,8 +16,8 @@
 
 package collector.controllers
 
-import akka.actor.{ ActorSystem, ClassicActorSystemProvider }
-import akka.stream.{ Materializer, SystemMaterializer }
+import org.apache.pekko.actor.{ ActorSystem, ClassicActorSystemProvider }
+import org.apache.pekko.stream.{ Materializer, SystemMaterializer }
 import org.mockito.captor.ArgCaptor
 import org.mockito.{ ArgumentMatchersSugar, IdiomaticMockito }
 import org.scalatest.concurrent.ScalaFutures
@@ -39,7 +39,7 @@ class FormControllerSpec
     extends AnyWordSpec with IdiomaticMockito with ArgumentMatchersSugar with ScalaFutures with Matchers
     with TableDrivenPropertyChecks {
 
-  implicit val sys = ActorSystem("FormControllerSpec")
+  implicit val sys: ActorSystem = ActorSystem("FormControllerSpec")
   implicit def matFromSystem(implicit provider: ClassicActorSystemProvider): Materializer =
     SystemMaterializer(provider.classicSystem).materializer
 

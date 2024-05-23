@@ -1,8 +1,9 @@
-import uk.gov.hmrc.DefaultBuildSettings.integrationTestSettings
-
 val appName = "submission-consolidator"
 
 lazy val IntegrationTest = config("it") extend (Test)
+
+ThisBuild / majorVersion := 1
+ThisBuild / scalaVersion := "2.13.12"
 
 lazy val microservice = Project(appName, file("."))
   .enablePlugins(
@@ -13,7 +14,6 @@ lazy val microservice = Project(appName, file("."))
     organization := "uk.gov.hmrc",
     majorVersion := 0,
     PlayKeys.playDefaultPort := 9198,
-    scalaVersion := "2.13.8",
     scalafmtOnCompile := true,
     libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test,
     scalacOptions ++= Seq(
@@ -36,5 +36,4 @@ lazy val microservice = Project(appName, file("."))
     )
   )
   .configs(IntegrationTest)
-  .settings(integrationTestSettings() *)
   .settings(resolvers += Resolver.jcenterRepo)

@@ -16,7 +16,7 @@
 
 package consolidator.services
 
-import akka.util.ByteString
+import org.apache.pekko.util.ByteString
 import cats.data.NonEmptyList
 import cats.data.NonEmptyList.fromListUnsafe
 import cats.effect.{ ContextShift, IO }

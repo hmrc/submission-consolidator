@@ -21,9 +21,9 @@ import java.nio.channels.FileChannel
 import java.nio.file.StandardOpenOption.{ CREATE_NEW, SYNC, TRUNCATE_EXISTING, WRITE }
 import java.nio.file.{ Path, Paths }
 
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.{ Sink, Source }
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.scaladsl.{ Sink, Source }
+import org.apache.pekko.util.ByteString
 import collector.repositories.DataGenerators
 import com.softwaremill.diffx.scalatest.DiffMatcher
 import consolidator.TestHelper._
@@ -42,7 +42,7 @@ class FilePartOutputStageSpec
     extends AnyWordSpec with DataGenerators with ScalaFutures with Matchers with DiffMatcher with ArgumentMatchersSugar
     with IdiomaticMockito {
 
-  override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
 
   implicit val system: ActorSystem = ActorSystem("FilePartOutputStageSpec")
 
