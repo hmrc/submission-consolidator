@@ -19,6 +19,7 @@ package common
 import java.util.concurrent.TimeUnit
 
 import com.codahale.metrics.{ Meter, MetricRegistry, Timer }
+import uk.gov.hmrc.play.bootstrap.metrics.Metrics
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.funspec.AnyFunSpec
@@ -28,7 +29,7 @@ import scala.concurrent.duration._
 class MetricsClientTest extends AnyFunSpec with IdiomaticMockito with ArgumentMatchersSugar {
 
   trait TestFixture {
-    val metrics = mock[MetricRegistry]
+    val metrics = mock[Metrics]
     val mockMetricRegistry = mock[MetricRegistry]
     val mockTimer = mock[Timer]
     val mockMeter = mock[Meter]
@@ -37,7 +38,7 @@ class MetricsClientTest extends AnyFunSpec with IdiomaticMockito with ArgumentMa
 
     val metricName = "some-metric"
 
-    metrics shouldReturn mockMetricRegistry
+    metrics.defaultRegistry shouldReturn mockMetricRegistry
   }
 
   describe("recordDuration") {
@@ -47,7 +48,7 @@ class MetricsClientTest extends AnyFunSpec with IdiomaticMockito with ArgumentMa
 
         metricsClient.recordDuration(metricName, 1.seconds)
 
-        metrics wasCalled once
+        metrics.defaultRegistry wasCalled once
         mockMetricRegistry.timer(metricName) wasCalled once
         mockTimer.update(1.seconds.toMillis, TimeUnit.MILLISECONDS) wasCalled once
       }
@@ -62,7 +63,7 @@ class MetricsClientTest extends AnyFunSpec with IdiomaticMockito with ArgumentMa
 
         metricsClient.markMeter(metricName)
 
-        metrics wasCalled once
+        metrics.defaultRegistry wasCalled once
         mockMetricRegistry.meter(metricName) wasCalled once
         mockMeter.mark() wasCalled once
       }
@@ -77,7 +78,7 @@ class MetricsClientTest extends AnyFunSpec with IdiomaticMockito with ArgumentMa
 
         metricsClient.markMeter(metricName, 1)
 
-        metrics wasCalled once
+        metrics.defaultRegistry wasCalled once
         mockMetricRegistry.meter(metricName) wasCalled once
         mockMeter.mark(1) wasCalled once
       }

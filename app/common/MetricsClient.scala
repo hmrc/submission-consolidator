@@ -18,22 +18,22 @@ package common
 
 import java.util.concurrent.TimeUnit
 
-import com.codahale.metrics.MetricRegistry
+import uk.gov.hmrc.play.bootstrap.metrics.Metrics
 import javax.inject.{ Inject, Singleton }
 
 import scala.concurrent.duration.Duration
 
 @Singleton
-class MetricsClient @Inject() (metrics: MetricRegistry) {
+class MetricsClient @Inject() (metrics: Metrics) {
 
   def recordDuration(name: String, duration: Duration): Unit =
-    metrics
+    metrics.defaultRegistry
       .timer(name)
       .update(duration.toMillis, TimeUnit.MILLISECONDS)
 
   def markMeter(name: String): Unit =
-    metrics.meter(name).mark()
+    metrics.defaultRegistry.meter(name).mark()
 
   def markMeter(name: String, eventCount: Int): Unit =
-    metrics.meter(name).mark(eventCount.toLong)
+    metrics.defaultRegistry.meter(name).mark(eventCount.toLong)
 }

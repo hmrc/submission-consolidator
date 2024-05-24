@@ -84,7 +84,6 @@ class FormRepositorySpec
     }
 
     "return an DuplicateSubmissionRef error if submissionRef already exists in the forms collection" in {
-//      ensureIndexes()
       val form = genForm.pureApply(Gen.Parameters.default, Seed(1))
       val value1 = await(repository.addForm(form))
       assert(value1.isRight)
