@@ -17,7 +17,6 @@
 package consolidator.repositories
 
 import collector.repositories.DataGenerators
-import org.mongodb.scala.Document
 import org.mongodb.scala.model.Filters
 import org.scalacheck.Gen
 import org.scalacheck.rng.Seed
@@ -41,7 +40,7 @@ class ConsolidatorJobDataRepositorySpec
   val repository: ConsolidatorJobDataRepository = new ConsolidatorJobDataRepository(mongoComponent)
 
   override def beforeEach(): Unit =
-    repository.collection.deleteMany(Document()).toFuture().futureValue
+    prepareDatabase()
 
   "add" should {
     "persist consolidator job data with last object id" in {

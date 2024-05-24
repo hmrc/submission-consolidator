@@ -54,11 +54,6 @@ class FormRepository @Inject() (mongo: MongoComponent, config: Configuration)(im
         )
       )
     ) {
-//  override lazy val requiresTtlIndex: Boolean = false
-  println("FOO " + initialised)
-  println("BAR " + this.mongo.database.name)
-
-  println(config.get[Long]("mongodb.timeToLiveInSeconds"))
 
   val logger: Logger = LoggerFactory.getLogger(getClass)
 
