@@ -18,7 +18,7 @@ package consolidator.services.sink
 
 import java.nio.file.Path
 
-import akka.util.ByteString
+import org.apache.pekko.util.ByteString
 import collector.repositories.Form
 import org.apache.commons.text.StringEscapeUtils
 

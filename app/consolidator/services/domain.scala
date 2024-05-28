@@ -16,9 +16,9 @@
 
 package consolidator.services
 
-import akka.NotUsed
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
+import org.apache.pekko.NotUsed
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.util.ByteString
 import consolidator.scheduler.UntilTime.UntilTime
 import consolidator.scheduler.{ Destination, UntilTime }
 import consolidator.services.ConsolidationFormat.ConsolidationFormat
@@ -76,7 +76,7 @@ trait UniqueIdGenerator {
 }
 
 object UniqueIdGenerator {
-  implicit val uuidStringGenerator = new UniqueIdGenerator {
+  implicit val uuidStringGenerator: UniqueIdGenerator = new UniqueIdGenerator {
     override def generate: String = UUID.randomUUID().toString
   }
 }

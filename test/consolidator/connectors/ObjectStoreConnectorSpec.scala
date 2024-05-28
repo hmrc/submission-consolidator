@@ -16,12 +16,13 @@
 
 package consolidator.connectors
 
-import akka.actor.ActorSystem
-import akka.testkit.{ ImplicitSender, TestKit }
-import akka.util.ByteString
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.testkit.{ ImplicitSender, TestKit }
+import org.apache.pekko.util.ByteString
 import common.ContentType
 import consolidator.proxies.SdesConfig
 import org.mockito.ArgumentMatchersSugar
+import org.mockito.quality.Strictness
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
@@ -40,14 +41,14 @@ class ObjectStoreConnectorSpec
     with IdiomaticMockito with ArgumentMatchersSugar with ImplicitSender with ScalaFutures {
   trait TestFixture {
 
-    implicit val system = ActorSystem()
+    implicit val system: ActorSystem = ActorSystem()
     val baseUrl = s"baseUrl-${randomUUID().toString}"
     val owner = s"owner-${randomUUID().toString}"
     val token = s"token-${randomUUID().toString}"
     val config = ObjectStoreClientConfig(baseUrl, owner, token, OneWeek)
 
     val objectStoreStub = new stub.StubPlayObjectStoreClient(config)
-    val mockSdesConfig = mock[SdesConfig](withSettings.lenient())
+    val mockSdesConfig = mock[SdesConfig](withSettings.strictness(Strictness.LENIENT))
 
     val objectStoreConnector =
       new ObjectStoreConnector(objectStoreStub, Helpers.stubControllerComponents(), mockSdesConfig)

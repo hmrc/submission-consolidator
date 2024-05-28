@@ -16,8 +16,8 @@
 
 package consolidator.scheduler
 
-import akka.actor.{ ActorSystem, Props }
-import com.typesafe.akka.extension.quartz.{ MessageRequireFireTime, QuartzSchedulerExtension }
+import org.apache.pekko.actor.{ ActorSystem, Props }
+import org.apache.pekko.extension.quartz.{ MessageRequireFireTime, QuartzSchedulerExtension }
 import com.typesafe.config.ConfigRenderOptions
 import javax.inject.{ Inject, Singleton }
 import play.api.Configuration

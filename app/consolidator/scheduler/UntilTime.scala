@@ -16,11 +16,11 @@
 
 package consolidator.scheduler
 
-import play.api.libs.json.Json
+import play.api.libs.json.{ Format, Json }
 
 object UntilTime extends Enumeration {
   type UntilTime = Value
   val now, previous_day = Value
 
-  implicit val formats = Json.formatEnum(UntilTime)
+  implicit val formats: Format[UntilTime] = Json.formatEnum(UntilTime)
 }

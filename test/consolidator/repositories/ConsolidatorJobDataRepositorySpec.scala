@@ -17,7 +17,6 @@
 package consolidator.repositories
 
 import collector.repositories.DataGenerators
-import org.mongodb.scala.Document
 import org.mongodb.scala.model.Filters
 import org.scalacheck.Gen
 import org.scalacheck.rng.Seed
@@ -36,12 +35,12 @@ class ConsolidatorJobDataRepositorySpec
     extends AnyWordSpec with Matchers with DefaultPlayMongoRepositorySupport[ConsolidatorJobData] with BeforeAndAfterAll
     with BeforeAndAfterEach with ScalaFutures with DataGenerators with ScalaCheckDrivenPropertyChecks {
 
-  override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
 
-  var repository: ConsolidatorJobDataRepository = new ConsolidatorJobDataRepository(mongoComponent)
+  val repository: ConsolidatorJobDataRepository = new ConsolidatorJobDataRepository(mongoComponent)
 
   override def beforeEach(): Unit =
-    repository.collection.deleteMany(Document()).toFuture().futureValue
+    prepareDatabase()
 
   "add" should {
     "persist consolidator job data with last object id" in {

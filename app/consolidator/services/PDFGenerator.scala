@@ -20,7 +20,7 @@ import java.io.{ ByteArrayInputStream, ByteArrayOutputStream }
 import java.time.format.DateTimeFormatter
 import java.time.{ Instant, ZoneId }
 
-import akka.util.ByteString
+import org.apache.pekko.util.ByteString
 import javax.xml.parsers.DocumentBuilderFactory
 import org.xhtmlrenderer.resource.FSEntityResolver
 

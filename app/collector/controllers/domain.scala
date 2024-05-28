@@ -86,11 +86,11 @@ object APIForm {
 
 case class APIFieldError(path: String, message: String)
 object APIFieldError {
-  implicit val formats = Json.format[APIFieldError]
+  implicit val formats: OFormat[APIFieldError] = Json.format[APIFieldError]
 }
 case class APIError(code: String, message: String, fieldErrors: List[APIFieldError] = List.empty)
 object APIError {
-  implicit val formats = Json.format[APIError]
+  implicit val formats: OFormat[APIError] = Json.format[APIError]
 }
 
 case class RequestValidationError(

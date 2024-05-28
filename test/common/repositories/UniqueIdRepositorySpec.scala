@@ -18,7 +18,6 @@ package common.repositories
 
 import common.repositories.UniqueIdRepository.UniqueId
 import org.bson.types.ObjectId
-import org.mongodb.scala.Document
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{ Millis, Seconds, Span }
@@ -32,11 +31,11 @@ class UniqueIdRepositorySpec
     extends AnyWordSpec with Matchers with BeforeAndAfterAll with BeforeAndAfterEach with ScalaFutures
     with DefaultPlayMongoRepositorySupport[UniqueId] {
 
-  override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
-  override protected def repository: UniqueIdRepository = new UniqueIdRepository(mongoComponent)
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
+  override protected val repository: UniqueIdRepository = new UniqueIdRepository(mongoComponent)
 
   override def beforeEach(): Unit =
-    repository.collection.deleteMany(Document()).toFuture()
+    prepareDatabase()
 
   "insertWithRetries" when {
     "inserted value is unique" should {

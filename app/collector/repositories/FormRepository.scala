@@ -16,7 +16,7 @@
 
 package collector.repositories
 
-import akka.stream.scaladsl.Source
+import org.apache.pekko.stream.scaladsl.Source
 import org.bson.types.ObjectId
 import org.mongodb.scala.bson.BsonValue
 import org.mongodb.scala.model.Aggregates.{ group, sort, unwind }

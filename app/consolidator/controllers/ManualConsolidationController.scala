@@ -21,12 +21,12 @@ import java.time.{ LocalDate, ZoneId }
 import java.util.Date
 import java.util.concurrent.TimeUnit
 
-import akka.actor.ActorSystem
-import akka.pattern.ask
-import akka.util.Timeout
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.util.Timeout
 import collector.controllers.ErrorCode.{ CONSOLIDATOR_JOB_ALREADY_IN_PROGRESS, INVALID_CONSOLIDATOR_JOB_ID, MANUAL_CONSOLIDATION_FAILED }
 import collector.controllers.{ ErrorHandler, ManualConsolidationError }
-import com.typesafe.akka.`extension`.quartz.MessageWithFireTime
+import org.apache.pekko.`extension`.quartz.MessageWithFireTime
 import com.typesafe.config.ConfigRenderOptions
 import consolidator.FormConsolidatorActor
 import consolidator.scheduler.ConsolidatorJobConfig

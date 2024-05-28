@@ -36,8 +36,8 @@ import scala.concurrent.Future
 class FileUploadProxySpec
     extends AnyWordSpec with Matchers with IdiomaticMockito with ArgumentMatchersSugar with ScalaFutures {
 
-  override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
-  implicit lazy val hc = HeaderCarrier()
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
+  implicit lazy val hc: HeaderCarrier = HeaderCarrier()
 
   trait TestFixture {
     val mockWSHttpClient = mock[WSHttpClient]

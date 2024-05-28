@@ -16,7 +16,7 @@
 
 package consolidator.services
 
-import akka.util.ByteString
+import org.apache.pekko.util.ByteString
 import cats.data.NonEmptyList
 import cats.effect.IO
 import common.UniqueReferenceGenerator.UniqueRef
@@ -27,6 +27,7 @@ import consolidator.proxies.ObjectStoreConfig
 import consolidator.scheduler.{ FileUpload, UntilTime }
 import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
 import org.mockito.ArgumentMatchersSugar
+import org.mockito.quality.Strictness
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -59,16 +60,16 @@ class SubmissionServiceSpec
       FileUpload("some-classification", "some-business-area"),
       UntilTime.now
     )
-    val mockObjectStoreConnector = mock[ObjectStoreConnector](withSettings.lenient())
-    val mockUniqueReferenceGenerator = mock[UniqueReferenceGenerator](withSettings.lenient())
-    val mockSdesService = mock[SdesService](withSettings.lenient())
-    val mockFileUploadService = mock[FileUploadService](withSettings.lenient())
-    val objectStoreConfig = mock[ObjectStoreConfig](withSettings.lenient())
+    val mockObjectStoreConnector = mock[ObjectStoreConnector](withSettings.strictness(Strictness.LENIENT))
+    val mockUniqueReferenceGenerator = mock[UniqueReferenceGenerator](withSettings.strictness(Strictness.LENIENT))
+    val mockSdesService = mock[SdesService](withSettings.strictness(Strictness.LENIENT))
+    val mockFileUploadService = mock[FileUploadService](withSettings.strictness(Strictness.LENIENT))
+    val objectStoreConfig = mock[ObjectStoreConfig](withSettings.strictness(Strictness.LENIENT))
 
     val someSubmissionRef = "some-unique-id"
     val now = Instant.now()
     implicit val timeInstant: Time[Instant] = () => now
-    implicit val hc = new HeaderCarrier()
+    implicit val hc: HeaderCarrier = new HeaderCarrier()
     val objectSummary = ObjectSummaryWithMd5(File("test"), 10L, Md5Hash("md5"), Instant.now())
 
     mockUniqueReferenceGenerator.generate(*) shouldReturn Future.successful(Right(UniqueRef(someSubmissionRef)))

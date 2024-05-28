@@ -71,7 +71,7 @@ object CallBackNotification {
 
 case class Metadata(application: String)
 object Metadata {
-  implicit val formats = Json.format[Metadata]
+  implicit val formats: OFormat[Metadata] = Json.format[Metadata]
 }
 case class Constraints(
   maxItems: Int,
@@ -81,17 +81,17 @@ case class Constraints(
   allowZeroLengthFiles: Boolean
 )
 object Constraints {
-  implicit val formats = Json.format[Constraints]
+  implicit val formats: OFormat[Constraints] = Json.format[Constraints]
 }
 case class CreateEnvelopeRequest(metadata: Metadata, constraints: Constraints)
 
 object CreateEnvelopeRequest {
-  implicit val formats = Json.format[CreateEnvelopeRequest]
+  implicit val formats: OFormat[CreateEnvelopeRequest] = Json.format[CreateEnvelopeRequest]
 }
 
 case class RouteEnvelopeRequest(envelopeId: String, application: String, destination: String)
 object RouteEnvelopeRequest {
-  implicit val formats = Json.format[RouteEnvelopeRequest]
+  implicit val formats: OFormat[RouteEnvelopeRequest] = Json.format[RouteEnvelopeRequest]
 }
 
 abstract class FileUploadError(message: String) extends ApplicationError(message)

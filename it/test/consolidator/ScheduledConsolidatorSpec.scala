@@ -16,8 +16,8 @@
 
 package consolidator
 
-import akka.actor.{ ActorSystem, ClassicActorSystemProvider }
-import akka.stream.{ Materializer, SystemMaterializer }
+import org.apache.pekko.actor.{ ActorSystem, ClassicActorSystemProvider }
+import org.apache.pekko.stream.{ Materializer, SystemMaterializer }
 import collector.repositories.FormRepository
 import collector.{ APIFormStubs, ITSpec }
 import com.github.tomakehurst.wiremock.client.WireMock._
@@ -43,7 +43,7 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
 
   val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  override implicit val patienceConfig = PatienceConfig(Span(50, Seconds), Span(1, Millis))
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(50, Seconds), Span(1, Millis))
 
   override def beforeEach(): Unit =
     ready(app.injector.instanceOf[FormRepository].collection.deleteMany(Document()).toFuture(), 5.seconds)
@@ -102,7 +102,7 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
     val token = s"token-${randomUUID().toString}"
     val objectStoreConfig = ObjectStoreClientConfig(osBaseUrl, owner, token, OneWeek)
 
-    implicit val system = ActorSystem()
+    implicit val system: ActorSystem = ActorSystem()
 
     implicit def matFromSystem(implicit provider: ClassicActorSystemProvider): Materializer =
       SystemMaterializer(provider.classicSystem).materializer

@@ -16,11 +16,12 @@
 
 package collector.repositories
 
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.Sink
 import com.softwaremill.diffx.scalatest.DiffMatcher
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.scaladsl.Sink
 import org.bson.types.ObjectId
 import org.mockito.MockitoSugar.mock
+import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.model.Filters
 import org.scalacheck.Gen
 import org.scalacheck.rng.Seed
@@ -31,6 +32,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import play.api.Configuration
+import uk.gov.hmrc.mongo.MongoUtils
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 
 import java.time.Instant
@@ -44,12 +46,17 @@ class FormRepositorySpec
     with DefaultPlayMongoRepositorySupport[Form] with BeforeAndAfterAll with ScalaFutures with BeforeAndAfterEach
     with DiffMatcher {
 
-  override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
-  implicit val system = ActorSystem("FormRepositorySpec")
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
+  implicit val system: ActorSystem = ActorSystem("FormRepositorySpec")
   private lazy val config: Configuration = mock[Configuration]
-  override protected def repository: FormRepository = new FormRepository(mongoComponent, config)
+
+  val collection: MongoCollection[Form] = mongoComponent.database.getCollection(collectionName = "forms")
+  MongoUtils.ensureIndexes(collection, List(), replaceIndexes = true).futureValue
+
+  override protected val repository: FormRepository = new FormRepository(mongoComponent, config)
+
   override def beforeEach(): Unit =
-    repository.collection.drop().toFuture().futureValue
+    prepareDatabase()
 
   trait FormsTestFixture {
     val projectId = "some-project-id"

@@ -21,6 +21,7 @@ import consolidator.connectors.{ ObjectStoreConnector, SdesConnector }
 import consolidator.proxies.{ SdesConfig, SdesNotifyRequest }
 import consolidator.repositories.{ ConsolidatorJobDataRepository, SdesSubmission, SdesSubmissionRepository }
 import org.mockito.ArgumentMatchersSugar
+import org.mockito.quality.Strictness
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
@@ -36,15 +37,16 @@ class SdesServiceSpec
     extends AnyWordSpec with IdiomaticMockito with ArgumentMatchersSugar with Matchers with ScalaFutures {
 
   trait TestFixture {
-    val mockSdesConnector = mock[SdesConnector](withSettings.lenient())
-    val mockSdesConfig = mock[SdesConfig](withSettings.lenient())
-    val mockSdesSubmissionRepository = mock[SdesSubmissionRepository](withSettings.lenient())
-    val mockConsolidatorJobDataRepository = mock[ConsolidatorJobDataRepository](withSettings.lenient())
+    val mockSdesConnector = mock[SdesConnector](withSettings.strictness(Strictness.LENIENT))
+    val mockSdesConfig = mock[SdesConfig](withSettings.strictness(Strictness.LENIENT))
+    val mockSdesSubmissionRepository = mock[SdesSubmissionRepository](withSettings.strictness(Strictness.LENIENT))
+    val mockConsolidatorJobDataRepository =
+      mock[ConsolidatorJobDataRepository](withSettings.strictness(Strictness.LENIENT))
 
     val objectSummary = ObjectSummaryWithMd5(File("test.txt"), 10L, Md5Hash("md5"), Instant.now())
 
     val sdesSubmission = SdesSubmission.createSdesSubmission("envelope-id", "submission-ref", 10L)
-    val mockObjectStoreConnector = mock[ObjectStoreConnector](withSettings.lenient())
+    val mockObjectStoreConnector = mock[ObjectStoreConnector](withSettings.strictness(Strictness.LENIENT))
 
     val sdesService =
       new SdesService(

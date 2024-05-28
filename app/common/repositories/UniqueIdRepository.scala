@@ -38,6 +38,8 @@ class UniqueIdRepository @Inject() (mongo: MongoComponent)(implicit ec: Executio
       domainFormat = UniqueId.format,
       indexes = Seq(IndexModel(ascending("value"), IndexOptions().name("valueUniqueIdx").unique(true)))
     ) {
+  // This is necessary since repository does not have a TTL index
+  override lazy val requiresTtlIndex: Boolean = false
 
   val logger: Logger = LoggerFactory.getLogger(getClass)
 

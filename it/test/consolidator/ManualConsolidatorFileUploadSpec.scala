@@ -16,8 +16,6 @@
 
 package consolidator
 
-import akka.actor.{ ActorSystem, ClassicActorSystemProvider }
-import akka.stream.{ Materializer, SystemMaterializer }
 import collector.repositories.FormRepository
 import collector.{ APIFormStubs, ITSpec }
 import com.github.tomakehurst.wiremock.client.WireMock.{ configureFor, postRequestedFor, urlEqualTo, verify }
@@ -26,26 +24,19 @@ import org.mongodb.scala.bson.collection.immutable.Document
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{ Millis, Seconds, Span }
 import org.slf4j.{ Logger, LoggerFactory }
-import play.api.inject.bind
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.{ Application, Configuration }
-import uk.gov.hmrc.objectstore.client.RetentionPeriod.OneWeek
-import uk.gov.hmrc.objectstore.client.config.ObjectStoreClientConfig
-import uk.gov.hmrc.objectstore.client.play.PlayObjectStoreClient
-import uk.gov.hmrc.objectstore.client.play.test.stub
 
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.UUID.randomUUID
 import scala.concurrent.Await.ready
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class ManualConsolidatorSpec extends ITSpec with Eventually {
+class ManualConsolidatorFileUploadSpec extends ITSpec with Eventually {
 
   val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
 
   private val DATE_FORMAT = DateTimeFormatter.ISO_DATE
 
@@ -79,24 +70,19 @@ class ManualConsolidatorSpec extends ITSpec with Eventually {
                             |
                             |  services {
                             |
-                            |    object-store {
+                            |    file-upload {
                             |        host = localhost
                             |        port = $wiremockPort
                             |    }
                             |
-                            |    sdes {
-                            |      host = localhost
-                            |      port = $wiremockPort
-                            |      base-path = "/sdes-stub"
-                            |      api-key = "client-id"
-                            |      information-type = "1670499847785"
-                            |      recipient-or-sender = "477099564866"
-                            |      file-location-url = "http://localhost:8464/object-store/object/"
+                            |    file-upload-frontend {
+                            |        host = localhost
+                            |        port = $wiremockPort
                             |    }
                             |  }
                             | }
                             |
-                            | object-store.enable = true
+                            | object-store.enable = false
                             |""".stripMargin
     val config =
       Configuration(
@@ -105,25 +91,12 @@ class ManualConsolidatorSpec extends ITSpec with Eventually {
           .withFallback(baseConfig.underlying)
       )
 
-    val osBaseUrl = s"http://localhost:$wiremockPort/object-store"
-    val owner = "owner"
-    val token = s"token-${randomUUID().toString}"
-    val objectStoreConfig = ObjectStoreClientConfig(osBaseUrl, owner, token, OneWeek)
-
-    implicit val system = ActorSystem()
-
-    implicit def matFromSystem(implicit provider: ClassicActorSystemProvider): Materializer =
-      SystemMaterializer(provider.classicSystem).materializer
-
-    lazy val objectStoreStub = new stub.StubPlayObjectStoreClient(objectStoreConfig)
-
     GuiceApplicationBuilder()
       .configure(config)
-      .bindings(bind(classOf[PlayObjectStoreClient]).to(objectStoreStub))
       .build()
   }
 
-  "POST - /consolidate with object-store" when {
+  "POST - /consolidate with file-upload" when {
     "request is valid" should {
       "consolidate forms and submit" in {
         wiremockStubs()
@@ -141,8 +114,11 @@ class ManualConsolidatorSpec extends ITSpec with Eventually {
           .post(APIFormStubs.formEmptySubmissionRef)
 
         whenReady(future) { _ =>
-          verify(postRequestedFor(urlEqualTo("/sdes-stub/notification/fileready")))
-          verify(postRequestedFor(urlEqualTo("/object-store/object-store/ops/zip")))
+          verify(postRequestedFor(urlEqualTo("/file-upload/envelopes")))
+          verify(postRequestedFor(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/xmlDocument")))
+          verify(postRequestedFor(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/pdf")))
+          verify(postRequestedFor(urlEqualTo("/file-upload/upload/envelopes/some-envelope-id/files/report-0")))
+          verify(postRequestedFor(urlEqualTo("/file-routing/requests")))
         }
       }
     }

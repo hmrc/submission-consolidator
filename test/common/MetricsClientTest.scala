@@ -19,7 +19,7 @@ package common
 import java.util.concurrent.TimeUnit
 
 import com.codahale.metrics.{ Meter, MetricRegistry, Timer }
-import com.kenshoo.play.metrics.Metrics
+import uk.gov.hmrc.play.bootstrap.metrics.Metrics
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.scalatest.IdiomaticMockito
 import org.scalatest.funspec.AnyFunSpec

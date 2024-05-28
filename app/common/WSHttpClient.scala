@@ -17,10 +17,10 @@
 package common
 
 import java.io.File
-import akka.NotUsed
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.{ FileIO, Source }
-import akka.util.ByteString
+import org.apache.pekko.NotUsed
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.scaladsl.{ FileIO, Source }
+import org.apache.pekko.util.ByteString
 import com.typesafe.config.Config
 import play.api.Configuration
 
