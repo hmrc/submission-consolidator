@@ -36,7 +36,7 @@ class ManualConsolidatorFileUploadSpec extends ITSpec with Eventually {
 
   val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
 
   private val DATE_FORMAT = DateTimeFormatter.ISO_DATE
 

@@ -20,9 +20,9 @@ import org.apache.pekko.actor.{ ActorSystem, ClassicActorSystemProvider }
 import org.apache.pekko.stream.{ Materializer, SystemMaterializer }
 import collector.repositories.FormRepository
 import collector.{ APIFormStubs, ITSpec }
-import com.github.tomakehurst.wiremock.client.WireMock._
+import com.github.tomakehurst.wiremock.client.WireMock.{ configureFor, postRequestedFor, urlEqualTo, verify }
 import com.typesafe.config.ConfigFactory
-import org.mongodb.scala.Document
+import org.mongodb.scala.bson.collection.immutable.Document
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{ Millis, Seconds, Span }
 import org.slf4j.{ Logger, LoggerFactory }
@@ -34,19 +34,31 @@ import uk.gov.hmrc.objectstore.client.config.ObjectStoreClientConfig
 import uk.gov.hmrc.objectstore.client.play.PlayObjectStoreClient
 import uk.gov.hmrc.objectstore.client.play.test.stub
 
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.UUID.randomUUID
 import scala.concurrent.Await.ready
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class ScheduledConsolidatorSpec extends ITSpec with Eventually {
+class ManualConsolidatorSpec extends ITSpec with Eventually {
 
   val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  override implicit val patienceConfig = PatienceConfig(Span(50, Seconds), Span(1, Millis))
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
+
+  private val DATE_FORMAT = DateTimeFormatter.ISO_DATE
 
   override def beforeEach(): Unit =
     ready(app.injector.instanceOf[FormRepository].collection.deleteMany(Document()).toFuture(), 5.seconds)
+
+  override def beforeAll(): Unit = {
+    wireMockServer.start()
+    configureFor("localhost", wiremockPort)
+  }
+
+  override def afterAll(): Unit =
+    wireMockServer.stop()
 
   override def fakeApplication(): Application = {
     val configOverride = s"""
@@ -57,10 +69,9 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
                             |            projectId = "some-project-id"
                             |            classificationType = "some-classification-type"
                             |            businessArea = "some-business-area"
-                            |            untilTime = "now"
                             |        }
-                            |        # run every 2 seconds
-                            |        cron = "*/2 * * ? * *"
+                            |        # never run
+                            |        cron = "0 0 0 1 1 ? 2099"
                             |    }
                             | ]
                             |
@@ -84,11 +95,8 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
                             |    }
                             |  }
                             | }
-                            | object-store {
-                            |    enable = true
-                            |    default-retention-period = "6-months"
-                            |    zip-directory = "sdes"
-                            | }
+                            |
+                            | object-store.enable = true
                             |""".stripMargin
     val config =
       Configuration(
@@ -102,7 +110,7 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
     val token = s"token-${randomUUID().toString}"
     val objectStoreConfig = ObjectStoreClientConfig(osBaseUrl, owner, token, OneWeek)
 
-    implicit val system = ActorSystem()
+    implicit val system: ActorSystem = ActorSystem()
 
     implicit def matFromSystem(implicit provider: ClassicActorSystemProvider): Materializer =
       SystemMaterializer(provider.classicSystem).materializer
@@ -115,18 +123,9 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
       .build()
   }
 
-  override def beforeAll(): Unit = {
-    wireMockServer.start()
-    configureFor("localhost", wiremockPort)
-  }
-
-  override def afterAll(): Unit =
-    wireMockServer.stop()
-
-  "consolidator" when {
-    "forms are available for a configured project" should {
-      "run consolidator job to consolidate the forms into a single file and submit the data to DMS using object-store" in {
-
+  "POST - /consolidate with object-store" when {
+    "request is valid" should {
+      "consolidate forms and submit" in {
         wiremockStubs()
         wsClient
           .url(baseUrl + "/form")
@@ -134,7 +133,14 @@ class ScheduledConsolidatorSpec extends ITSpec with Eventually {
           .post(APIFormStubs.validForm)
           .futureValue
 
-        eventually {
+        val future = wsClient
+          .url(
+            baseUrl + s"/consolidate/some-project-id-job/${LocalDate.now().format(DATE_FORMAT)}/${LocalDate.now().format(DATE_FORMAT)}"
+          )
+          .withHttpHeaders("Content-Type" -> "application/json")
+          .post(APIFormStubs.formEmptySubmissionRef)
+
+        whenReady(future) { _ =>
           verify(postRequestedFor(urlEqualTo("/sdes-stub/notification/fileready")))
           verify(postRequestedFor(urlEqualTo("/object-store/object-store/ops/zip")))
         }

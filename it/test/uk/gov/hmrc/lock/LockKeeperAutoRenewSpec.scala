@@ -37,7 +37,7 @@ class LockKeeperAutoRenewSpec extends ITSpec {
 
   val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  override implicit val patienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
 
   var lockRepository: MongoLockRepository = _
 

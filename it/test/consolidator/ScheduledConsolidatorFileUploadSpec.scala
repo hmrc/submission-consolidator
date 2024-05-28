@@ -34,7 +34,7 @@ class ScheduledConsolidatorFileUploadSpec extends ITSpec with Eventually {
 
   val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  override implicit val patienceConfig = PatienceConfig(Span(50, Seconds), Span(1, Millis))
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(50, Seconds), Span(1, Millis))
 
   override def beforeEach(): Unit =
     ready(app.injector.instanceOf[FormRepository].collection.deleteMany(Document()).toFuture(), 5.seconds)

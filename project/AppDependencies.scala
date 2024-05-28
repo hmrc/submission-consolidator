@@ -31,8 +31,7 @@ object AppDependencies {
     "org.mockito"            %% "mockito-scala-scalatest" % "1.17.29"            % Test,
     "org.apache.pekko"       %% "pekko-testkit"           % "1.0.2"              % Test,
     "com.softwaremill.diffx" %% "diffx-scalatest"         % "0.5.6"              % Test,
-    "com.vladsch.flexmark"    % "flexmark-all"            % "0.35.10"            % "test, it",
-    "org.scalatestplus.play" %% "scalatestplus-play"      % "7.0.1"              % "test, it",
-    "com.github.tomakehurst"  % "wiremock-jre8"           % "2.27.1"             % "test, it"
+    "com.vladsch.flexmark"    % "flexmark-all"            % "0.35.10"            % Test,
+    "org.scalatestplus.play" %% "scalatestplus-play"      % "7.0.1"              % Test
   )
 }
