@@ -45,7 +45,7 @@ case class ScheduledFormConsolidatorParams(
   untilTime: UntilTime
 ) extends FormConsolidatorParams {
 
-  @nowarn override def getUntilInstant(currentInstant: Instant): Instant =
+  @nowarn override def getUntilInstant(currentInstant: Instant) =
     untilTime match {
       case UntilTime.now => currentInstant.atZone(ZoneId.systemDefault()).minusSeconds(5).toInstant
       case UntilTime.`previous_day` =>

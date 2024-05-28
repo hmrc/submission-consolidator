@@ -54,7 +54,6 @@ class FormRepository @Inject() (mongo: MongoComponent, config: Configuration)(im
         )
       )
     ) {
-
   val logger: Logger = LoggerFactory.getLogger(getClass)
 
   def addForm(

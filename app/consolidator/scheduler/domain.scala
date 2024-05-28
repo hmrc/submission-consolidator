@@ -22,7 +22,7 @@ import consolidator.services.ConsolidationFormat.ConsolidationFormat
 import consolidator.services.{ ConsolidationFormat, ManualFormConsolidatorParams, ScheduledFormConsolidatorParams }
 import julienrf.json.derived
 import play.api.libs.functional.syntax._
-import play.api.libs.json.{ Format, Json, OFormat, OWrites, __ }
+import play.api.libs.json.{ Format, Json, OFormat, __ }
 
 import java.net.URI
 import java.time.Instant
@@ -40,7 +40,7 @@ case class ConsolidatorJobConfigParam(
     ManualFormConsolidatorParams(projectId, format, destination, startInstant, endInstant)
 }
 object ConsolidatorJobConfigParam {
-  val writes: OWrites[ConsolidatorJobConfigParam] = Json.writes[ConsolidatorJobConfigParam]
+  val writes = Json.writes[ConsolidatorJobConfigParam]
   val reads = (
     (__ \ "projectId").read[String] and
       (__ \ "classificationType").readNullable[String] and

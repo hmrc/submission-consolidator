@@ -74,7 +74,7 @@ case class SdesSubmission(
 )
 
 object SdesSubmission {
-  def createSdesSubmission(envelopeId: String, submissionRef: String, contentLength: Long): SdesSubmission =
+  def createSdesSubmission(envelopeId: String, submissionRef: String, contentLength: Long) =
     SdesSubmission(
       envelopeId,
       submissionRef,
@@ -161,7 +161,7 @@ case class SdesReportData(
 )
 object SdesReportData {
 
-  def createSdesReportData(sdesSubmission: SdesSubmission, jobData: Option[ConsolidatorJobData]): SdesReportData =
+  def createSdesReportData(sdesSubmission: SdesSubmission, jobData: Option[ConsolidatorJobData]) =
     SdesReportData(
       jobData.map(_._id.toString),
       jobData.map(_.startTimestamp),
@@ -175,7 +175,7 @@ object SdesReportData {
       sdesSubmission.lastUpdated
     )
 
-  def fromSdesSubmission(sdesSubmission: SdesSubmission): SdesReportData =
+  def fromSdesSubmission(sdesSubmission: SdesSubmission) =
     SdesReportData(
       None,
       None,

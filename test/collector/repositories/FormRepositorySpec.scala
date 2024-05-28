@@ -21,7 +21,6 @@ import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.scaladsl.Sink
 import org.bson.types.ObjectId
 import org.mockito.MockitoSugar.mock
-import play.api.test.Helpers.{ await, defaultAwaitTimeout }
 import org.mongodb.scala.model.Filters
 import org.scalacheck.Gen
 import org.scalacheck.rng.Seed
@@ -85,8 +84,7 @@ class FormRepositorySpec
 
     "return an DuplicateSubmissionRef error if submissionRef already exists in the forms collection" in {
       val form = genForm.pureApply(Gen.Parameters.default, Seed(1))
-      val value1 = await(repository.addForm(form))
-      assert(value1.isRight)
+      assert(repository.addForm(form).futureValue.isRight)
 
       val duplicateForm = genForm.pureApply(Gen.Parameters.default, Seed(2)).copy(submissionRef = form.submissionRef)
       val future = repository.addForm(duplicateForm)

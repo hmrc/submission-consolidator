@@ -2,7 +2,7 @@ val appName = "submission-consolidator"
 
 lazy val IntegrationTest = config("it") extend (Test)
 
-ThisBuild / majorVersion := 1
+ThisBuild / majorVersion := 0
 ThisBuild / scalaVersion := "2.13.12"
 
 lazy val microservice = Project(appName, file("."))

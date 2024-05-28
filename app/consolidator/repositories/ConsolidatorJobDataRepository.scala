@@ -42,6 +42,7 @@ class ConsolidatorJobDataRepository @Inject() (mongo: MongoComponent)(implicit e
         IndexModel(ascending("envelopeId"), IndexOptions().name("envelopeId"))
       )
     ) {
+  // This is necessary since repository does not have a TTL index
   override lazy val requiresTtlIndex: Boolean = false
 
   val logger: Logger = LoggerFactory.getLogger(getClass)

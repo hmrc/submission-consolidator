@@ -40,7 +40,6 @@ import uk.gov.hmrc.mongo.lock.{ Lock, MongoLockRepository }
 
 import java.nio.file.Files.createDirectories
 import java.nio.file.{ Path, Paths }
-import java.time.Instant
 import java.text.SimpleDateFormat
 import java.util.Date
 import scala.concurrent.Future
@@ -59,6 +58,7 @@ class FormConsolidatorActorSpec
     val mockFileUploaderService = mock[SubmissionService](withSettings.strictness(Strictness.LENIENT))
     val mockConsolidatorJobDataRepository =
       mock[ConsolidatorJobDataRepository](withSettings.strictness(Strictness.LENIENT))
+    val mockLock = mock[Lock](withSettings.strictness(Strictness.LENIENT))
     val mockLockRepository = mock[MongoLockRepository](withSettings.strictness(Strictness.LENIENT))
     val mockMetricsClient = mock[MetricsClient](withSettings.strictness(Strictness.LENIENT))
     val mockDeleteDirService = mock[DeleteDirService](withSettings.strictness(Strictness.LENIENT))
@@ -90,9 +90,7 @@ class FormConsolidatorActorSpec
 
     val messageWithFireTime = MessageWithFireTime(schedulerFormConsolidatorParams, now)
 
-    val newLock = Lock("1", "2", Instant.now(), Instant.now())
-
-    mockLockRepository.takeLock(*, *, *) shouldReturn Future.successful(Some(newLock))
+    mockLockRepository.takeLock(*, *, *) shouldReturn Future.successful(Some(mockLock))
     mockLockRepository.refreshExpiry(*, *, *) shouldReturn Future.successful(true)
     mockLockRepository.releaseLock(*, *) shouldReturn Future.successful(())
 
