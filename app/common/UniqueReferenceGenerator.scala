@@ -33,7 +33,7 @@ class UniqueReferenceGenerator @Inject() (uniqueIdRepository: UniqueIdRepository
   def generate(length: Int): Future[Either[UniqueReferenceGenError, UniqueRef]] =
     uniqueIdRepository
       .insertWithRetries { () =>
-        val uniqueRef = RandomStringUtils.randomAlphanumeric(length)
+        val uniqueRef = RandomStringUtils.secure().nextAlphanumeric(length)
         logger.debug("Validating unique reference " + uniqueRef)
         UniqueId(uniqueRef.toUpperCase)
       }

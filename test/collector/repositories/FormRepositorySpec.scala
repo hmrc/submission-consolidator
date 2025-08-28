@@ -16,7 +16,6 @@
 
 package collector.repositories
 
-import com.softwaremill.diffx.scalatest.DiffMatcher
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.scaladsl.Sink
 import org.bson.types.ObjectId
@@ -43,8 +42,7 @@ import scala.concurrent.Future
 
 class FormRepositorySpec
     extends AnyWordSpec with ScalaCheckDrivenPropertyChecks with Matchers with DataGenerators
-    with DefaultPlayMongoRepositorySupport[Form] with BeforeAndAfterAll with ScalaFutures with BeforeAndAfterEach
-    with DiffMatcher {
+    with DefaultPlayMongoRepositorySupport[Form] with BeforeAndAfterAll with ScalaFutures with BeforeAndAfterEach {
 
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
   implicit val system: ActorSystem = ActorSystem("FormRepositorySpec")
