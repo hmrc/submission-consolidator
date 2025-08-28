@@ -42,7 +42,6 @@ lazy val it = project
   .dependsOn(microservice % "test->test")
   .settings(
     DefaultBuildSettings.itSettings(),
-    resolvers += Resolver.jcenterRepo,
     scalafmtOnCompile := true,
     scalacOptions ++= Seq(
       "-Xfatal-warnings",
