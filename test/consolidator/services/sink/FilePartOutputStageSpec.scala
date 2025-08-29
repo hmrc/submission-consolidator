@@ -20,12 +20,11 @@ import java.io.File
 import java.nio.channels.FileChannel
 import java.nio.file.StandardOpenOption.{ CREATE_NEW, SYNC, TRUNCATE_EXISTING, WRITE }
 import java.nio.file.{ Path, Paths }
-
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.scaladsl.{ Sink, Source }
 import org.apache.pekko.util.ByteString
 import collector.repositories.DataGenerators
-import com.softwaremill.diffx.scalatest.DiffMatcher
+import com.softwaremill.diffx.scalatest.DiffShouldMatcher
 import consolidator.TestHelper._
 import consolidator.services.sink.FilePartOutputStage.IOOperationIncompleteException
 import org.apache.commons.text.StringEscapeUtils
@@ -39,8 +38,8 @@ import org.scalatest.wordspec.AnyWordSpec
 import scala.jdk.CollectionConverters._
 
 class FilePartOutputStageSpec
-    extends AnyWordSpec with DataGenerators with ScalaFutures with Matchers with DiffMatcher with ArgumentMatchersSugar
-    with IdiomaticMockito {
+    extends AnyWordSpec with DataGenerators with ScalaFutures with Matchers with DiffShouldMatcher
+    with ArgumentMatchersSugar with IdiomaticMockito {
 
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(30, Seconds), Span(1, Millis))
 
@@ -79,7 +78,7 @@ class FilePartOutputStageSpec
         result.get.reportFiles shouldNot be(empty)
         result.get.reportFiles.zipWithIndex.foreach { case (file, index) =>
           file.getName shouldBe s"test-$index.ext"
-          fileRows(file) should matchTo(recordRows(records))
+          fileRows(file) shouldMatchTo recordRows(records)
         }
       }
     }

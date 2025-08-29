@@ -16,21 +16,20 @@
 
 package common
 
-import java.io.File
+import com.typesafe.config.Config
 import org.apache.pekko.NotUsed
 import org.apache.pekko.stream.scaladsl.{ FileIO, Source }
 import org.apache.pekko.util.ByteString
-import com.typesafe.config.Config
 import play.api.Configuration
-
-import javax.inject.{ Inject, Singleton }
 import play.api.libs.json.{ Json, Writes }
 import play.api.mvc.MultipartFormData.FilePart
-import uk.gov.hmrc.http.{ HeaderCarrier, HttpReads, HttpResponse, StringContextOps }
-import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.HttpReads.Implicits._
-import uk.gov.hmrc.play.http.logging.Mdc.preservingMdc
+import uk.gov.hmrc.http.client.HttpClientV2
+import uk.gov.hmrc.http.{ HeaderCarrier, HttpReads, HttpResponse, StringContextOps }
+import uk.gov.hmrc.mdc.Mdc.preservingMdc
 
+import java.io.File
+import javax.inject.{ Inject, Singleton }
 import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
