@@ -25,7 +25,6 @@ import common.UniqueReferenceGenerator.UniqueRef
 import common.{ ContentType, Time, UniqueReferenceGenerator }
 import consolidator.IOUtils
 import consolidator.connectors.ObjectStoreConnector
-import consolidator.proxies.ObjectStoreConfig
 import org.slf4j.{ Logger, LoggerFactory }
 import uk.gov.hmrc.objectstore.client.ObjectSummaryWithMd5
 
@@ -40,11 +39,9 @@ import scala.concurrent.ExecutionContext
 class SubmissionService @Inject() (
   uniqueReferenceGenerator: UniqueReferenceGenerator,
   objectStoreConnector: ObjectStoreConnector,
-  sdesService: SdesService,
-  fileUploadService: FileUploadService,
-  objectStoreConfig: ObjectStoreConfig
+  sdesService: SdesService
 )(implicit ec: ExecutionContext)
-    extends IOUtils with FileUploadSettings {
+    extends IOUtils with FileSizeSettings {
 
   private val logger: Logger = LoggerFactory.getLogger(getClass)
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ec)
@@ -69,7 +66,7 @@ class SubmissionService @Inject() (
       )
     assert(reportFileList.nonEmpty, s"Report files should be non-empty")
     logger.info(
-      s"Uploading reports to file-upload service [reportFiles=$reportFiles, params=$params]"
+      s"Uploading reports to object store [reportFiles=$reportFiles, params=$params]"
     )
 
     val groupedReportFiles = reportFileList.foldLeft(List(List[File]())) { case (acc, reportFile) =>
@@ -125,22 +122,18 @@ class SubmissionService @Inject() (
       def notifySDES(envelopeId: String, submissionRef: String, objWithSummary: ObjectSummaryWithMd5) =
         liftIO(sdesService.notifySDES(envelopeId, submissionRef, objWithSummary))
 
-      if (objectStoreConfig.enableObjectStore) {
-        val envelopeId = UniqueIdGenerator.uuidStringGenerator.generate
-        logger.info("Creating envelope " + envelopeId)
+      val envelopeId = UniqueIdGenerator.uuidStringGenerator.generate
+      logger.info("Creating envelope " + envelopeId)
 
-        for {
-          submissionRef <- generateSubmissionRef
-          fileNamePrefix = s"${submissionRef.ref}-${DATE_FORMAT.format(zonedDateTime)}"
-          _             <- uploadMetadata(envelopeId, submissionRef, fileNamePrefix)
-          _             <- uploadIForm(envelopeId, fileNamePrefix)
-          _             <- uploadReports(envelopeId)
-          objectSummary <- zipFiles(envelopeId)
-          _             <- notifySDES(envelopeId, submissionRef.ref, objectSummary)
-        } yield envelopeId
-      } else {
-        fileUploadService.processReportFiles(reportFiles, params, SUBMISSION_REF_LENGTH, zonedDateTime)
-      }
+      for {
+        submissionRef <- generateSubmissionRef
+        fileNamePrefix = s"${submissionRef.ref}-${DATE_FORMAT.format(zonedDateTime)}"
+        _             <- uploadMetadata(envelopeId, submissionRef, fileNamePrefix)
+        _             <- uploadIForm(envelopeId, fileNamePrefix)
+        _             <- uploadReports(envelopeId)
+        objectSummary <- zipFiles(envelopeId)
+        _             <- notifySDES(envelopeId, submissionRef.ref, objectSummary)
+      } yield envelopeId
     }).parSequence
   }
 

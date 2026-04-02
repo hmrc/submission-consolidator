@@ -18,13 +18,11 @@ package consolidator.services
 
 import org.apache.pekko.util.ByteString
 import cats.data.NonEmptyList
-import cats.effect.IO
 import common.UniqueReferenceGenerator.UniqueRef
 import common.{ ContentType, Time, UniqueReferenceGenerator }
 import consolidator.TestHelper.{ createFileInDir, createTmpDir }
 import consolidator.connectors.ObjectStoreConnector
-import consolidator.proxies.ObjectStoreConfig
-import consolidator.scheduler.{ FileUpload, UntilTime }
+import consolidator.scheduler.{ Dms, UntilTime }
 import consolidator.services.MetadataDocumentHelper.buildMetadataDocument
 import org.mockito.ArgumentMatchersSugar
 import org.mockito.quality.Strictness
@@ -42,7 +40,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class SubmissionServiceSpec
-    extends AnyWordSpec with IdiomaticMockito with ArgumentMatchersSugar with Matchers with FileUploadSettings {
+    extends AnyWordSpec with IdiomaticMockito with ArgumentMatchersSugar with Matchers with FileSizeSettings {
   private val DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd")
 
   trait TestFixture {
@@ -57,14 +55,12 @@ class SubmissionServiceSpec
     val schedulerFormConsolidatorParams = ScheduledFormConsolidatorParams(
       projectId,
       ConsolidationFormat.jsonl,
-      FileUpload("some-classification", "some-business-area"),
+      Dms("some-classification", "some-business-area"),
       UntilTime.now
     )
     val mockObjectStoreConnector = mock[ObjectStoreConnector](withSettings.strictness(Strictness.LENIENT))
     val mockUniqueReferenceGenerator = mock[UniqueReferenceGenerator](withSettings.strictness(Strictness.LENIENT))
     val mockSdesService = mock[SdesService](withSettings.strictness(Strictness.LENIENT))
-    val mockFileUploadService = mock[FileUploadService](withSettings.strictness(Strictness.LENIENT))
-    val objectStoreConfig = mock[ObjectStoreConfig](withSettings.strictness(Strictness.LENIENT))
 
     val someSubmissionRef = "some-unique-id"
     val now = Instant.now()
@@ -77,16 +73,12 @@ class SubmissionServiceSpec
     mockObjectStoreConnector.upload(*, *, *, *[ContentType]) shouldReturn Future.successful(Right(()))
     mockObjectStoreConnector.zipFiles(*) shouldReturn Future.successful(Right(objectSummary))
     mockSdesService.notifySDES(*, *, *[ObjectSummaryWithMd5]) shouldReturn Future.successful(Right(()))
-    mockFileUploadService.processReportFiles(*, *, *, *) shouldReturn IO.pure("124")
-    objectStoreConfig.enableObjectStore shouldReturn true
 
     val submissionService =
       new SubmissionService(
         mockUniqueReferenceGenerator,
         mockObjectStoreConnector,
-        mockSdesService,
-        mockFileUploadService,
-        objectStoreConfig
+        mockSdesService
       ) {
         override lazy val maxReportAttachmentsSize = maxReportAttachmentsSizeOverride
       }

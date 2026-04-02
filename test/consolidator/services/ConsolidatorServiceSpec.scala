@@ -22,7 +22,7 @@ import collector.repositories.{ DataGenerators, Form, FormField, FormRepository 
 import common.Time
 import consolidator.TestHelper.excelFileRows
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository, GenericConsolidatorJobDataError }
-import consolidator.scheduler.{ FileUpload, UntilTime }
+import consolidator.scheduler.{ Dms, UntilTime }
 import consolidator.services.ConsolidationFormat.ConsolidationFormat
 import consolidator.services.sink.{ FormCSVFilePartWriter, FormJsonLineFilePartWriter }
 import org.bson.types.ObjectId
@@ -76,7 +76,7 @@ class ConsolidatorServiceSpec
     val classificationType = "some-classification"
     val businessArea = "some-business-area"
     val formConsolidatorParams: ScheduledFormConsolidatorParams =
-      ScheduledFormConsolidatorParams(projectId, format, FileUpload(classificationType, businessArea), UntilTime.now)
+      ScheduledFormConsolidatorParams(projectId, format, Dms(classificationType, businessArea), UntilTime.now)
     lazy val noOfForms = 1
     val now: Instant = Instant.now()
     implicit val timeInstant: Time[Instant] = () => now
@@ -269,7 +269,7 @@ class ConsolidatorServiceSpec
           ManualFormConsolidatorParams(
             projectId,
             format,
-            FileUpload(classificationType, businessArea),
+            Dms(classificationType, businessArea),
             startInstant,
             endInstant
           )

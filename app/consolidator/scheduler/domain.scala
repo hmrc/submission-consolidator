@@ -56,10 +56,10 @@ object ConsolidatorJobConfigParam {
       format,
       untilTime,
       destination match {
-        case None | Some("fileUpload") =>
+        case None | Some("dms") =>
           assert(classificationType.isDefined)
           assert(businessArea.isDefined)
-          FileUpload(classificationType.get, businessArea.get)
+          Dms(classificationType.get, businessArea.get)
         case Some("s3") =>
           assert(s3Endpoint.isDefined)
           assert(bucket.isDefined)
@@ -78,7 +78,7 @@ object ConsolidatorJobConfig {
 
 sealed trait Destination
 
-case class FileUpload(classificationType: String, businessArea: String) extends Destination
+case class Dms(classificationType: String, businessArea: String) extends Destination
 case class S3(s3Endpoint: URI, bucket: String) extends Destination
 
 object Destination {

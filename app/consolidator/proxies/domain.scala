@@ -68,34 +68,3 @@ object CallBackNotification {
     derived.oformat()
   }
 }
-
-case class Metadata(application: String)
-object Metadata {
-  implicit val formats: OFormat[Metadata] = Json.format[Metadata]
-}
-case class Constraints(
-  maxItems: Int,
-  maxSize: String,
-  maxSizePerItem: String,
-  contentTypes: List[String],
-  allowZeroLengthFiles: Boolean
-)
-object Constraints {
-  implicit val formats: OFormat[Constraints] = Json.format[Constraints]
-}
-case class CreateEnvelopeRequest(metadata: Metadata, constraints: Constraints)
-
-object CreateEnvelopeRequest {
-  implicit val formats: OFormat[CreateEnvelopeRequest] = Json.format[CreateEnvelopeRequest]
-}
-
-case class RouteEnvelopeRequest(envelopeId: String, application: String, destination: String)
-object RouteEnvelopeRequest {
-  implicit val formats: OFormat[RouteEnvelopeRequest] = Json.format[RouteEnvelopeRequest]
-}
-
-abstract class FileUploadError(message: String) extends ApplicationError(message)
-object LocationHeaderMissingOrInvalid extends FileUploadError("Location header is missing or invalid")
-case class GenericFileUploadError(message: String) extends FileUploadError(message)
-
-case class FileId(value: String)
