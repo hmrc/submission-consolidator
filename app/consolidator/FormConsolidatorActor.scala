@@ -118,7 +118,7 @@ class FormConsolidatorActor(
     envelopeIds: Option[NonEmptyList[String]]
   ): IO[Unit] = {
     consolidationResult.foreach { cResult =>
-      logger.info(s"Submitted ${cResult.count} forms to file-upload (DMS) for project ${params.projectId}")
+      logger.info(s"Submitted ${cResult.count} forms to object-store for project ${params.projectId}")
     }
     params match {
       case params: ScheduledFormConsolidatorParams =>
