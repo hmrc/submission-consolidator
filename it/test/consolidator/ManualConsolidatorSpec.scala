@@ -95,8 +95,6 @@ class ManualConsolidatorSpec extends ITSpec with Eventually {
                             |    }
                             |  }
                             | }
-                            |
-                            | object-store.enable = true
                             |""".stripMargin
     val config =
       Configuration(

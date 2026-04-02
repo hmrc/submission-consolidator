@@ -76,7 +76,7 @@ class ConsolidatorJobSchedulerSpec
         ScheduledFormConsolidatorParams(
           "some-project-id-1",
           ConsolidationFormat.jsonl,
-          FileUpload("some-classification-type-1", "some-business-area-1"),
+          Dms("some-classification-type-1", "some-business-area-1"),
           UntilTime.now
         )
       )
@@ -84,7 +84,7 @@ class ConsolidatorJobSchedulerSpec
         ScheduledFormConsolidatorParams(
           "some-project-id-2",
           ConsolidationFormat.csv,
-          FileUpload("some-classification-type-2", "some-business-area-2"),
+          Dms("some-classification-type-2", "some-business-area-2"),
           UntilTime.previous_day
         )
       )

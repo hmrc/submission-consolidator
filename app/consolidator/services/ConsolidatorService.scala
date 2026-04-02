@@ -44,7 +44,7 @@ class ConsolidatorService @Inject() (
   consolidatorJobDataRepository: ConsolidatorJobDataRepository,
   config: Configuration
 )(implicit ec: ExecutionContext, system: ActorSystem)
-    extends IOUtils with FileUploadSettings {
+    extends IOUtils with FileSizeSettings {
 
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ec)
   private val batchSize = config.underlying.getInt("consolidator-job-config.batchSize")

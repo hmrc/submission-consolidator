@@ -20,10 +20,8 @@ import common.ContentType
 import consolidator.proxies.{ GenericObjectStoreError, ObjectStoreError, SdesConfig }
 import consolidator.services.ObjectStoreHelper.toSource
 import play.api.Logging
-import play.api.mvc._
 import uk.gov.hmrc.http.{ HeaderCarrier, UpstreamErrorResponse }
 import uk.gov.hmrc.objectstore.client.ObjectSummaryWithMd5
-import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import javax.inject.{ Inject, Singleton }
 import scala.concurrent.{ ExecutionContext, Future }
@@ -36,19 +34,18 @@ import org.apache.pekko.util.ByteString
 @Singleton()
 class ObjectStoreConnector @Inject() (
   objectStoreClient: PlayObjectStoreClient,
-  cc: ControllerComponents,
   sdesConfig: SdesConfig
 )(implicit
   val ec: ExecutionContext,
   system: ActorSystem
-) extends BackendController(cc) with Logging {
+) extends Logging {
 
   private val zipExtension = ".zip"
 
   private def directory(folderName: String): Path.Directory =
     Path.Directory(s"envelopes/$folderName")
 
-  implicit val hc: HeaderCarrier = HeaderCarrier()
+  implicit val headerCarrier: HeaderCarrier = HeaderCarrier()
 
   def upload(
     envelopeId: String,

@@ -25,7 +25,7 @@ import org.apache.pekko.extension.quartz.MessageWithFireTime
 import common.MetricsClient
 import consolidator.FormConsolidatorActor.{ LockUnavailable, OK }
 import consolidator.repositories.{ ConsolidatorJobData, ConsolidatorJobDataRepository }
-import consolidator.scheduler.{ FileUpload, UntilTime }
+import consolidator.scheduler.{ Dms, UntilTime }
 import consolidator.services.ConsolidatorService.ConsolidationResult
 import consolidator.services._
 import org.bson.types.ObjectId
@@ -72,7 +72,7 @@ class FormConsolidatorActorSpec
     val schedulerFormConsolidatorParams = ScheduledFormConsolidatorParams(
       projectId,
       ConsolidationFormat.jsonl,
-      FileUpload("some-classification", "some-business-area"),
+      Dms("some-classification", "some-business-area"),
       UntilTime.now
     )
 
@@ -184,24 +184,24 @@ class FormConsolidatorActorSpec
         }
       }
 
-      "FileUploaderService fails" should {
+      "SubmissionService fails" should {
 
         "return the error message" in new TestFixture {
           mockConsolidatorService.doConsolidation(*, *) shouldReturn IO.pure(
             Option(ConsolidationResult(lastObjectId, 1, reportFiles))
           )
-          mockFileUploaderService.submit(*, *) shouldReturn IO.raiseError(new Exception("file upload error"))
+          mockFileUploaderService.submit(*, *) shouldReturn IO.raiseError(new Exception("submission error"))
           mockDeleteDirService.deleteDir(*) shouldReturn Future.successful(Right(()))
           mockConsolidatorJobDataRepository.add(*)(*) shouldReturn Future.successful(Right(()))
 
           actor ! messageWithFireTime
 
           expectMsgPF() { case t: Throwable =>
-            t.getMessage shouldBe "file upload error"
+            t.getMessage shouldBe "submission error"
             mockConsolidatorService.doConsolidation(reportDir, schedulerFormConsolidatorParams) wasCalled once
             mockFileUploaderService.submit(reportFiles, schedulerFormConsolidatorParams) wasCalled once
             mockDeleteDirService.deleteDir(reportDir) wasCalled once
-            assertConsolidatorData(None, Some("file upload error"), None)
+            assertConsolidatorData(None, Some("submission error"), None)
           }
         }
       }

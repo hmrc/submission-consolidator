@@ -28,7 +28,6 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import play.api.test.Helpers
 import uk.gov.hmrc.objectstore.client.RetentionPeriod.OneWeek
 import uk.gov.hmrc.objectstore.client.config.ObjectStoreClientConfig
 import uk.gov.hmrc.objectstore.client.play.test.stub
@@ -51,7 +50,7 @@ class ObjectStoreConnectorSpec
     val mockSdesConfig = mock[SdesConfig](withSettings.strictness(Strictness.LENIENT))
 
     val objectStoreConnector =
-      new ObjectStoreConnector(objectStoreStub, Helpers.stubControllerComponents(), mockSdesConfig)
+      new ObjectStoreConnector(objectStoreStub, mockSdesConfig)
   }
 
   "upload" should {

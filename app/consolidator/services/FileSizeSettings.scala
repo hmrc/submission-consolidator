@@ -16,7 +16,7 @@
 
 package consolidator.services
 
-trait FileUploadSettings {
+trait FileSizeSettings {
 
   val BYTES_IN_1_KB: Long = 1024
   val BYTES_IN_1_MB: Long = BYTES_IN_1_KB * BYTES_IN_1_KB
