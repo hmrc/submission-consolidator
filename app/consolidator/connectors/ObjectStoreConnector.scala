@@ -48,7 +48,7 @@ class ObjectStoreConnector @Inject() (
   private def directory(folderName: String): Path.Directory =
     Path.Directory(s"envelopes/$folderName")
 
-  implicit val hc: HeaderCarrier = HeaderCarrier()
+  implicit val headerCarrier: HeaderCarrier = HeaderCarrier()
 
   def upload(
     envelopeId: String,
