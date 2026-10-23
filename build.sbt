@@ -5,7 +5,7 @@ val appName = "submission-consolidator"
 lazy val IntegrationTest = config("it") extend (Test)
 
 ThisBuild / majorVersion := 0
-ThisBuild / scalaVersion := "2.13.16"
+ThisBuild / scalaVersion := "2.13.18"
 
 lazy val microservice = Project(appName, file("."))
   .enablePlugins(
@@ -17,6 +17,7 @@ lazy val microservice = Project(appName, file("."))
     PlayKeys.playDefaultPort := 9198,
     scalafmtOnCompile := true,
     libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test,
+    dependencyOverrides ++= AppDependencies.dependencyOverrides,
     scalacOptions ++= Seq(
       "-Xfatal-warnings",
       "-Xlint:-missing-interpolator,-byname-implicit,_",
