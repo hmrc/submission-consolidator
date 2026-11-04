@@ -14,7 +14,7 @@ object AppDependencies {
     "org.typelevel"           %% "cats-effect"                 % "2.2.0-RC3",
     "org.apache.commons"       % "commons-text"                % "1.15.0",
     "org.apache.commons"       % "commons-io"                  % "1.3.2",
-    "org.xhtmlrenderer"        % "flying-saucer-pdf"           % "10.6.0",
+    "org.xhtmlrenderer"        % "flying-saucer-pdf"           % "10.7.0",
     "org.apache.poi"           % "poi-ooxml"                   % "5.5.1",
     "org.julienrf"            %% "play-json-derived-codecs"    % "11.0.0",
     "com.chuusai"             %% "shapeless"                   % "2.3.13",
@@ -47,7 +47,8 @@ object AppDependencies {
   )
 
   val dependencyOverrides = Seq(
-    "com.mchange" % "mchange-commons-java" % "0.6.1",
-    "com.mchange" % "c3p0"                 % "0.14.2"
+    "com.mchange"                % "mchange-commons-java" % "0.6.1",
+    "com.mchange"                % "c3p0"                 % "0.14.2",
+    "com.aayushatharva.brotli4j" % "brotli4j"             % "1.24.0"
   )
 }
